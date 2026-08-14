@@ -1,0 +1,19 @@
+---
+description: Read docs/03 for the route first. Five states. FilterBar contract. Section 6 is the definition of done.
+globs: apps/web/**
+alwaysApply: false
+---
+
+# Screens
+
+Read the matching section of `docs/03_MODULES_AND_SCREENS.md` before writing a page. Copy heading, columns, filter defaults, empty-state wording and row actions from it. Do not add a column it does not list.
+
+Pages are Server Components. `'use client'` only for FilterBar, DataTable pager, HeaderToggles, forms, ConfirmDialog.
+
+FilterBar always has Apply, Clear, Reload, in that order. Reload is `router.refresh()`, not a full page reload. Clear restores the documented default status.
+
+Every screen has Loading, Empty, Error, Success and Forbidden. A missing empty state is a bug.
+
+Interim look: Tailwind `zinc` chrome only, no gradients, no new CSS files, no hex in a page. `docs/09_FRONTEND.md` section 5.
+
+A screen is not done until `docs/03_MODULES_AND_SCREENS.md` section 6 is true.

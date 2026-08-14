@@ -1,0 +1,23 @@
+---
+description: Screens compose the named shared components. Extend them; never fork a table into a page.
+globs: apps/web/**
+alwaysApply: false
+---
+
+# Shared components
+
+`docs/09_FRONTEND.md` section 2 is the file map. `docs/03_MODULES_AND_SCREENS.md` section 2.2 is the behaviour.
+
+```text
+components/layout/     AppShell, Navigation, HeaderToggles
+components/ui/         DataTable, FilterBar, StatusBadge, DirectionBadge,
+                       ConfirmDialog, ExportButton, EmptyState, StatCard
+components/forms/      FormShell, MoneyInput, RateInput, InlineCreatePanel,
+                       ScopePicker, MenuAccessPicker, ModuleMultiSelect
+```
+
+A hand-rolled table, filter bar, money input, status badge, pagination control or empty state inside a feature folder is a review rejection.
+
+If a shared component cannot express what the screen needs, extend that component. Do not fork it into the page, and do not add Shadcn to paper over the gap.
+
+If the shared component does not exist yet, create it in the folder above first, then the page.

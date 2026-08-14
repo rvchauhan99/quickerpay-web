@@ -1,0 +1,17 @@
+---
+description: Money and rates on screen are _minor and _bp. Masking is server-side. Never divide by 100 in a page.
+globs: apps/web/**
+alwaysApply: false
+---
+
+# Money on screen
+
+Money arrives as a JSON integer in a field ending `_minor` and renders through `MoneyDisplay`, which wraps `@quickerpay/money`. Rates arrive as `_bp` and render through `RateInput` / the shared rate formatter.
+
+A screen never divides by 100, never calls `toFixed`, and never parses a rupee string. `MoneyInput` collects rupees and converts once before submit.
+
+Masking is server-side. A field ending `_masked` arrives already redacted. Never fetch a full account number and hide it with CSS, `type="password"`, or truncation.
+
+`ExportButton` is disabled on an empty result, not hidden. `ConfirmDialog` wraps every destructive or financial action.
+
+Details: `docs/08_ARCHITECTURE.md` section 3.7 and `docs/03_MODULES_AND_SCREENS.md` section 2.5.

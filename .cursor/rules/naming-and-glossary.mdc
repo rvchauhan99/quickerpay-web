@@ -1,0 +1,54 @@
+---
+description: QuickerPay glossary and banned words. Applies to every file.
+alwaysApply: true
+---
+
+# Naming
+
+`docs/` is the specification and it wins every argument. Read the module's section in `docs/03_MODULES_AND_SCREENS.md` before designing a screen; screens are specified column by column, including default filters.
+
+## The vocabulary
+
+| Term | Means |
+| --- | --- |
+| Platform Owner | Runs QuickerPay itself, sells to Tenants, sees no tenant financial data |
+| Tenant | One customer of QuickerPay, one isolated database |
+| Super Admin | Owns a Tenant |
+| Admin | Holds banking inside a Tenant, earns commission |
+| Operator | Works a subset of an Admin's banking |
+| Auditor | Read-only across the Tenant |
+| Merchant | The Super Admin's customer, sends and receives money |
+
+There is no nesting. A Tenant cannot contain a Tenant, and an Admin cannot contain an Admin.
+
+## Banned words
+
+Each of these names a concept this product deliberately does not have. Using one is a bug, not a style choice.
+
+```text
+Provider, P2P Provider, Agency        -> Tenant
+Agency Admin, Banker                  -> Admin
+Agency Super Admin                    -> Super Admin
+Platform Super Admin                  -> Platform Owner
+Master Agency, Sub Agency, Nested     -> do not exist
+Wallet                                -> does not exist, balances derive from the ledger
+client                                -> Tenant, or Merchant
+provider_id                           -> tenant_id, or owner_user_id inside a tenant
+bank_id                               -> bank_account_id
+VISIONPAY_CONFIG                      -> QUICKERPAY_CONFIG
+bankerCode                            -> username
+bankerUPI, banker_UPI                 -> upiAddress
+VisonPay, VisionPay                   -> QuickerPay
+```
+
+`BOT` is not banned. It is the label the UTR Entries screen renders for an extension-created row, derived from `utr_entries.source`, never stored as a username.
+
+## Field name suffixes
+
+These suffixes are load-bearing. A money field without `_minor` and a rate without `_bp` will eventually be read as rupees or as a percentage by someone in a hurry.
+
+- `_minor` — integer minor units, paise, `BIGINT`
+- `_bp` — integer basis points, 3.5% is `350`
+- `_masked` — already redacted server-side, safe to display
+- `_at` — `TIMESTAMPTZ`
+- `_by` — a `users.id`, the actor
