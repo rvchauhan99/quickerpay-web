@@ -85,6 +85,60 @@ export const TRANSACTION_TYPES = [
 ] as const
 export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 
+export const PAYIN_STATUSES = [
+  'CREATED',
+  'PENDING',
+  'ASSIGNED',
+  'IN_PROCESS',
+  'PAYMENT_RECEIVED',
+  'UNDER_REVIEW',
+  'SUCCESS',
+  'FAILED',
+  'EXPIRED',
+  'CANCELLED',
+  'REFUNDED',
+  'DISPUTED',
+] as const
+export type PayinStatus = (typeof PAYIN_STATUSES)[number]
+
+export const PAYOUT_STATUSES = [
+  'CREATED',
+  'PENDING',
+  'ASSIGNED',
+  'IN_PROCESS',
+  'PROCESSING',
+  'SUCCESS',
+  'FAILED',
+  'REJECTED',
+  'CANCELLED',
+  'EXPIRED',
+  'REFUNDED',
+] as const
+export type PayoutStatus = (typeof PAYOUT_STATUSES)[number]
+
+export const TRANSFER_TYPES = [
+  'ADMIN_TO_ADMIN',
+  'ADMIN_TO_SUPER_ADMIN',
+  'SUPER_ADMIN_TO_ADMIN',
+  'SELF_TRANSFER',
+] as const
+export type TransferType = (typeof TRANSFER_TYPES)[number]
+
+export const INTER_TRANSFER_STATUSES = [
+  'CREATED',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'PROCESSING',
+  'COMPLETED',
+  'FAILED',
+  'REJECTED',
+  'CANCELLED',
+] as const
+export type InterTransferStatus = (typeof INTER_TRANSFER_STATUSES)[number]
+
+export const MERCHANT_STATUSES = ['PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED'] as const
+export type MerchantStatus = (typeof MERCHANT_STATUSES)[number]
+
 /** Reference prefixes per type, from docs/03_MODULES_AND_SCREENS.md section 4.20. */
 export const REFERENCE_PREFIX = {
   PAYIN: 'TXN',
@@ -118,6 +172,12 @@ export type BankingStatus = (typeof BANKING_STATUSES)[number]
 
 /** Banking statuses eligible for routing, assignment, pay-out source or transfer. Rule R11. */
 export const TRANSACTABLE_BANKING_STATUSES = ['ACTIVE'] as const
+
+export const BANK_ACCOUNT_TYPES = ['CURRENT', 'SAVINGS', 'OTHER'] as const
+export type BankAccountType = (typeof BANK_ACCOUNT_TYPES)[number]
+
+export const BANK_PURPOSES = ['COLLECTION', 'DISTRIBUTION', 'BOTH'] as const
+export type BankPurpose = (typeof BANK_PURPOSES)[number]
 
 export const LEDGER_DIRECTIONS = ['DEBIT', 'CREDIT'] as const
 export type LedgerDirection = (typeof LEDGER_DIRECTIONS)[number]
