@@ -54,6 +54,9 @@ export default function UpiPage() {
   }, [ready, allowed, load])
 
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
+  const ownerOptions = user
+    ? [{ id: user.id, username: user.username }, ...admins.filter((row) => row.id !== user.id)]
+    : admins
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -76,7 +79,7 @@ export default function UpiPage() {
         </FormField>
         {isSuperAdmin ? (
           <SuperAdminDirectoryFilters
-            admins={admins}
+            admins={ownerOptions}
             merchants={merchants}
             adminId={filters.owner_user_id}
             onAdminChange={(value) => void setFilters({ owner_user_id: value, page: 1 })}

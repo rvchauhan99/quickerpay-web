@@ -5,13 +5,14 @@
  * Money is integer paise named `_minor`.
  */
 
-import type { BankAccountType, BankingStatus, BankPurpose } from './domain'
+import type { BankAccountType, BankingStatus, BankPurpose, UserRole } from './domain'
 
 export interface BankAccountListItem {
   id: string
   owner_user_id: string
   owner_username: string
   owner_display_name: string
+  owner_role: UserRole
   label: string
   bank_name: string | null
   account_holder: string | null

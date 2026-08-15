@@ -28,7 +28,7 @@ export function useSuperAdminDirectory(accessToken: string | null, role: string 
 }
 
 export function SuperAdminDirectoryFilters(props: {
-  admins: UserListItem[]
+  admins: { id: string; username: string }[]
   merchants: MerchantListItem[]
   adminId?: string
   merchantId?: string

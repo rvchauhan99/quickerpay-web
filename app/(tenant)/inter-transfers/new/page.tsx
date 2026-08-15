@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { BankAccountListItem, TransferType } from '@quickerpay/shared-types'
 import { TRANSFER_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
@@ -14,8 +14,37 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
-import { apiRequest, ApiClientError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { hasMenu, useSession } from '@/lib/session'
+
+function bankLabel(row: BankAccountListItem) {
+  return `${row.owner_display_name} - ${row.bank_name ?? row.label} ${row.account_number_masked ?? ''}`
+}
+
+function sourceBanks(rows: BankAccountListItem[], transferType: TransferType) {
+  if (transferType === 'ADMIN_TO_ADMIN' || transferType === 'ADMIN_TO_SUPER_ADMIN') {
+    return rows.filter((row) => row.owner_role === 'ADMIN')
+  }
+  if (transferType === 'SUPER_ADMIN_TO_ADMIN') {
+    return rows.filter((row) => row.owner_role === 'SUPER_ADMIN')
+  }
+  return rows
+}
+
+function destinationBanks(rows: BankAccountListItem[], transferType: TransferType, source: BankAccountListItem | undefined) {
+  if (transferType === 'ADMIN_TO_ADMIN') {
+    return rows.filter(
+      (row) => row.owner_role === 'ADMIN' && (!source || row.owner_user_id !== source.owner_user_id),
+    )
+  }
+  if (transferType === 'ADMIN_TO_SUPER_ADMIN') {
+    return rows.filter((row) => row.owner_role === 'SUPER_ADMIN')
+  }
+  if (transferType === 'SUPER_ADMIN_TO_ADMIN') {
+    return rows.filter((row) => row.owner_role === 'ADMIN')
+  }
+  return rows.filter((row) => source && row.owner_user_id === source.owner_user_id && row.id !== source.id)
+}
 
 export default function NewInterTransferPage() {
   const router = useRouter()
@@ -37,13 +66,37 @@ export default function NewInterTransferPage() {
     }
     if (user.role !== 'SUPER_ADMIN' || !hasMenu(menus, 'INTER_TRANSFER', 'can_create')) return
     if (!accessToken) return
-    void apiRequest<BankAccountListItem[]>('/api/v1/bank-accounts?page_size=100', { token: accessToken }).then(setBanks)
+    void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100&status=ACTIVE', { token: accessToken })
+      .then((result) => setBanks(result.items))
+      .catch((caught) => {
+        setError(caught instanceof ApiClientError ? caught.message : 'Could not load bank accounts')
+      })
   }, [ready, user, menus, accessToken, router])
+
+  const sourceOptions = useMemo(() => sourceBanks(banks, transferType), [banks, transferType])
+  const source = sourceOptions.find((row) => row.id === sourceId)
+  const destOptions = useMemo(
+    () => destinationBanks(banks, transferType, source),
+    [banks, transferType, source],
+  )
 
   if (!ready) return <p className="p-4 text-sm text-zinc-500">Loading</p>
   if (!user) return null
   if (user.role !== 'SUPER_ADMIN' || !hasMenu(menus, 'INTER_TRANSFER', 'can_create')) {
     return <ForbiddenPage permission="INTER_TRANSFER.can_create" />
+  }
+
+  const handleTransferTypeChange = (next: TransferType) => {
+    setTransferType(next)
+    setSourceId('')
+    setDestId('')
+  }
+
+  const handleSourceChange = (nextId: string) => {
+    setSourceId(nextId)
+    const nextSource = sourceOptions.find((row) => row.id === nextId)
+    const allowedDest = destinationBanks(banks, transferType, nextSource)
+    if (!allowedDest.some((row) => row.id === destId)) setDestId('')
   }
 
   const handleSubmit = async () => {
@@ -69,9 +122,6 @@ export default function NewInterTransferPage() {
     }
   }
 
-  const bankLabel = (row: BankAccountListItem) =>
-    `${row.owner_display_name} - ${row.bank_name ?? row.label} ${row.account_number_masked ?? ''}`
-
   return (
     <AppShell title="Create transfer" role={user.role} menus={menus}>
       <PageHeader title="Create Inter-Transfer" />
@@ -90,7 +140,7 @@ export default function NewInterTransferPage() {
                         type="radio"
                         name="transfer_type"
                         checked={transferType === type}
-                        onChange={() => setTransferType(type)}
+                        onChange={() => handleTransferTypeChange(type)}
                       />
                       {type.replaceAll('_', ' ')}
                     </label>
@@ -100,9 +150,9 @@ export default function NewInterTransferPage() {
             </div>
 
             <FormField label="Source account" required>
-              <Select required value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
+              <Select required value={sourceId} onChange={(event) => handleSourceChange(event.target.value)} aria-label="Source account">
                 <option value="">Select</option>
-                {banks.map((row) => (
+                {sourceOptions.map((row) => (
                   <option key={row.id} value={row.id}>
                     {bankLabel(row)}
                   </option>
@@ -111,9 +161,9 @@ export default function NewInterTransferPage() {
             </FormField>
 
             <FormField label="Destination account" required>
-              <Select required value={destId} onChange={(e) => setDestId(e.target.value)}>
+              <Select required value={destId} onChange={(event) => setDestId(event.target.value)} aria-label="Destination account">
                 <option value="">Select</option>
-                {banks.map((row) => (
+                {destOptions.map((row) => (
                   <option key={row.id} value={row.id}>
                     {bankLabel(row)}
                   </option>
@@ -130,10 +180,10 @@ export default function NewInterTransferPage() {
         <FormSection title="Additional Information" description="Optional reference and remark.">
           <FormGrid>
             <FormField label="Reference">
-              <Input value={reference} onChange={(e) => setReference(e.target.value)} />
+              <Input value={reference} onChange={(event) => setReference(event.target.value)} />
             </FormField>
             <FormField label="Remark">
-              <Input value={remark} onChange={(e) => setRemark(e.target.value)} />
+              <Input value={remark} onChange={(event) => setRemark(event.target.value)} />
             </FormField>
           </FormGrid>
         </FormSection>
