@@ -64,15 +64,42 @@ export default function TransactionsPage() {
   return (
     <AppShell title="Transactions" role={user.role} menus={menus}>
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', page: 1 })} onReload={() => void load()}>
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
-        <select className="h-7 rounded border border-zinc-300 text-xs" value={filters.type} onChange={(event) => void setFilters({ type: event.target.value })} aria-label="Type">
+        <input
+          className="h-8 rounded-lg border px-2 text-xs"
+          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+          type="date"
+          value={filters.date_from}
+          onChange={(event) => void setFilters({ date_from: event.target.value })}
+          aria-label="Start Date"
+        />
+        <input
+          className="h-8 rounded-lg border px-2 text-xs"
+          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+          type="date"
+          value={filters.date_to}
+          onChange={(event) => void setFilters({ date_to: event.target.value })}
+          aria-label="End Date"
+        />
+        <select
+          className="h-8 rounded-lg border px-2 text-xs"
+          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+          value={filters.type}
+          onChange={(event) => void setFilters({ type: event.target.value })}
+          aria-label="Type"
+        >
           <option value="">All types</option>
           {TRANSACTION_TYPES.map((type) => (
             <option key={type} value={type}>{type}</option>
           ))}
         </select>
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="Gateway Ref. No / UTR" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
+        <input
+          className="h-8 rounded-lg border px-2 text-xs"
+          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+          placeholder="Gateway Ref. No / UTR"
+          value={filters.q}
+          onChange={(event) => void setFilters({ q: event.target.value })}
+          aria-label="Search"
+        />
         <ExportButton
           disabled={rows.length === 0}
           canExport={hasMenu(menus, 'TRANSACTIONS', 'can_export')}

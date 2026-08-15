@@ -1,5 +1,6 @@
 'use client'
 
+/* ─── FilterBar ─────────────────────────────────────────────────────────────── */
 export function FilterBar({
   onApply,
   onClear,
@@ -13,38 +14,71 @@ export function FilterBar({
 }) {
   return (
     <form
-      className="mb-2 flex flex-wrap items-end gap-1.5"
+      className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border px-4 py-3"
+      style={{
+        backgroundColor: 'var(--qp-card)',
+        borderColor: 'var(--qp-border)',
+        boxShadow: 'var(--qp-shadow-sm)',
+      }}
       onSubmit={(event) => {
         event.preventDefault()
         onApply()
       }}
     >
       {children}
-      <button type="submit" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white">
-        Apply
-      </button>
-      <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={onClear}>
-        Clear
-      </button>
-      <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={onReload}>
-        Reload
-      </button>
+      <div className="flex items-center gap-1.5 ml-auto">
+        <button
+          type="submit"
+          className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition-all duration-150"
+          style={{ backgroundColor: 'var(--qp-primary)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary-dark)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary)' }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          Apply
+        </button>
+        <button
+          type="button"
+          className="flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-all duration-150"
+          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+          onClick={onClear}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-150"
+          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-muted)', backgroundColor: '#fff' }}
+          onClick={onReload}
+          title="Reload"
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+        </button>
+      </div>
     </form>
   )
 }
 
-export function EmptyState({ message, onClear }: { message: string; onClear?: () => void }) {
-  return (
-    <div className="rounded border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-600">
-      <p>{message}</p>
-      {onClear ? (
-        <button type="button" className="mt-2 text-xs underline" onClick={onClear}>
-          Clear filters
-        </button>
-      ) : null}
-    </div>
-  )
-}
+/* ─── StatCard ──────────────────────────────────────────────────────────────── */
+const STAT_BORDER_COLORS = [
+  'var(--qp-primary)',
+  '#0891b2',
+  '#7c3aed',
+  '#d97706',
+  '#dc2626',
+  '#0d9488',
+  '#db2777',
+  '#2563eb',
+]
+let _statCardCounter = 0
 
 export function StatCard({
   label,
@@ -55,22 +89,55 @@ export function StatCard({
   href?: string
   children: React.ReactNode
 }) {
+  const borderColor = STAT_BORDER_COLORS[_statCardCounter++ % STAT_BORDER_COLORS.length]
   const inner = (
-    <>
-      <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
-      <div className="text-sm font-medium tabular-nums">{children}</div>
-    </>
+    <div className="flex flex-col gap-0.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>
+        {label}
+      </p>
+      <div className="text-xl font-bold qp-tabular" style={{ color: 'var(--qp-text-primary)' }}>
+        {children}
+      </div>
+    </div>
   )
+
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: 'var(--qp-card)',
+    borderColor: 'var(--qp-border)',
+    borderLeftColor: borderColor,
+    borderLeftWidth: '4px',
+    boxShadow: 'var(--qp-shadow-sm)',
+    transition: 'box-shadow 0.15s ease, transform 0.15s ease',
+  }
+
   if (href) {
     return (
-      <a href={href} className="block rounded border border-zinc-200 bg-white px-2 py-1.5 hover:border-zinc-400">
+      <a
+        href={href}
+        className="block rounded-xl border p-4"
+        style={cardStyle}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = 'var(--qp-shadow-md)'
+          e.currentTarget.style.transform = 'translateY(-1px)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = 'var(--qp-shadow-sm)'
+          e.currentTarget.style.transform = 'translateY(0)'
+        }}
+      >
         {inner}
       </a>
     )
   }
-  return <div className="rounded border border-zinc-200 bg-white px-2 py-1.5">{inner}</div>
+
+  return (
+    <div className="rounded-xl border p-4" style={cardStyle}>
+      {inner}
+    </div>
+  )
 }
 
+/* ─── DataTable ─────────────────────────────────────────────────────────────── */
 export function DataTable({
   columns,
   rows,
@@ -87,86 +154,174 @@ export function DataTable({
   onPageSize?: ((size: number) => void) | undefined
 }) {
   if (rows.length === 0) return <>{empty}</>
+
   const start = pagination ? (pagination.page - 1) * pagination.page_size + 1 : 1
   const end = pagination ? Math.min(pagination.page * pagination.page_size, pagination.total) : rows.length
   const lastPage = pagination ? Math.max(1, Math.ceil(pagination.total / pagination.page_size)) : 1
+
   return (
-    <div>
-      <div className="overflow-x-auto rounded border border-zinc-200 bg-white">
-        <table className="min-w-full text-left text-xs">
-          <thead className="bg-zinc-50 text-zinc-600">
+    <div
+      className="rounded-xl border overflow-hidden"
+      style={{ backgroundColor: 'var(--qp-card)', borderColor: 'var(--qp-border)', boxShadow: 'var(--qp-shadow-sm)' }}
+    >
+      <div className="overflow-x-auto">
+        <table className="qp-table">
+          <thead>
             <tr>
-              {columns.map((column) => (
-                <th key={column.key} className="px-2 py-1 font-medium">
-                  {column.heading}
-                </th>
+              {columns.map((col) => (
+                <th key={col.key}>{col.heading}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, index) => (
-              <tr key={index} className={`border-t border-zinc-100 ${row._rowClass ?? ''}`}>
-                {columns.map((column) => (
-                  <td key={column.key} className="px-2 py-1 align-top">
-                    {row[column.key]}
-                  </td>
+              <tr key={index} className={row._rowClass ?? ''}>
+                {columns.map((col) => (
+                  <td key={col.key} className="qp-tabular">{row[col.key]}</td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
       {pagination && onPage ? (
-        <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-600">
-          <select
-            className="h-6 rounded border border-zinc-300"
-            aria-label="Page size"
-            value={pagination.page_size}
-            onChange={(event) => onPageSize?.(Number(event.target.value))}
-          >
-            {[10, 25, 50, 100].map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-          <span>
-            {pagination.total === 0 ? '0-0 of 0' : `${start}-${end} of ${pagination.total}`}
-          </span>
-          <button type="button" className="underline disabled:no-underline disabled:text-zinc-300" disabled={pagination.page <= 1} onClick={() => onPage(pagination.page - 1)}>
-            Prev
-          </button>
-          <button type="button" className="underline disabled:no-underline disabled:text-zinc-300" disabled={pagination.page >= lastPage} onClick={() => onPage(pagination.page + 1)}>
-            Next
-          </button>
+        <div
+          className="flex items-center justify-between px-4 py-2.5"
+          style={{ borderTop: '1px solid var(--qp-border)', backgroundColor: '#fafafa' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>Rows:</span>
+            <select
+              className="h-7 rounded-md border px-2 text-xs font-medium"
+              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+              aria-label="Page size"
+              value={pagination.page_size}
+              onChange={(e) => onPageSize?.(Number(e.target.value))}
+            >
+              {[10, 25, 50, 100].map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+              {pagination.total === 0 ? '0' : `${start}–${end}`} of {pagination.total}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={pagination.page <= 1}
+                onClick={() => onPage(pagination.page - 1)}
+                className="flex h-7 w-7 items-center justify-center rounded-md border text-xs transition-colors disabled:opacity-40"
+                style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+              >
+                ‹
+              </button>
+              <span
+                className="flex h-7 min-w-[28px] items-center justify-center rounded-md px-2 text-xs font-semibold"
+                style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}
+              >
+                {pagination.page}
+              </span>
+              <button
+                type="button"
+                disabled={pagination.page >= lastPage}
+                onClick={() => onPage(pagination.page + 1)}
+                className="flex h-7 w-7 items-center justify-center rounded-md border text-xs transition-colors disabled:opacity-40"
+                style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+              >
+                ›
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
   )
 }
 
+/* ─── TableSkeleton ─────────────────────────────────────────────────────────── */
 export function TableSkeleton() {
   return (
-    <div className="animate-pulse space-y-1 rounded border border-zinc-200 bg-white p-2">
-      <div className="h-4 bg-zinc-100" />
-      <div className="h-4 bg-zinc-100" />
-      <div className="h-4 bg-zinc-100" />
+    <div
+      className="rounded-xl border p-4 space-y-3"
+      style={{ backgroundColor: 'var(--qp-card)', borderColor: 'var(--qp-border)', boxShadow: 'var(--qp-shadow-sm)' }}
+    >
+      <div className="h-9 rounded-lg qp-shimmer w-full" />
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="h-10 rounded-lg qp-shimmer" style={{ opacity: 1 - i * 0.12 }} />
+      ))}
     </div>
   )
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const tone =
-    status === 'SUCCESS' || status === 'COMPLETED' || status === 'ACTIVE' || status === 'VERIFIED'
-      ? 'bg-emerald-100 text-emerald-800'
-      : status === 'FAILED' || status === 'REJECTED' || status === 'CANCELLED' || status === 'DISABLED'
-        ? 'bg-red-100 text-red-800'
-        : status === 'PENDING_APPROVAL' || status === 'PENDING' || status === 'UNMATCHED'
-          ? 'bg-amber-100 text-amber-800'
-          : 'bg-zinc-100 text-zinc-700'
-  return <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${tone}`}>{status.replaceAll('_', ' ')}</span>
+/* ─── EmptyState ────────────────────────────────────────────────────────────── */
+export function EmptyState({ message, onClear }: { message: string; onClear?: () => void }) {
+  return (
+    <div
+      className="flex flex-col items-center justify-center rounded-xl border py-12 px-4 text-center"
+      style={{ backgroundColor: 'var(--qp-card)', borderColor: 'var(--qp-border)', borderStyle: 'dashed' }}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--qp-text-muted)', marginBottom: '12px' }}>
+        <path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+      </svg>
+      <p className="text-sm font-medium" style={{ color: 'var(--qp-text-secondary)' }}>{message}</p>
+      {onClear ? (
+        <button
+          type="button"
+          className="mt-3 text-xs font-medium underline transition-colors"
+          style={{ color: 'var(--qp-primary)' }}
+          onClick={onClear}
+        >
+          Clear filters
+        </button>
+      ) : null}
+    </div>
+  )
 }
 
+/* ─── StatusBadge ───────────────────────────────────────────────────────────── */
+export function StatusBadge({ status }: { status: string }) {
+  let dotColor: string
+  let bgColor: string
+  let textColor: string
+
+  const s = status.toUpperCase()
+  if (s === 'SUCCESS' || s === 'COMPLETED' || s === 'ACTIVE' || s === 'VERIFIED' || s === 'ONLINE') {
+    dotColor = 'var(--qp-success)'
+    bgColor = 'var(--qp-success-bg)'
+    textColor = '#065f46'
+  } else if (s === 'FAILED' || s === 'REJECTED' || s === 'CANCELLED' || s === 'DISABLED' || s === 'CLOSED') {
+    dotColor = 'var(--qp-danger)'
+    bgColor = 'var(--qp-danger-bg)'
+    textColor = '#991b1b'
+  } else if (s === 'PENDING_APPROVAL' || s === 'PENDING' || s === 'UNMATCHED' || s === 'OFFLINE') {
+    dotColor = 'var(--qp-warning)'
+    bgColor = 'var(--qp-warning-bg)'
+    textColor = '#92400e'
+  } else if (s === 'PROCESSING' || s === 'IN_PROGRESS' || s === 'ASSIGNED') {
+    dotColor = 'var(--qp-info)'
+    bgColor = 'var(--qp-info-bg)'
+    textColor = '#155e75'
+  } else {
+    dotColor = 'var(--qp-text-muted)'
+    bgColor = '#f1f5f9'
+    textColor = 'var(--qp-text-secondary)'
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+      style={{ backgroundColor: bgColor, color: textColor }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dotColor }} />
+      {status.replaceAll('_', ' ')}
+    </span>
+  )
+}
+
+/* ─── ExportButton ──────────────────────────────────────────────────────────── */
 export function ExportButton({
   disabled,
   canExport = true,
@@ -180,19 +335,42 @@ export function ExportButton({
     if (!onExport) return
     void onExport()
   }
+  const isDisabled = disabled || !canExport || !onExport
   return (
     <button
       type="button"
-      disabled={disabled || !canExport || !onExport}
+      disabled={isDisabled}
       onClick={handleClick}
-      className="h-7 rounded border border-zinc-300 px-2 text-xs disabled:text-zinc-400"
+      className="flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-all duration-150"
+      style={{
+        borderColor: 'var(--qp-border)',
+        color: isDisabled ? 'var(--qp-text-muted)' : 'var(--qp-text-secondary)',
+        backgroundColor: '#fff',
+        opacity: isDisabled ? 0.6 : 1,
+        cursor: isDisabled ? 'not-allowed' : 'pointer',
+      }}
     >
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
       Export Excel
     </button>
   )
 }
 
+/* ─── DirectionBadge ────────────────────────────────────────────────────────── */
 export function Toast({ message }: { message: string | null }) {
   if (!message) return null
-  return <p className="mb-2 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-800">{message}</p>
+  return (
+    <div
+      className="mb-3 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium"
+      style={{ backgroundColor: 'var(--qp-success-bg)', borderColor: 'var(--qp-success-border)', color: '#065f46' }}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      {message}
+    </div>
+  )
 }
+

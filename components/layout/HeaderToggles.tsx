@@ -4,6 +4,56 @@ import { useState } from 'react'
 import { apiRequest } from '@/lib/api'
 import { useSession } from '@/lib/session'
 
+/* ─── Toggle chip: pill-style with coloured dot indicator ─────────────────── */
+function ToggleChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150"
+      style={{
+        borderColor: active ? 'var(--qp-primary)' : 'var(--qp-border)',
+        backgroundColor: active ? 'var(--qp-primary-light)' : '#ffffff',
+        color: active ? 'var(--qp-primary-dark)' : 'var(--qp-text-secondary)',
+      }}
+    >
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: active ? 'var(--qp-primary)' : '#cbd5e1' }}
+      />
+      {label}: <span className="font-semibold">{active ? 'ON' : 'OFF'}</span>
+    </button>
+  )
+}
+
+/* ─── User avatar with initials ───────────────────────────────────────────── */
+function UserAvatar({ name }: { name: string }) {
+  const initials = name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+
+  return (
+    <div
+      className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white"
+      style={{ backgroundColor: 'var(--qp-sidebar-active)' }}
+    >
+      {initials}
+    </div>
+  )
+}
+
+/* ─── HeaderToggles ───────────────────────────────────────────────────────── */
 export function HeaderToggles() {
   const { user, accessToken, logout, refreshUser } = useSession()
   const [error, setError] = useState<string | null>(null)
@@ -39,40 +89,77 @@ export function HeaderToggles() {
       })
       await refreshUser()
     } catch {
-      setError('Online could not be updated')
+      setError('Online status could not be updated')
     }
   }
 
   return (
-    <div className="flex items-center gap-3 text-xs">
-      {error ? <span className="text-red-700">{error}</span> : null}
-      {showAutoAccept ? (
-        <button
-          type="button"
-          className="rounded border border-zinc-300 px-2 py-0.5"
-          aria-label="Auto Accept"
-          onClick={() => void handleAutoAccept()}
+    <div className="flex items-center gap-2">
+      {error ? (
+        <span
+          className="rounded-md px-2 py-1 text-[11px] font-medium"
+          style={{ backgroundColor: 'var(--qp-danger-bg)', color: 'var(--qp-danger)' }}
         >
-          Auto Accept [{user.auto_accept_enabled ? 'ON' : 'OFF'}]
-        </button>
+          {error}
+        </span>
+      ) : null}
+
+      {/* Status toggles */}
+      {showAutoAccept ? (
+        <ToggleChip
+          label="Auto Accept"
+          active={user.auto_accept_enabled}
+          onClick={() => void handleAutoAccept()}
+        />
       ) : null}
       {showOnline ? (
-        <button
-          type="button"
-          className="rounded border border-zinc-300 px-2 py-0.5"
-          aria-label="Online"
+        <ToggleChip
+          label="Online"
+          active={user.operational_state === 'ONLINE'}
           onClick={() => void handleOnline()}
-        >
-          Online [{user.operational_state === 'ONLINE' ? 'ON' : 'OFF'}]
-        </button>
+        />
       ) : null}
-      <a className="font-medium uppercase underline" href="/profile">
-        {user.display_name}
+
+      {/* Divider */}
+      <div className="mx-1 h-5 w-px" style={{ backgroundColor: 'var(--qp-border)' }} />
+
+      {/* User info */}
+      <a href="/profile" className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-slate-50">
+        <UserAvatar name={user.display_name} />
+        <div className="hidden flex-col sm:flex">
+          <span className="text-xs font-semibold leading-tight" style={{ color: 'var(--qp-text-primary)' }}>
+            {user.display_name}
+          </span>
+          <span className="text-[10px] uppercase leading-tight" style={{ color: 'var(--qp-text-muted)' }}>
+            {user.role.replaceAll('_', ' ')}
+          </span>
+        </div>
       </a>
-      <span className="text-[10px] uppercase text-zinc-500">{user.role.replaceAll('_', ' ')}</span>
-      <button type="button" className="text-zinc-500 underline" onClick={() => void logout()}>
-        Logout
+
+      {/* Logout */}
+      <button
+        type="button"
+        onClick={() => void logout()}
+        className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+        style={{ color: 'var(--qp-text-muted)' }}
+        aria-label="Logout"
+        title="Logout"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--qp-danger-bg)'
+          e.currentTarget.style.color = 'var(--qp-danger)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent'
+          e.currentTarget.style.color = 'var(--qp-text-muted)'
+        }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
       </button>
     </div>
   )
 }
+

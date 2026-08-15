@@ -115,35 +115,71 @@ export default function DashboardPage() {
         }
         onReload={() => void load()}
       >
-        <label className="text-xs text-zinc-600">
-          Start Date
-          <input className="ml-1 h-7 rounded border border-zinc-300 px-1" type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} />
+        <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
+          From
+          <input
+            className="h-8 rounded-lg border px-2 text-xs"
+            style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+            type="date"
+            value={filters.date_from}
+            onChange={(event) => void setFilters({ date_from: event.target.value })}
+          />
         </label>
-        <label className="text-xs text-zinc-600">
-          End Date
-          <input className="ml-1 h-7 rounded border border-zinc-300 px-1" type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} />
+        <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
+          To
+          <input
+            className="h-8 rounded-lg border px-2 text-xs"
+            style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+            type="date"
+            value={filters.date_to}
+            onChange={(event) => void setFilters({ date_to: event.target.value })}
+          />
         </label>
         {user.role === 'SUPER_ADMIN' ? (
           <>
-            <select className="h-7 rounded border border-zinc-300 text-xs" aria-label="Admin" value={filters.admin_user_id} onChange={(event) => void setFilters({ admin_user_id: event.target.value })}>
+            <select
+              className="h-8 rounded-lg border px-2 text-xs"
+              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+              aria-label="Admin"
+              value={filters.admin_user_id}
+              onChange={(event) => void setFilters({ admin_user_id: event.target.value })}
+            >
               <option value="">All Admins</option>
               {admins.map((row) => (
                 <option key={row.id} value={row.id}>{row.username}</option>
               ))}
             </select>
-            <select className="h-7 rounded border border-zinc-300 text-xs" aria-label="Merchant" value={filters.merchant_id} onChange={(event) => void setFilters({ merchant_id: event.target.value })}>
+            <select
+              className="h-8 rounded-lg border px-2 text-xs"
+              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+              aria-label="Merchant"
+              value={filters.merchant_id}
+              onChange={(event) => void setFilters({ merchant_id: event.target.value })}
+            >
               <option value="">All Merchants</option>
               {merchants.map((row) => (
                 <option key={row.id} value={row.id}>{row.display_name}</option>
               ))}
             </select>
-            <select className="h-7 rounded border border-zinc-300 text-xs" aria-label="Bank" value={filters.bank_account_id} onChange={(event) => void setFilters({ bank_account_id: event.target.value })}>
-              <option value="">All banks</option>
+            <select
+              className="h-8 rounded-lg border px-2 text-xs"
+              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+              aria-label="Bank"
+              value={filters.bank_account_id}
+              onChange={(event) => void setFilters({ bank_account_id: event.target.value })}
+            >
+              <option value="">All Banks</option>
               {banks.map((row) => (
                 <option key={row.id} value={row.id}>{row.label}</option>
               ))}
             </select>
-            <select className="h-7 rounded border border-zinc-300 text-xs" aria-label="UPI" value={filters.upi_account_id} onChange={(event) => void setFilters({ upi_account_id: event.target.value })}>
+            <select
+              className="h-8 rounded-lg border px-2 text-xs"
+              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+              aria-label="UPI"
+              value={filters.upi_account_id}
+              onChange={(event) => void setFilters({ upi_account_id: event.target.value })}
+            >
               <option value="">All UPIs</option>
               {upis.map((row) => (
                 <option key={row.id} value={row.id}>{row.upi_address}</option>
@@ -211,7 +247,7 @@ export default function DashboardPage() {
               <p className="text-[10px] text-zinc-500">{data.inter_transfer.count} transfers</p>
             </StatCard>
           </div>
-          <p className="mb-1 text-[10px] uppercase text-zinc-500">Admin-wise performance</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>Admin-wise performance</p>
           <DataTable
             columns={[
               { key: 'admin', heading: 'Admin' },
