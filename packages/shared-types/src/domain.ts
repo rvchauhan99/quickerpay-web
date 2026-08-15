@@ -86,33 +86,20 @@ export const TRANSACTION_TYPES = [
 export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 
 export const PAYIN_STATUSES = [
-  'CREATED',
-  'PENDING',
-  'ASSIGNED',
+  'INITIATE',
   'IN_PROCESS',
-  'PAYMENT_RECEIVED',
-  'UNDER_REVIEW',
-  'SUCCESS',
-  'FAILED',
-  'EXPIRED',
-  'CANCELLED',
-  'REFUNDED',
-  'DISPUTED',
+  'COMPLETED',
+  'REJECTED',
+  'REFUND',
 ] as const
 export type PayinStatus = (typeof PAYIN_STATUSES)[number]
 
 export const PAYOUT_STATUSES = [
-  'CREATED',
-  'PENDING',
-  'ASSIGNED',
+  'INITIATE',
   'IN_PROCESS',
-  'PROCESSING',
-  'SUCCESS',
-  'FAILED',
+  'COMPLETED',
   'REJECTED',
-  'CANCELLED',
-  'EXPIRED',
-  'REFUNDED',
+  'REFUND',
 ] as const
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number]
 
@@ -153,11 +140,8 @@ export type UtrSource = (typeof UTR_SOURCES)[number]
 
 export const UTR_STATUSES = [
   'PENDING',
-  'MATCHED',
-  'VERIFIED',
-  'UNMATCHED',
-  'DUPLICATE',
-  'REJECTED',
+  'COMPLETED',
+  'DELETED',
 ] as const
 export type UtrStatus = (typeof UTR_STATUSES)[number]
 

@@ -5,7 +5,14 @@ import { useEffect, useState } from 'react'
 import type { BankAccountListItem, TransferType } from '@quickerpay/shared-types'
 import { TRANSFER_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
 import { MoneyInput } from '@/components/forms/MoneyInput'
+import { FormShell } from '@/components/forms/FormShell'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { hasMenu, useSession } from '@/lib/session'
@@ -67,63 +74,70 @@ export default function NewInterTransferPage() {
 
   return (
     <AppShell title="Create transfer" role={user.role} menus={menus}>
-      <form
-        className="max-w-lg space-y-2 text-sm"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void handleSubmit()
-        }}
-      >
-        <fieldset className="space-y-1">
-          <legend className="text-xs text-zinc-600">Transfer type</legend>
-          {TRANSFER_TYPES.map((type) => (
-            <label key={type} className="flex items-center gap-2 text-xs">
-              <input
-                type="radio"
-                name="transfer_type"
-                checked={transferType === type}
-                onChange={() => setTransferType(type)}
-              />
-              {type.replaceAll('_', ' ')}
-            </label>
-          ))}
-        </fieldset>
-        <label className="flex flex-col gap-0.5 text-xs">
-          Source account
-          <select className="h-7 rounded border border-zinc-300" required value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
-            <option value="">Select</option>
-            {banks.map((row) => (
-              <option key={row.id} value={row.id}>
-                {bankLabel(row)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-0.5 text-xs">
-          Destination account
-          <select className="h-7 rounded border border-zinc-300" required value={destId} onChange={(e) => setDestId(e.target.value)}>
-            <option value="">Select</option>
-            {banks.map((row) => (
-              <option key={row.id} value={row.id}>
-                {bankLabel(row)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <MoneyInput id="amount" label="Amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
-        <label className="flex flex-col gap-0.5 text-xs">
-          Reference
-          <input className="h-7 rounded border border-zinc-300 px-2" value={reference} onChange={(e) => setReference(e.target.value)} />
-        </label>
-        <label className="flex flex-col gap-0.5 text-xs">
-          Remark
-          <input className="h-7 rounded border border-zinc-300 px-2" value={remark} onChange={(e) => setRemark(e.target.value)} />
-        </label>
-        {error ? <p className="text-xs text-red-700">{error}</p> : null}
-        <button type="submit" className="h-7 rounded bg-zinc-900 px-3 text-xs text-white">
-          Create transfer
-        </button>
-      </form>
+      <PageHeader title="Create Inter-Transfer" />
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
+      <FormShell submitLabel="Create transfer" onSubmit={() => void handleSubmit()}>
+        <FormSection title="Transfer Details" description="Select the accounts and specify the amount.">
+          <FormGrid>
+            <div className="md:col-span-2">
+              <FormField label="Transfer type">
+                <div className="flex flex-wrap items-center gap-4 py-2">
+                  {TRANSFER_TYPES.map((type) => (
+                    <label key={type} className="flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="radio"
+                        name="transfer_type"
+                        checked={transferType === type}
+                        onChange={() => setTransferType(type)}
+                      />
+                      {type.replaceAll('_', ' ')}
+                    </label>
+                  ))}
+                </div>
+              </FormField>
+            </div>
+
+            <FormField label="Source account" required>
+              <Select required value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
+                <option value="">Select</option>
+                {banks.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {bankLabel(row)}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+
+            <FormField label="Destination account" required>
+              <Select required value={destId} onChange={(e) => setDestId(e.target.value)}>
+                <option value="">Select</option>
+                {banks.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {bankLabel(row)}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+
+            <FormField label="Amount" required>
+              <MoneyInput id="amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
+            </FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Additional Information" description="Optional reference and remark.">
+          <FormGrid>
+            <FormField label="Reference">
+              <Input value={reference} onChange={(e) => setReference(e.target.value)} />
+            </FormField>
+            <FormField label="Remark">
+              <Input value={remark} onChange={(e) => setRemark(e.target.value)} />
+            </FormField>
+          </FormGrid>
+        </FormSection>
+      </FormShell>
     </AppShell>
   )
 }

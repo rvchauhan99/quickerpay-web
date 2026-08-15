@@ -4,9 +4,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsString, useQueryStates } from 'nuqs'
 import type { BankAccountListItem, LedgerAdjustment, LedgerStatement, UserListItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { DataTable, EmptyState, ExportButton, FilterBar, TableSkeleton } from '@/components/ui/FilterBar'
+import { DataTable, EmptyState, ExportButton, FilterBar, TableSkeleton, StatCard } from '@/components/ui/FilterBar'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { FormSection } from '@/components/forms/FormSection'
 import { FormShell } from '@/components/forms/FormShell'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { FormField } from '@/components/forms/FormField'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
@@ -103,60 +109,90 @@ export default function LedgerPage() {
 
   return (
     <AppShell title={title} role={user.role} menus={menus}>
+      <PageHeader
+        title={title}
+        action={
+          isSuperAdmin && filters.owner_user_id ? (
+            <PrimaryButton onClick={() => setAdjustOpen(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adjust Balance
+            </PrimaryButton>
+          ) : null
+        }
+      />
       <FilterBar onApply={() => void load()} onClear={() => { void setFilters({ date_from: '', date_to: '', owner_user_id: '', bank_account_id: '' }); void (!isSuperAdmin && load()) }} onReload={() => void load()}>
         {isSuperAdmin ? (
           <>
-            <label className="text-xs text-zinc-600">
-              Admin
-              <select className="ml-1 h-7 rounded border border-zinc-300" value={filters.owner_user_id} onChange={(event) => void setFilters({ owner_user_id: event.target.value, bank_account_id: '' })}>
+            <FormField label="Admin">
+              <Select value={filters.owner_user_id} onChange={(event) => void setFilters({ owner_user_id: event.target.value, bank_account_id: '' })} aria-label="Admin">
                 <option value="">Pick an Admin</option>
                 {admins.map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.display_name} ({row.username})
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="text-xs text-zinc-600">
-              Bank
-              <select className="ml-1 h-7 rounded border border-zinc-300" value={filters.bank_account_id} onChange={(event) => void setFilters({ bank_account_id: event.target.value, owner_user_id: '' })}>
+              </Select>
+            </FormField>
+            <FormField label="Bank">
+              <Select value={filters.bank_account_id} onChange={(event) => void setFilters({ bank_account_id: event.target.value, owner_user_id: '' })} aria-label="Bank">
                 <option value="">Pick a bank</option>
                 {banks.map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.label}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </FormField>
           </>
         ) : null}
-        <label className="text-xs text-zinc-600">
-          Start Date
-          <input className="ml-1 h-7 rounded border border-zinc-300 px-1" type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} />
-        </label>
-        <label className="text-xs text-zinc-600">
-          End Date
-          <input className="ml-1 h-7 rounded border border-zinc-300 px-1" type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} />
-        </label>
-        <ExportButton
-          disabled={!statement || statement.lines.length === 0}
-          canExport={hasMenu(menus, 'LEDGER', 'can_export')}
-          onExport={() => {
-            const query = new URLSearchParams()
-            if (filters.date_from) query.set('date_from', filters.date_from)
-            if (filters.date_to) query.set('date_to', filters.date_to)
-            if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
-            if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
-            return downloadExport(`/api/v1/ledger/export?${query}`, accessToken)
-          }}
-        />
-        {isSuperAdmin && hasMenu(menus, 'LEDGER', 'can_create') ? (
-          <button type="button" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white" onClick={() => setAdjustOpen(true)}>
-            Adjustment
-          </button>
-        ) : null}
+        <FormField label="From Date">
+          <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
+        </FormField>
+        <FormField label="To Date">
+          <Input type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
+        </FormField>
+        <div>
+          <ExportButton
+            disabled={!statement || statement.lines.length === 0}
+            onExport={() => void downloadExport(`/api/v1/ledger/export?${new URLSearchParams(filters as any).toString()}`, 'ledger.csv', accessToken!)}
+          />
+        </div>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      {adjustOpen ? (
+        <div className="mb-4">
+          <FormShell submitLabel="Create" onCancel={() => setAdjustOpen(false)} onSubmit={() => void handleCreate()}>
+            <FormSection title="Adjust Ledger Balance" description="Manually insert an entry into the ledger.">
+              <FormGrid>
+                <FormField label="Direction" required>
+                  <Select value={direction} onChange={(event) => setDirection(event.target.value as 'CREDIT' | 'DEBIT')}>
+                    <option value="CREDIT">CREDIT</option>
+                    <option value="DEBIT">DEBIT</option>
+                  </Select>
+                </FormField>
+                <FormField label="Reason" required>
+                  <Input value={reason} onChange={(event) => setReason(event.target.value)} />
+                </FormField>
+                <FormField label="Amount">
+                  <MoneyInput id="amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          </FormShell>
+        </div>
+      ) : null}
+      {pending ? (
+        <ConfirmDialog
+          title="Approve Adjustment?"
+          subtitle={`This will post a ${pending.direction} of ₹${pending.amount_minor / 100} for reason "${pending.reason}".`}
+          confirmLabel="Approve"
+          variant="primary"
+          onConfirm={() => void handleApprove()}
+          onCancel={() => setPending(null)}
+        />
+      ) : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : null}
       <DataTable
         columns={[
@@ -179,27 +215,7 @@ export default function LedgerPage() {
         }))}
         empty={<EmptyState message="No ledger entries" />}
       />
-      {adjustOpen ? (
-        <div className="mt-2 rounded border border-zinc-200 bg-white p-2">
-          <FormShell submitLabel="Create adjustment" onSubmit={() => void handleCreate()}>
-            <MoneyInput id="adj" label="Amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
-            <label className="text-xs">
-              Direction
-              <select className="ml-1 h-7 rounded border border-zinc-300" value={direction} onChange={(event) => setDirection(event.target.value as 'CREDIT' | 'DEBIT')}>
-                <option value="CREDIT">CREDIT</option>
-                <option value="DEBIT">DEBIT</option>
-              </select>
-            </label>
-            <label className="text-xs">
-              Reason
-              <input className="ml-1 h-7 rounded border border-zinc-300 px-1" value={reason} onChange={(event) => setReason(event.target.value)} />
-            </label>
-          </FormShell>
-        </div>
-      ) : null}
-      {pending ? (
-        <ConfirmDialog title="Approve this adjustment as a different user after signing in as checker. Approve now only if you are the checker." confirmLabel="Approve" onCancel={() => setPending(null)} onConfirm={() => void handleApprove()} />
-      ) : null}
+
     </AppShell>
   )
 }

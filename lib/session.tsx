@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { LoginResponse, MenuGrant, SessionUser } from '@quickerpay/shared-types'
+import type { LoginResponse, MenuGrant, SessionUser, TwoFaChallengeResponse } from '@quickerpay/shared-types'
 import { apiRequest, refreshSession } from './api'
 
 interface SessionState {
@@ -9,7 +9,7 @@ interface SessionState {
   user: SessionUser | null
   menus: MenuGrant[]
   ready: boolean
-  login: (body: { username: string; password: string; totp?: string }) => Promise<void>
+  login: (body: { username: string; password: string; totp?: string }) => Promise<'ok' | 'two_fa_required'>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -46,8 +46,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (body: { username: string; password: string; totp?: string }) => {
-      const payload = await apiRequest<LoginResponse>('/api/v1/auth/login', { method: 'POST', body })
-      applyLogin(payload)
+      const payload = await apiRequest<LoginResponse | TwoFaChallengeResponse>('/api/v1/auth/login', {
+        method: 'POST',
+        body,
+      })
+      if ('two_fa_required' in payload && payload.two_fa_required) return 'two_fa_required'
+      applyLogin(payload as LoginResponse)
+      return 'ok' as const
     },
     [applyLogin],
   )

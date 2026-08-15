@@ -5,7 +5,13 @@ import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import type { PayinListItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
 import { StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { FormShell } from '@/components/forms/FormShell'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -33,32 +39,39 @@ export default function PayinDetailPage() {
   if (!allowed) return Forbidden
 
   return (
-    <AppShell title="Pay-In" role={user.role} menus={menus}>
-      <p className="mb-2 text-xs">
-        <Link className="underline" href="/payin">
-          Back to list
-        </Link>
-      </p>
-      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+    <AppShell title="Pay-In Detail" role={user.role} menus={menus}>
+      <PageHeader title="Pay-In Detail" />
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {!row ? (
         <TableSkeleton />
       ) : (
-        <dl className="grid max-w-lg grid-cols-2 gap-1 text-xs">
-          <dt>Gateway Ref. No</dt>
-          <dd>{row.reference}</dd>
-          <dt>UTR</dt>
-          <dd>{row.utr ?? '—'}</dd>
-          <dt>Amount</dt>
-          <dd>
-            <MoneyDisplay amountMinor={row.amount_minor} />
-          </dd>
-          <dt>Status</dt>
-          <dd>
-            <StatusBadge status={row.status} />
-          </dd>
-          <dt>Created</dt>
-          <dd>{new Date(row.created_at).toLocaleString()}</dd>
-        </dl>
+        <FormShell>
+          <FormSection title="Transaction Details" description="Gateway reference and transaction status.">
+            <FormGrid>
+              <FormField label="Gateway Ref. No">
+                <Input value={row.reference} readOnly />
+              </FormField>
+              <FormField label="UTR">
+                <Input value={row.utr ?? '—'} readOnly />
+              </FormField>
+              <FormField label="Amount">
+                <div className="flex h-10 items-center px-3 font-medium">
+                  <MoneyDisplay amountMinor={row.amount_minor} />
+                </div>
+              </FormField>
+              <FormField label="Status">
+                <div className="flex h-10 items-center px-3">
+                  <StatusBadge status={row.status} />
+                </div>
+              </FormField>
+              <FormField label="Created At">
+                <Input value={new Date(row.created_at).toLocaleString()} readOnly />
+              </FormField>
+            </FormGrid>
+          </FormSection>
+        </FormShell>
       )}
     </AppShell>
   )

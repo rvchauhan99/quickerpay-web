@@ -28,6 +28,8 @@ export interface UserListItem {
   email: string | null
   mobile: string | null
   user_code: string | null
+  /** Bound merchant for an Admin. Null for every other role. */
+  merchant_id: string | null
   status: UserStatus
   operational_state: OperationalState
   auto_accept_enabled: boolean

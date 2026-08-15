@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import type { TenantHealthRow } from '@quickerpay/shared-types'
 import { DataTable, EmptyState, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { Input } from '@/components/forms/Input'
+import { PrimaryButton } from '@/components/ui/PageHeader'
+import { IconButton } from '@/components/ui/IconButton'
+import { RefreshCw } from 'lucide-react'
 import { apiRequest, ApiClientError } from '@/lib/api'
 
 export default function PlatformHealthPage() {
@@ -71,12 +75,10 @@ export default function PlatformHealthPage() {
             void handleLogin()
           }}
         >
-          <input className="h-7 rounded border border-zinc-300 px-2 text-xs" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          <input className="h-7 rounded border border-zinc-300 px-2 text-xs" aria-label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          <input className="h-7 w-24 rounded border border-zinc-300 px-2 text-xs" aria-label="TOTP" value={totp} onChange={(event) => setTotp(event.target.value)} />
-          <button type="submit" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white">
-            Sign in
-          </button>
+          <div className="w-48"><Input placeholder="Email" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} /></div>
+          <div className="w-48"><Input placeholder="Password" aria-label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></div>
+          <div className="w-24"><Input placeholder="TOTP" aria-label="TOTP" value={totp} onChange={(event) => setTotp(event.target.value)} /></div>
+          <PrimaryButton type="submit">Sign in</PrimaryButton>
         </form>
       ) : null}
       {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
@@ -106,9 +108,9 @@ export default function PlatformHealthPage() {
             last_health_check_at: row.last_health_check_at ?? '—',
             last_backup_at: row.last_backup_at ?? '—',
             actions: (
-              <button type="button" className="underline" onClick={() => void handleRecheck(row.tenant_id)}>
-                Re-check
-              </button>
+              <span className="flex items-center gap-1">
+                <IconButton icon={<RefreshCw size={15} strokeWidth={1.75} />} tooltip="Re-check" onClick={() => void handleRecheck(row.tenant_id)} />
+              </span>
             ),
           }))}
         />

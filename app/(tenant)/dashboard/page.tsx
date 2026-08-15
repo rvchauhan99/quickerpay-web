@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsString, useQueryStates } from 'nuqs'
 import type { BankAccountListItem, DashboardSummary, MerchantListItem, UpiAccountListItem, UserListItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, FilterBar, StatCard, TableSkeleton } from '@/components/ui/FilterBar'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -83,7 +87,9 @@ export default function DashboardPage() {
       apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
       apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({ items: [] as MerchantListItem[] })),
       apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }),
-      apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }),
+      apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
+        items: [] as UpiAccountListItem[],
+      })),
     ]).then(([adminRows, merchantRows, bankRows, upiRows]) => {
       setAdmins(adminRows.items)
       setMerchants(merchantRows.items)
@@ -115,98 +121,94 @@ export default function DashboardPage() {
         }
         onReload={() => void load()}
       >
-        <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
-          From
-          <input
-            className="h-8 rounded-lg border px-2 text-xs"
-            style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+        <FormField label="From Date">
+          <Input
             type="date"
             value={filters.date_from}
             onChange={(event) => void setFilters({ date_from: event.target.value })}
           />
-        </label>
-        <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
-          To
-          <input
-            className="h-8 rounded-lg border px-2 text-xs"
-            style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
+        </FormField>
+        <FormField label="To Date">
+          <Input
             type="date"
             value={filters.date_to}
             onChange={(event) => void setFilters({ date_to: event.target.value })}
           />
-        </label>
+        </FormField>
         {user.role === 'SUPER_ADMIN' ? (
           <>
-            <select
-              className="h-8 rounded-lg border px-2 text-xs"
-              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-              aria-label="Admin"
-              value={filters.admin_user_id}
-              onChange={(event) => void setFilters({ admin_user_id: event.target.value })}
-            >
-              <option value="">All Admins</option>
-              {admins.map((row) => (
-                <option key={row.id} value={row.id}>{row.username}</option>
-              ))}
-            </select>
-            <select
-              className="h-8 rounded-lg border px-2 text-xs"
-              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-              aria-label="Merchant"
-              value={filters.merchant_id}
-              onChange={(event) => void setFilters({ merchant_id: event.target.value })}
-            >
-              <option value="">All Merchants</option>
-              {merchants.map((row) => (
-                <option key={row.id} value={row.id}>{row.display_name}</option>
-              ))}
-            </select>
-            <select
-              className="h-8 rounded-lg border px-2 text-xs"
-              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-              aria-label="Bank"
-              value={filters.bank_account_id}
-              onChange={(event) => void setFilters({ bank_account_id: event.target.value })}
-            >
-              <option value="">All Banks</option>
-              {banks.map((row) => (
-                <option key={row.id} value={row.id}>{row.label}</option>
-              ))}
-            </select>
-            <select
-              className="h-8 rounded-lg border px-2 text-xs"
-              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-              aria-label="UPI"
-              value={filters.upi_account_id}
-              onChange={(event) => void setFilters({ upi_account_id: event.target.value })}
-            >
-              <option value="">All UPIs</option>
-              {upis.map((row) => (
-                <option key={row.id} value={row.id}>{row.upi_address}</option>
-              ))}
-            </select>
+            <FormField label="Admin">
+              <Select
+                aria-label="Admin"
+                value={filters.admin_user_id}
+                onChange={(event) => void setFilters({ admin_user_id: event.target.value })}
+              >
+                <option value="">All Admins</option>
+                {admins.map((row) => (
+                  <option key={row.id} value={row.id}>{row.username}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Merchant">
+              <Select
+                aria-label="Merchant"
+                value={filters.merchant_id}
+                onChange={(event) => void setFilters({ merchant_id: event.target.value })}
+              >
+                <option value="">All Merchants</option>
+                {merchants.map((row) => (
+                  <option key={row.id} value={row.id}>{row.display_name}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Bank">
+              <Select
+                aria-label="Bank"
+                value={filters.bank_account_id}
+                onChange={(event) => void setFilters({ bank_account_id: event.target.value })}
+              >
+                <option value="">All Banks</option>
+                {banks.map((row) => (
+                  <option key={row.id} value={row.id}>{row.label}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="UPI">
+              <Select
+                aria-label="UPI"
+                value={filters.upi_account_id}
+                onChange={(event) => void setFilters({ upi_account_id: event.target.value })}
+              >
+                <option value="">All UPIs</option>
+                {upis.map((row) => (
+                  <option key={row.id} value={row.id}>{row.upi_address}</option>
+                ))}
+              </Select>
+            </FormField>
           </>
         ) : null}
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : null}
       {isOperator ? (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <StatCard label="Assigned queue" href="/payin?status=ASSIGNED">{data.assigned_queue_depth}</StatCard>
-          <StatCard label="Processed today" href={`/payin?status=SUCCESS&${range}`}>{data.processed_today}</StatCard>
+          <StatCard label="Assigned queue" href="/payin?status=IN_PROCESS">{data.assigned_queue_depth}</StatCard>
+          <StatCard label="Processed today" href={`/payin?status=COMPLETED&${range}`}>{data.processed_today}</StatCard>
           <StatCard label="Pending UTRs" href="/utr?status=PENDING">{data.pending_utrs}</StatCard>
           <StatCard label="Failed" href={`/transactions?status=FAILED&${range}`}>{data.failed_transactions}</StatCard>
         </div>
       ) : isAdmin ? (
         <>
           <div className="mb-2 grid grid-cols-2 gap-2 md:grid-cols-4">
-            <StatCard label="Total Pay-in" href={`/payin?status=SUCCESS&${range}`}>
+            <StatCard label="Total Pay-in" href={`/payin?status=COMPLETED&${range}`}>
               <MoneyDisplay amountMinor={data.payin.amount_minor} />
             </StatCard>
-            <StatCard label="Total Payout" href={`/payout?status=SUCCESS&${range}`}>
+            <StatCard label="Total Payout" href={`/payout?status=COMPLETED&${range}`}>
               <MoneyDisplay amountMinor={data.payout.amount_minor} />
             </StatCard>
-            <StatCard label="Total Refunded" href={`/payin?status=REFUNDED&${range}`}>
+            <StatCard label="Total Refunded" href={`/payin?status=REFUND&${range}`}>
               <MoneyDisplay amountMinor={data.refunded_minor} />
             </StatCard>
             <StatCard label="My Account" href="/ledger">
@@ -266,9 +268,9 @@ export default function DashboardPage() {
             empty={<EmptyState message="No Admin activity in this range" />}
           />
           <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
-            <StatCard label="Pending approvals" href="/payout?status=PENDING">{data.pending_approvals}</StatCard>
+            <StatCard label="Pending approvals" href="/payout?status=INITIATE">{data.pending_approvals}</StatCard>
             <StatCard label="Failed transactions" href={`/transactions?status=FAILED&${range}`}>{data.failed_transactions}</StatCard>
-            <StatCard label="Unmatched UTRs" href="/utr?status=UNMATCHED">{data.unmatched_utrs}</StatCard>
+            <StatCard label="Unmatched UTRs" href="/utr?status=PENDING">{data.unmatched_utrs}</StatCard>
             <StatCard label="Operators online">{data.operators_online}</StatCard>
           </div>
         </>

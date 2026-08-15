@@ -5,7 +5,13 @@ import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import type { PayoutListItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
 import { StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { FormShell } from '@/components/forms/FormShell'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -33,36 +39,44 @@ export default function PayoutDetailPage() {
   if (!allowed) return Forbidden
 
   return (
-    <AppShell title="Pay-Out" role={user.role} menus={menus}>
-      <p className="mb-2 text-xs">
-        <Link className="underline" href="/payout">
-          Back to list
-        </Link>
-      </p>
-      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+    <AppShell title="Pay-Out Detail" role={user.role} menus={menus}>
+      <PageHeader title="Pay-Out Detail" />
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {!row ? (
         <TableSkeleton />
       ) : (
-        <dl className="grid max-w-lg grid-cols-2 gap-1 text-xs">
-          <dt>Gateway Ref. No</dt>
-          <dd>{row.reference}</dd>
-          <dt>UTR</dt>
-          <dd>{row.utr ?? '—'}</dd>
-          <dt>Amount</dt>
-          <dd>
-            <MoneyDisplay amountMinor={row.amount_minor} />
-          </dd>
-          <dt>Beneficiary</dt>
-          <dd>
-            {row.beneficiary_name} {row.beneficiary_account_masked}
-          </dd>
-          <dt>Status</dt>
-          <dd>
-            <StatusBadge status={row.status} />
-          </dd>
-          <dt>Failure</dt>
-          <dd>{row.failure_reason ?? '—'}</dd>
-        </dl>
+        <FormShell>
+          <FormSection title="Transaction Details" description="Gateway reference and transaction status.">
+            <FormGrid>
+              <FormField label="Gateway Ref. No">
+                <Input value={row.reference} readOnly />
+              </FormField>
+              <FormField label="UTR">
+                <Input value={row.utr ?? '—'} readOnly />
+              </FormField>
+              <FormField label="Amount">
+                <div className="flex h-10 items-center px-3 font-medium">
+                  <MoneyDisplay amountMinor={row.amount_minor} />
+                </div>
+              </FormField>
+              <FormField label="Beneficiary">
+                <Input value={`${row.beneficiary_name} ${row.beneficiary_account_masked}`} readOnly />
+              </FormField>
+              <FormField label="Status">
+                <div className="flex h-10 items-center px-3">
+                  <StatusBadge status={row.status} />
+                </div>
+              </FormField>
+              <div className="md:col-span-2">
+                <FormField label="Failure Reason">
+                  <Input value={row.failure_reason ?? '—'} readOnly />
+                </FormField>
+              </div>
+            </FormGrid>
+          </FormSection>
+        </FormShell>
       )}
     </AppShell>
   )

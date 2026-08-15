@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { isLabConsole } from '@/lib/lab'
+import { SessionProvider } from '@/lib/session'
+import { RedirectLoopbackToLocalhost } from './redirect-loopback'
 
 export const metadata: Metadata = {
   title: 'Mock Google Pay — QuickerPay',
@@ -7,5 +11,12 @@ export const metadata: Metadata = {
 }
 
 export default function MockGpayLayout({ children }: { children: ReactNode }) {
-  return children
+  if (!isLabConsole()) notFound()
+  return (
+    <SessionProvider>
+      <RedirectLoopbackToLocalhost />
+      {children}
+    </SessionProvider>
+  )
 }
+

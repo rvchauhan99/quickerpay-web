@@ -1,6 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { DataTable } from '@/components/ui/FilterBar'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
+import { PrimaryButton } from '@/components/ui/PageHeader'
+import { AppShell } from '@/components/layout/AppShell'
 
 interface MockRow {
   id: string
@@ -124,129 +129,70 @@ export default function MockGpayPage() {
     setPage(1)
   }
 
-  const handlePageSize = (value: string) => {
-    setPageSize(Number.parseInt(value, 10) || 50)
+  const handlePageSize = (size: number) => {
+    setPageSize(size)
     setPage(1)
   }
 
   if (!hydrated) return <main className="p-4 text-sm text-zinc-600">Loading mock Google Pay</main>
 
   return (
-    <main className="min-h-screen bg-zinc-50 p-4 text-sm text-zinc-900">
-      <header className="mb-3 border-b border-zinc-200 pb-2">
-        <p className="text-[10px] uppercase tracking-wide text-zinc-500">Local test fixture — not Google Pay</p>
-        <h1 className="text-base font-semibold">Google Pay for Business (mock)</h1>
-        <p className="text-xs text-zinc-600">
-          Same table the extension scrapes: column 0 date, 1 VPA, 3 UTR, 5 amount. Enrol in the popup, leave Filter UTR blank, then simulate a payment. Rows survive the extension&apos;s 30s reload.
+    <AppShell title="Google Pay for Business (mock)" role="ADMIN" menus={[]}>
+      <header className="mb-4">
+        <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--qp-primary)' }}>Local test fixture — not Google Pay</p>
+        <p className="mt-1 text-sm text-zinc-600">
+          Same table the extension scrapes: column 0 date, 1 VPA, 3 UTR, 5 amount. Open
+          {' '}
+          <a className="underline" href="http://localhost:3000/mock/gpay">http://localhost:3000/mock/gpay</a>
+          , enrol in the side panel, leave Filter UTR blank, then simulate a payment.
         </p>
       </header>
 
-      <section className="mb-3 flex flex-wrap items-end gap-2">
-        <label className="text-xs">
-          VPA
-          <input
-            className="ml-1 h-7 rounded border border-zinc-300 px-1"
-            value={vpa}
-            onChange={(event) => setVpa(event.target.value)}
-            aria-label="Mock VPA"
-          />
-        </label>
-        <label className="text-xs">
-          Amount
-          <input
-            className="ml-1 h-7 w-24 rounded border border-zinc-300 px-1"
-            value={amountRupees}
-            onChange={(event) => setAmountRupees(event.target.value)}
-            aria-label="Mock amount"
-          />
-        </label>
-        <label className="text-xs">
-          UTR (optional)
-          <input
-            className="ml-1 h-7 w-32 rounded border border-zinc-300 px-1"
-            value={customUtr}
-            onChange={(event) => setCustomUtr(event.target.value)}
-            aria-label="Mock UTR"
-          />
-        </label>
-        <button type="button" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white" onClick={handleSimulate}>
-          Simulate incoming payment
-        </button>
-        <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={() => handleMalformed('date')}>
-          Add bad date
-        </button>
-        <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={() => handleMalformed('utr')}>
-          Add bad UTR
-        </button>
-        <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={() => handleMalformed('amount')}>
-          Add zero amount
-        </button>
-        <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={handleClear}>
-          Reset table
-        </button>
+      <section className="mb-4 rounded-xl border p-4 shadow-sm flex flex-wrap items-end gap-2" style={{ backgroundColor: 'var(--qp-card)', borderColor: 'var(--qp-border)' }}>
+        <FormField label="VPA">
+          <Input value={vpa} onChange={(event) => setVpa(event.target.value)} aria-label="Mock VPA" />
+        </FormField>
+        <FormField label="Amount">
+          <Input value={amountRupees} onChange={(event) => setAmountRupees(event.target.value)} aria-label="Mock amount" />
+        </FormField>
+        <FormField label="UTR (optional)">
+          <Input value={customUtr} onChange={(event) => setCustomUtr(event.target.value)} aria-label="Mock UTR" />
+        </FormField>
+        <div className="flex flex-wrap items-end gap-2 pt-1 ml-auto">
+          <PrimaryButton onClick={handleSimulate}>Simulate</PrimaryButton>
+          <button type="button" className="h-9 px-3 rounded-md border border-zinc-200 bg-white text-sm font-medium shadow-sm hover:bg-zinc-50" onClick={() => handleMalformed('date')}>Bad date</button>
+          <button type="button" className="h-9 px-3 rounded-md border border-zinc-200 bg-white text-sm font-medium shadow-sm hover:bg-zinc-50" onClick={() => handleMalformed('utr')}>Bad UTR</button>
+          <button type="button" className="h-9 px-3 rounded-md border border-zinc-200 bg-white text-sm font-medium shadow-sm hover:bg-zinc-50" onClick={() => handleMalformed('amount')}>Zero amt</button>
+          <button type="button" className="h-9 px-3 rounded-md border text-red-600 border-red-200 bg-red-50 text-sm font-medium shadow-sm hover:bg-red-100" onClick={handleClear}>Reset table</button>
+        </div>
       </section>
 
-      <table className="min-w-full border border-zinc-200 bg-white text-left text-xs">
-        <thead className="bg-zinc-50">
-          <tr>
-            <th className="border-b px-2 py-1">Date</th>
-            <th className="border-b px-2 py-1">VPA</th>
-            <th className="border-b px-2 py-1">Name</th>
-            <th className="border-b px-2 py-1">UTR</th>
-            <th className="border-b px-2 py-1">Type</th>
-            <th className="border-b px-2 py-1">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pageRows.map((row) => (
-            <tr key={row.id}>
-              <td className="border-b px-2 py-1">{row.date}</td>
-              <td className="border-b px-2 py-1">{row.vpa}</td>
-              <td className="border-b px-2 py-1">{row.name}</td>
-              <td className="border-b px-2 py-1">{row.utr}</td>
-              <td className="border-b px-2 py-1">{row.type}</td>
-              <td className="border-b px-2 py-1">{row.amount}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-600">
-        <label>
-          Rows per page
-          <select
-            className="ml-1 h-7 rounded border border-zinc-300"
-            aria-label="Rows per page"
-            value={String(pageSize)}
-            onChange={(event) => handlePageSize(event.target.value)}
-          >
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-          </select>
-        </label>
-        <span>
-          {rows.length === 0 ? '0' : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, rows.length)}`} of {rows.length}
-        </span>
-        <button
-          type="button"
-          className="h-7 rounded border border-zinc-300 px-2 disabled:opacity-40"
-          aria-label="First page"
-          disabled={currentPage <= 1}
-          onClick={() => setPage(1)}
-        >
-          First
-        </button>
-        <button
-          type="button"
-          className="h-7 rounded border border-zinc-300 px-2 disabled:opacity-40"
-          aria-label="Next page"
-          disabled={currentPage >= pageCount}
-          onClick={() => setPage((current) => Math.min(current + 1, pageCount))}
-        >
-          Next
-        </button>
-      </div>
-    </main>
+      <DataTable
+        columns={[
+          { key: 'date', heading: 'Date' },
+          { key: 'vpa', heading: 'VPA' },
+          { key: 'name', heading: 'Name' },
+          { key: 'utr', heading: 'UTR' },
+          { key: 'type', heading: 'Type' },
+          { key: 'amount', heading: 'Amount' },
+        ]}
+        rows={pageRows.map((row) => ({
+          date: row.date,
+          vpa: row.vpa,
+          name: row.name,
+          utr: row.utr,
+          type: row.type,
+          amount: row.amount,
+        }))}
+        empty={<div className="p-8 text-center text-zinc-500">No mock transactions</div>}
+        pagination={{
+          page: currentPage,
+          page_size: pageSize,
+          total: rows.length,
+        }}
+        onPage={setPage}
+        onPageSize={handlePageSize}
+      />
+    </AppShell>
   )
 }

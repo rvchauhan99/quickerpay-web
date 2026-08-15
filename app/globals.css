@@ -128,15 +128,6 @@ input:-webkit-autofill:active {
   caret-color: #0f172a;
 }
 
-.qp-auth-page input:-webkit-autofill,
-.qp-auth-page input:-webkit-autofill:hover,
-.qp-auth-page input:-webkit-autofill:focus,
-.qp-auth-page input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.06) inset !important;
-  box-shadow: 0 0 0 1000px rgba(255,255,255,0.06) inset !important;
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff;
-}
 
 /* ─── Number spinners hidden ─────────────────────────────────────────────────── */
 input[type='number']::-webkit-outer-spin-button,
@@ -183,6 +174,9 @@ input[type='checkbox']:checked {
 }
 
 .qp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background-color: #f8fafc;
   padding: 10px 16px;
   text-align: left;
@@ -200,6 +194,10 @@ input[type='checkbox']:checked {
   border-bottom: 1px solid #f1f5f9;
   color: #1e293b;
   vertical-align: middle;
+}
+
+.qp-table tbody tr {
+  transition: background-color 0.15s ease;
 }
 
 .qp-table tbody tr:hover td {

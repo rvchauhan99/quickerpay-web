@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import type { MenuCode, MenuGrant, UserRole } from '@quickerpay/shared-types'
 import { HeaderToggles } from './HeaderToggles'
+import { isLabConsole } from '@/lib/lab'
+import { FlaskConical } from 'lucide-react'
 
 /* ─── Nav metadata ─────────────────────────────────────────────────────────── */
 const LABELS: Record<MenuCode, string> = {
@@ -178,32 +180,32 @@ export function AppShell({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex flex-col transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`group fixed inset-y-0 left-0 z-30 flex flex-col transition-[width,transform] duration-300 ease-in-out lg:static lg:translate-x-0 overflow-hidden shrink-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-        style={{ width: '240px', backgroundColor: 'var(--qp-sidebar-bg)', borderRight: '1px solid var(--qp-sidebar-border)' }}
+        } w-[240px] lg:w-[68px] lg:hover:w-[240px]`}
+        style={{ backgroundColor: 'var(--qp-sidebar-bg)', borderRight: '1px solid var(--qp-sidebar-border)' }}
       >
         {/* Logo */}
-        <div className="flex h-14 items-center gap-2.5 px-4" style={{ borderBottom: '1px solid var(--qp-sidebar-border)' }}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: 'var(--qp-primary)' }}>
+        <div className="flex h-14 shrink-0 items-center gap-2.5 px-4 overflow-hidden" style={{ borderBottom: '1px solid var(--qp-sidebar-border)' }}>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: 'var(--qp-primary)' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
           </div>
-          <div>
+          <div className="flex flex-col whitespace-nowrap transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">
             <p className="text-sm font-bold leading-none" style={{ color: '#ffffff' }}>QuickerPay</p>
             <p className="mt-0.5 text-[10px] font-medium uppercase tracking-widest" style={{ color: 'var(--qp-sidebar-muted)' }}>Console</p>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <nav className="flex-1 overflow-x-hidden overflow-y-auto py-3 px-3 scrollbar-hide">
           {SECTION_GROUPS.map((group) => {
             const groupItems = items.filter((item) => (group.codes as string[]).includes(item.code))
             if (groupItems.length === 0) return null
             return (
               <div key={group.label} className="mb-4">
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--qp-sidebar-muted)', opacity: 0.7 }}>
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-70" style={{ color: 'var(--qp-sidebar-muted)' }}>
                   {group.label}
                 </p>
                 <ul className="space-y-0.5">
@@ -219,13 +221,25 @@ export function AppShell({
               </div>
             )
           })}
+          {isLabConsole() ? (
+            <div className="mb-4">
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-70" style={{ color: 'var(--qp-sidebar-muted)' }}>
+                Lab
+              </p>
+              <ul className="space-y-0.5">
+                <li>
+                  <LabNavItem href="/mock/gpay" label="GPay mock" />
+                </li>
+              </ul>
+            </div>
+          ) : null}
         </nav>
 
         {/* Role badge */}
-        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--qp-sidebar-border)' }}>
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--qp-primary)' }} />
-            <span className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--qp-sidebar-muted)' }}>
+        <div className="px-4 py-3 overflow-hidden whitespace-nowrap" style={{ borderTop: '1px solid var(--qp-sidebar-border)' }}>
+          <div className="flex items-center gap-3 h-4">
+            <div className="h-1.5 w-1.5 shrink-0 rounded-full animate-pulse ml-0.5" style={{ backgroundColor: 'var(--qp-primary)' }} />
+            <span className="text-[11px] font-medium uppercase tracking-wide transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100" style={{ color: 'var(--qp-sidebar-muted)' }}>
               {formatRole(role)}
             </span>
           </div>
@@ -294,7 +308,32 @@ function NavItem({ href, label, code }: { href: string; label: string; code: Men
       }}
     >
       <span className="shrink-0 opacity-80">{icon}</span>
-      <span className="truncate">{label}</span>
+      <span className="truncate transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">{label}</span>
+    </Link>
+  )
+}
+
+/* ─── LabNavItem ──────────────────────────────────────────────────────────── */
+function LabNavItem({ href, label }: { href: string; label: string }) {
+  const pathname = usePathname()
+  const active = pathname === href || pathname.startsWith(`${href}/`)
+
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150"
+      style={{
+        color: active ? '#ffffff' : 'var(--qp-sidebar-text)',
+        backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
+        borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
+        paddingLeft: '9px',
+      }}
+      aria-label={label}
+    >
+      <span className="shrink-0 opacity-80">
+        <FlaskConical size={18} strokeWidth={1.75} />
+      </span>
+      <span className="truncate transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">{label}</span>
     </Link>
   )
 }
@@ -328,8 +367,8 @@ function SubNavItem({ href, label }: { href: string; label: string }) {
         }
       }}
     >
-      <span style={{ color: 'var(--qp-primary)' }}>›</span>
-      {label}
+      <span className="shrink-0 text-center w-[18px]" style={{ color: 'var(--qp-primary)' }}>›</span>
+      <span className="truncate transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">{label}</span>
     </Link>
   )
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 /* ─── FilterBar ─────────────────────────────────────────────────────────────── */
 export function FilterBar({
   onApply,
@@ -12,58 +14,102 @@ export function FilterBar({
   onReload: () => void
   children: React.ReactNode
 }) {
+  const [open, setOpen] = useState(true)
+
   return (
-    <form
-      className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border px-4 py-3"
+    <div
+      className="mb-3 rounded-xl border"
       style={{
         backgroundColor: 'var(--qp-card)',
         borderColor: 'var(--qp-border)',
         boxShadow: 'var(--qp-shadow-sm)',
       }}
-      onSubmit={(event) => {
-        event.preventDefault()
-        onApply()
-      }}
     >
-      {children}
-      <div className="flex items-center gap-1.5 ml-auto">
+      {/* Header / Toggle */}
+      <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--qp-border)' }}>
         <button
-          type="submit"
-          className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition-all duration-150"
-          style={{ backgroundColor: 'var(--qp-primary)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary-dark)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary)' }}
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors hover:bg-slate-50 text-xs font-bold uppercase tracking-tight"
+          style={{ color: 'var(--qp-text-secondary)' }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              transition: 'transform 0.2s',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
           </svg>
-          Apply
+          Advanced Filters
         </button>
+
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-all duration-150"
-          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
-          onClick={onClear}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
-        >
-          Clear
-        </button>
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-150"
+          className="flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-150"
           style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-muted)', backgroundColor: '#fff' }}
           onClick={onReload}
-          title="Reload"
+          title="Reload Data"
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
         </button>
       </div>
-    </form>
+
+      {/* Collapsible Content */}
+      {open && (
+        <form
+          className="p-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onApply()
+          }}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4 items-end">
+            {children}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t pt-3" style={{ borderColor: 'var(--qp-border)' }}>
+            <button
+              type="button"
+              className="flex h-8 items-center justify-center rounded-lg border px-4 text-xs font-medium transition-all duration-150"
+              style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+              onClick={onClear}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
+            >
+              Clear filters
+            </button>
+            <button
+              type="submit"
+              className="flex h-8 items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-semibold text-white transition-all duration-150"
+              style={{ backgroundColor: 'var(--qp-primary)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary-dark)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary)' }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              Apply
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   )
 }
 
@@ -292,15 +338,15 @@ export function StatusBadge({ status }: { status: string }) {
     dotColor = 'var(--qp-success)'
     bgColor = 'var(--qp-success-bg)'
     textColor = '#065f46'
-  } else if (s === 'FAILED' || s === 'REJECTED' || s === 'CANCELLED' || s === 'DISABLED' || s === 'CLOSED') {
+  } else if (s === 'FAILED' || s === 'REJECTED' || s === 'CANCELLED' || s === 'DISABLED' || s === 'CLOSED' || s === 'DELETED') {
     dotColor = 'var(--qp-danger)'
     bgColor = 'var(--qp-danger-bg)'
     textColor = '#991b1b'
-  } else if (s === 'PENDING_APPROVAL' || s === 'PENDING' || s === 'UNMATCHED' || s === 'OFFLINE') {
+  } else if (s === 'PENDING_APPROVAL' || s === 'PENDING' || s === 'UNMATCHED' || s === 'OFFLINE' || s === 'INITIATE' || s === 'REFUND') {
     dotColor = 'var(--qp-warning)'
     bgColor = 'var(--qp-warning-bg)'
     textColor = '#92400e'
-  } else if (s === 'PROCESSING' || s === 'IN_PROGRESS' || s === 'ASSIGNED') {
+  } else if (s === 'PROCESSING' || s === 'IN_PROGRESS' || s === 'IN_PROCESS' || s === 'ASSIGNED') {
     dotColor = 'var(--qp-info)'
     bgColor = 'var(--qp-info-bg)'
     textColor = '#155e75'

@@ -1,35 +1,39 @@
 'use client'
 
 import { toMinor } from '@quickerpay/money'
+import { Input } from './Input'
 
 export function MoneyInput({
   id,
-  label,
   valueMinor,
   onChangeMinor,
+  wholeRupees = false,
 }: {
   id: string
-  label: string
-  valueMinor: number
+  valueMinor: number | bigint
   onChangeMinor: (amountMinor: number) => void
+  wholeRupees?: boolean
 }) {
+  const display = Number(valueMinor) === 0 ? '' : wholeRupees
+    ? String(Math.trunc(Number(valueMinor) / 100))
+    : (Number(valueMinor) / 100).toFixed(2)
   return (
-    <label className="flex flex-col gap-0.5 text-xs text-zinc-600" htmlFor={id}>
-      {label}
-      <input
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--qp-text-muted)' }}>₹</span>
+      <Input
         id={id}
-        className="h-7 rounded border border-zinc-300 px-2 text-sm tabular-nums text-zinc-900"
-        inputMode="decimal"
-        aria-label={label}
-        defaultValue={valueMinor ? String(valueMinor / 100) : ''}
-        onChange={(event) => {
+        className="pl-7 tabular-nums"
+        inputMode={wholeRupees ? 'numeric' : 'decimal'}
+        defaultValue={display}
+        onBlur={(event) => {
           try {
-            onChangeMinor(Number(toMinor(event.target.value)))
+            const raw = wholeRupees ? event.target.value.replace(/\.\d+$/, '') : event.target.value
+            onChangeMinor(Number(toMinor(raw)))
           } catch {
-            return
+            // keep previous
           }
         }}
       />
-    </label>
+    </div>
   )
 }

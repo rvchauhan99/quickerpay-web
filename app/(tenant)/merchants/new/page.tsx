@@ -3,7 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
 import { FormShell } from '@/components/forms/FormShell'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
 import { RateInput } from '@/components/forms/RateInput'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -50,14 +55,41 @@ export default function NewMerchantPage() {
 
   return (
     <AppShell title="Create merchant" role={user.role} menus={menus}>
-      <FormShell submitLabel="Create" error={error} onSubmit={() => void handleSubmit()}>
-        <label className="block text-xs">Legal name<input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" value={legalName} onChange={(event) => setLegalName(event.target.value)} /></label>
-        <label className="block text-xs">Display name<input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-        <label className="block text-xs">Merchant code<input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" value={code} onChange={(event) => setCode(event.target.value)} /></label>
-        <label className="block text-xs">Contact email<input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-        <label className="block text-xs">Contact mobile<input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" value={mobile} onChange={(event) => setMobile(event.target.value)} /></label>
-        <RateInput id="m-payin" label="Merchant PAY-IN rate" valueBp={payinBp} onChangeBp={setPayinBp} />
-        <RateInput id="m-payout" label="Merchant PAY-OUT rate" valueBp={payoutBp} onChangeBp={setPayoutBp} />
+      <PageHeader title="Create Merchant" />
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
+      <FormShell submitLabel="Create" onSubmit={() => void handleSubmit()}>
+        <FormSection title="Merchant Information" description="Legal and contact details.">
+          <FormGrid>
+            <FormField label="Legal Name" required>
+              <Input value={legalName} onChange={(event) => setLegalName(event.target.value)} />
+            </FormField>
+            <FormField label="Display Name">
+              <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+            </FormField>
+            <FormField label="Merchant Code" required>
+              <Input value={code} onChange={(event) => setCode(event.target.value)} />
+            </FormField>
+            <FormField label="Contact Email">
+              <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            </FormField>
+            <FormField label="Contact Mobile">
+              <Input type="tel" value={mobile} onChange={(event) => setMobile(event.target.value)} />
+            </FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Initial Rates" description="Set the default commission rates for this merchant.">
+          <FormGrid>
+            <FormField label="PAY-IN Rate">
+              <RateInput id="m-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
+            </FormField>
+            <FormField label="PAY-OUT Rate">
+              <RateInput id="m-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
+            </FormField>
+          </FormGrid>
+        </FormSection>
       </FormShell>
     </AppShell>
   )

@@ -5,8 +5,14 @@ import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import type { MerchantDetail, MerchantRate } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { RateInput } from '@/components/forms/RateInput'
 import { DataTable, EmptyState, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { FormShell } from '@/components/forms/FormShell'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -63,50 +69,73 @@ export default function MerchantDetailPage() {
   }
 
   return (
-    <AppShell title="Merchant" role={user.role} menus={menus}>
-      <p className="mb-2 text-xs">
-        <Link className="underline" href="/merchants">
-          Back to list
-        </Link>
-      </p>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+    <AppShell title="Merchant Detail" role={user.role} menus={menus}>
+      <PageHeader title="Merchant Detail" />
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading || !merchant ? (
         <TableSkeleton />
       ) : (
-        <>
-          <p className="text-sm font-medium">
-            {merchant.legal_name} <StatusBadge status={merchant.status} />
-          </p>
-          <p className="mb-3 text-xs text-zinc-600">
-            {merchant.merchant_code} · {merchant.contact_email ?? 'no email'}
-          </p>
-          {hasMenu(menus, 'MERCHANTS', 'can_edit') ? (
-            <div className="mb-4 flex flex-wrap items-end gap-2">
-              <RateInput id="edit-payin" label="PAY-IN" valueBp={payinBp} onChangeBp={setPayinBp} />
-              <button type="button" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white" onClick={() => void handleSaveKind('PAYIN')}>
-                Change PAYIN rate
-              </button>
-              <RateInput id="edit-payout" label="PAY-OUT" valueBp={payoutBp} onChangeBp={setPayoutBp} />
-              <button type="button" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white" onClick={() => void handleSaveKind('PAYOUT')}>
-                Change PAYOUT rate
-              </button>
-            </div>
-          ) : null}
-          <p className="mb-1 text-[10px] uppercase text-zinc-500">Rate history</p>
-          <DataTable
-            columns={[
-              { key: 'kind', heading: 'KIND' },
-              { key: 'rate', heading: 'RATE' },
-              { key: 'from', heading: 'EFFECTIVE FROM' },
-            ]}
-            rows={history.map((row) => ({
-              kind: row.rate_kind,
-              rate: <RateDisplay rateBp={row.rate_bp} />,
-              from: new Date(row.effective_from).toLocaleString(),
-            }))}
-            empty={<EmptyState message="No rate history" />}
-          />
-        </>
+        <div className="flex flex-col gap-6">
+          <FormShell>
+            <FormSection title="Merchant Information" description="Legal name and status of the merchant.">
+              <FormGrid>
+                <FormField label="Legal Name">
+                  <Input value={merchant.legal_name} readOnly />
+                </FormField>
+                <FormField label="Merchant Code">
+                  <Input value={merchant.merchant_code} readOnly />
+                </FormField>
+                <FormField label="Status">
+                  <div className="flex h-10 items-center px-3">
+                    <StatusBadge status={merchant.status} />
+                  </div>
+                </FormField>
+                <FormField label="Contact Email">
+                  <Input value={merchant.contact_email ?? 'N/A'} readOnly />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+
+            {hasMenu(menus, 'MERCHANTS', 'can_edit') ? (
+              <FormSection title="Manage Rates" description="Update PAY-IN and PAY-OUT commission rates.">
+                <FormGrid>
+                  <FormField label="PAY-IN Rate">
+                    <div className="flex items-center gap-2">
+                      <RateInput id="edit-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
+                      <PrimaryButton onClick={() => void handleSaveKind('PAYIN')}>Update</PrimaryButton>
+                    </div>
+                  </FormField>
+                  <FormField label="PAY-OUT Rate">
+                    <div className="flex items-center gap-2">
+                      <RateInput id="edit-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
+                      <PrimaryButton onClick={() => void handleSaveKind('PAYOUT')}>Update</PrimaryButton>
+                    </div>
+                  </FormField>
+                </FormGrid>
+              </FormSection>
+            ) : null}
+          </FormShell>
+
+          <FormShell>
+            <FormSection title="Rate History" description="Historical log of rate changes.">
+              <DataTable
+                columns={[
+                  { key: 'kind', heading: 'KIND' },
+                  { key: 'rate', heading: 'RATE' },
+                  { key: 'from', heading: 'EFFECTIVE FROM' },
+                ]}
+                rows={history.map((row) => ({
+                  kind: row.rate_kind,
+                  rate: <RateDisplay rateBp={row.rate_bp} />,
+                  from: new Date(row.effective_from).toLocaleString(),
+                }))}
+                empty={<EmptyState message="No rate history" />}
+              />
+            </FormSection>
+          </FormShell>
+        </div>
       )}
     </AppShell>
   )

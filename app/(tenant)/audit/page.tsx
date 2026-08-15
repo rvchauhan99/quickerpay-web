@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { AuditLogItem, Pagination } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, TableSkeleton } from '@/components/ui/FilterBar'
+import { Input } from '@/components/forms/Input'
+import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { hasMenu } from '@/lib/session'
@@ -67,21 +70,42 @@ export default function AuditPage() {
 
   return (
     <AppShell title="Audit" role={user.role} menus={menus}>
+      <PageHeader
+        title="Audit"
+      />
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', actor: '', action: '', entity_type: '', ip: '', request_id: '', page: 1 })} onReload={() => void load()}>
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value, page: 1 })} aria-label="Start Date" />
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value, page: 1 })} aria-label="End Date" />
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="Actor" value={filters.actor} onChange={(event) => void setFilters({ actor: event.target.value, page: 1 })} aria-label="Actor" />
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="Action" value={filters.action} onChange={(event) => void setFilters({ action: event.target.value, page: 1 })} aria-label="Action" />
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="Entity" value={filters.entity_type} onChange={(event) => void setFilters({ entity_type: event.target.value, page: 1 })} aria-label="Entity type" />
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="IP" value={filters.ip} onChange={(event) => void setFilters({ ip: event.target.value, page: 1 })} aria-label="IP" />
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="Request id" value={filters.request_id} onChange={(event) => void setFilters({ request_id: event.target.value, page: 1 })} aria-label="Request id" />
-        <ExportButton
-          disabled={rows.length === 0}
-          canExport={hasMenu(menus, 'AUDIT', 'can_export')}
-          onExport={() => downloadExport(`/api/v1/audit/export?${queryString()}`, accessToken)}
-        />
+        <FormField label="From Date">
+          <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value, page: 1 })} aria-label="Start Date" />
+        </FormField>
+        <FormField label="To Date">
+          <Input type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value, page: 1 })} aria-label="End Date" />
+        </FormField>
+        <FormField label="Actor">
+          <Input placeholder="Actor" value={filters.actor} onChange={(event) => void setFilters({ actor: event.target.value, page: 1 })} aria-label="Actor" />
+        </FormField>
+        <FormField label="Action">
+          <Input placeholder="Action" value={filters.action} onChange={(event) => void setFilters({ action: event.target.value, page: 1 })} aria-label="Action" />
+        </FormField>
+        <FormField label="Entity">
+          <Input placeholder="Entity" value={filters.entity_type} onChange={(event) => void setFilters({ entity_type: event.target.value, page: 1 })} aria-label="Entity type" />
+        </FormField>
+        <FormField label="IP">
+          <Input placeholder="IP" value={filters.ip} onChange={(event) => void setFilters({ ip: event.target.value, page: 1 })} aria-label="IP" />
+        </FormField>
+        <FormField label="Request ID">
+          <Input placeholder="Request id" value={filters.request_id} onChange={(event) => void setFilters({ request_id: event.target.value, page: 1 })} aria-label="Request id" />
+        </FormField>
+        <div>
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'AUDIT', 'can_export')}
+            onExport={() => downloadExport(`/api/v1/audit/export?${queryString()}`, 'audit.csv', accessToken!)}
+          />
+        </div>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[

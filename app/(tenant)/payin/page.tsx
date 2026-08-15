@@ -2,16 +2,34 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
-import type { Pagination, PayinListItem, UpiAccountListItem } from '@quickerpay/shared-types'
+import type { MerchantListItem, Pagination, PayinListItem, UpiAccountListItem, UserListItem } from '@quickerpay/shared-types'
 import { PAYIN_STATUSES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton, Toast } from '@/components/ui/FilterBar'
+import { FormShell } from '@/components/forms/FormShell'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { IconButton } from '@/components/ui/IconButton'
+import { Eye, Link2, Check, X, XCircle, Undo2 } from 'lucide-react'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { isLabConsole } from '@/lib/lab'
+import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
+
+function formatApiError(caught: unknown, fallback: string): string {
+  if (!(caught instanceof ApiClientError)) return fallback
+  const base = caught.displayMessage()
+  return caught.requestId ? `${base} (${caught.requestId})` : base
+}
 
 export default function PayinPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('PAYIN')
@@ -20,6 +38,8 @@ export default function PayinPage() {
     date_to: parseAsString.withDefault(''),
     status: parseAsString.withDefault('IN_PROCESS'),
     q: parseAsString.withDefault(''),
+    merchant_id: parseAsString.withDefault(''),
+    admin_user_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -31,7 +51,16 @@ export default function PayinPage() {
   const [confirm, setConfirm] = useState<{ id: string; action: 'accept' | 'reject' | 'cancel' | 'refund' } | null>(null)
   const [assignFor, setAssignFor] = useState<string | null>(null)
   const [assignUpi, setAssignUpi] = useState('')
+  const [assignOperator, setAssignOperator] = useState('')
   const [upis, setUpis] = useState<UpiAccountListItem[]>([])
+  const [users, setUsers] = useState<UserListItem[]>([])
+  const [merchants, setMerchants] = useState<MerchantListItem[]>([])
+  const [creating, setCreating] = useState(false)
+  const [merchantId, setMerchantId] = useState('')
+  const [amountMinor, setAmountMinor] = useState(0)
+  const [createUpi, setCreateUpi] = useState('')
+  const [createOperator, setCreateOperator] = useState('')
+  const [createUtr, setCreateUtr] = useState('')
 
   const load = useCallback(async () => {
     if (!accessToken) return
@@ -44,6 +73,8 @@ export default function PayinPage() {
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
+    if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
     try {
       const result = await apiListRequest<PayinListItem>(`/api/v1/payin?${query}`, { token: accessToken })
       setRows(result.items)
@@ -61,66 +92,271 @@ export default function PayinPage() {
 
   useEffect(() => {
     if (!accessToken || !allowed) return
-    void apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).then((result) =>
-      setUpis(result.items),
-    )
+    void apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken })
+      .then((result) => setUpis(result.items))
+      .catch((caught) => {
+        setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load UPI accounts')
+      })
+    void apiListRequest<UserListItem>('/api/v1/users?page_size=100', { token: accessToken })
+      .then((result) => setUsers(result.items))
+      .catch(() => {
+        setUsers([])
+      })
   }, [accessToken, allowed])
+
+  useEffect(() => {
+    if (!accessToken || !allowed || !hasMenu(menus, 'PAYIN', 'can_create')) return
+    if (user?.role !== 'SUPER_ADMIN') return
+    void apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken })
+      .then((result) => setMerchants(result.items.filter((row) => row.status === 'ACTIVE')))
+      .catch((caught) => {
+        setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
+      })
+  }, [accessToken, allowed, menus, user?.role])
+
+  const { isSuperAdmin, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
+  const canPickMerchant = user.role === 'SUPER_ADMIN'
+
+  const assigneesForUpi = (upiId: string) => {
+    const upi = upis.find((row) => row.id === upiId)
+    if (!upi) return []
+    const owner = {
+      id: upi.owner_user_id,
+      label: `${upi.owner_username} (Admin)`,
+    }
+    const operators = users
+      .filter((row) => row.role === 'OPERATOR' && row.supervisor_admin_id === upi.owner_user_id && row.status === 'ACTIVE')
+      .map((row) => ({ id: row.id, label: `${row.username} (Operator)` }))
+    return [owner, ...operators.filter((row) => row.id !== owner.id)]
+  }
+
+  const handleUpiChange = (upiId: string, kind: 'create' | 'assign') => {
+    const ownerId = upis.find((row) => row.id === upiId)?.owner_user_id ?? ''
+    if (kind === 'create') {
+      setCreateUpi(upiId)
+      setCreateOperator(ownerId)
+      return
+    }
+    setAssignUpi(upiId)
+    setAssignOperator(ownerId)
+  }
+
   const handleAction = async () => {
     if (!confirm || !accessToken) return
-    await apiRequest(`/api/v1/payin/${confirm.id}/${confirm.action}`, {
-      method: 'POST',
-      token: accessToken,
-      body: confirm.action === 'reject' ? { reason: 'Rejected' } : undefined,
-      headers: confirm.action === 'accept' || confirm.action === 'refund' ? { 'Idempotency-Key': crypto.randomUUID() } : undefined,
-    })
-    setConfirm(null)
-    setToast('Success')
-    await load()
+    try {
+      await apiRequest(`/api/v1/payin/${confirm.id}/${confirm.action}`, {
+        method: 'POST',
+        token: accessToken,
+        body: confirm.action === 'reject' ? { reason: 'Rejected' } : undefined,
+        headers: confirm.action === 'accept' || confirm.action === 'refund' ? { 'Idempotency-Key': crypto.randomUUID() } : undefined,
+      })
+      setConfirm(null)
+      setToast('Success')
+      await load()
+    } catch (caught) {
+      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-in')
+    }
   }
 
   const handleAssign = async () => {
     if (!assignFor || !accessToken || !assignUpi) return
-    await apiRequest(`/api/v1/payin/${assignFor}/assign`, {
-      method: 'POST',
-      token: accessToken,
-      body: { upi_account_id: assignUpi },
-    })
-    setAssignFor(null)
-    setAssignUpi('')
-    setToast('Success')
-    await load()
+    try {
+      await apiRequest(`/api/v1/payin/${assignFor}/assign`, {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          upi_account_id: assignUpi,
+          ...(assignOperator ? { operator_user_id: assignOperator } : {}),
+        },
+      })
+      setAssignFor(null)
+      setAssignUpi('')
+      setAssignOperator('')
+      setToast('Success')
+      await setFilters({ status: 'IN_PROCESS', page: 1 })
+      await load()
+    } catch (caught) {
+      setError(formatApiError(caught, 'Could not assign UPI'))
+    }
+  }
+
+  const handleCreate = async () => {
+    const utr = createUtr.trim()
+    if (!accessToken || amountMinor <= 0 || !createUpi || !/^\d{6,32}$/.test(utr)) return
+    if (canPickMerchant && !merchantId) return
+    try {
+      const created = await apiRequest<PayinListItem>('/api/v1/payin', {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          amount_minor: amountMinor,
+          ...(canPickMerchant ? { merchant_id: merchantId } : {}),
+        },
+      })
+      await apiRequest(`/api/v1/payin/${created.id}/assign`, {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          upi_account_id: createUpi,
+          utr,
+          ...(createOperator ? { operator_user_id: createOperator } : {}),
+        },
+      })
+      setCreating(false)
+      setMerchantId('')
+      setAmountMinor(0)
+      setCreateUpi('')
+      setCreateOperator('')
+      setCreateUtr('')
+      setToast('Success')
+      await setFilters({ status: 'IN_PROCESS', page: 1 })
+      await load()
+    } catch (caught) {
+      setError(formatApiError(caught, 'Could not create pay-in'))
+    }
   }
 
   return (
     <AppShell title="Pay-In Requests" role={user.role} menus={menus}>
+      <PageHeader
+        title="Pay-In Requests"
+        action={
+          hasMenu(menus, 'PAYIN', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+            <PrimaryButton onClick={() => setCreating(true)}>
+              Create
+            </PrimaryButton>
+          ) : null
+        }
+      />
       <Toast message={toast} />
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', page: 1 })} onReload={() => void load()}>
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
-        <select className="h-7 rounded border border-zinc-300 text-xs" value={filters.status} onChange={(event) => void setFilters({ status: event.target.value, page: 1 })} aria-label="Status">
-          {PAYIN_STATUSES.map((status) => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="Gateway Ref. No / UTR" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
-        <ExportButton
-          disabled={rows.length === 0}
-          canExport={hasMenu(menus, 'PAYIN', 'can_export')}
-          onExport={() => {
-            const query = new URLSearchParams()
-            query.set('status', filters.status || 'IN_PROCESS')
-            if (filters.date_from) query.set('date_from', filters.date_from)
-            if (filters.date_to) query.set('date_to', filters.date_to)
-            if (filters.q) query.set('q', filters.q)
-            return downloadExport(`/api/v1/payin/export?${query}`, accessToken)
-          }}
-        />
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
+        <FormField label="From Date">
+          <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
+        </FormField>
+        <FormField label="To Date">
+          <Input type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
+        </FormField>
+        <FormField label="Status">
+          <Select value={filters.status} onChange={(event) => void setFilters({ status: event.target.value })} aria-label="Status">
+            <option value="">All statuses</option>
+            {PAYIN_STATUSES.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Search">
+          <Input placeholder="Search UTR / ID" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
+        </FormField>
+        {isSuperAdmin ? (
+          <SuperAdminDirectoryFilters
+            admins={admins}
+            merchants={directoryMerchants}
+            adminId={filters.admin_user_id}
+            merchantId={filters.merchant_id}
+            onAdminChange={(value) => void setFilters({ admin_user_id: value, page: 1 })}
+            onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
+          />
+        ) : null}
+        <div>
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'PAYIN', 'can_export')}
+            onExport={() => {
+              const query = new URLSearchParams()
+              query.set('status', filters.status || 'IN_PROCESS')
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              void downloadExport(`/api/v1/payin/export?${query}`, 'payins.csv', accessToken!)
+            }}
+          />
+        </div>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+
+      {creating && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+        <div className="mb-4">
+          <FormShell title="Create Pay-In" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
+            <FormSection title="Request">
+              <FormGrid>
+                {canPickMerchant ? (
+                <FormField label="Merchant" required>
+                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Merchant">
+                    <option value="">Select merchant</option>
+                    {merchants.map((merchant) => (
+                      <option key={merchant.id} value={merchant.id}>
+                        {merchant.merchant_code} — {merchant.display_name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+                ) : null}
+                <FormField label="Amount" required hint="Whole rupees. GPay paise are ignored when matching.">
+                  <MoneyInput id="payin-amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} wholeRupees />
+                </FormField>
+                <FormField label="UTR" required hint="GPay UTR, 6 to 32 digits. Match is UTR + UPI + amount.">
+                  <Input
+                    value={createUtr}
+                    onChange={(event) => setCreateUtr(event.target.value.replace(/\D/g, '').slice(0, 32))}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    aria-label="UTR"
+                    placeholder="Enter UTR"
+                  />
+                </FormField>
+                <FormField label="Assign UPI" required hint="Required. Leaves the row IN_PROCESS after match.">
+                  <Select value={createUpi} onChange={(event) => handleUpiChange(event.target.value, 'create')} aria-label="Assign UPI">
+                    <option value="">Select UPI</option>
+                    {upis.filter((row) => row.status === 'ACTIVE').map((upi) => (
+                      <option key={upi.id} value={upi.id}>{upi.upi_address}</option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label="Assign operator" required hint="Defaults to the UPI Admin. Operators of that Admin can be selected.">
+                  <Select value={createOperator} onChange={(event) => setCreateOperator(event.target.value)} aria-label="Assign operator">
+                    <option value="">Select operator</option>
+                    {assigneesForUpi(createUpi).map((row) => (
+                      <option key={row.id} value={row.id}>{row.label}</option>
+                    ))}
+                  </Select>
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          </FormShell>
+        </div>
+      ) : null}
+
+      {assignFor ? (
+        <div className="mb-4">
+          <FormShell title={`Assign UPI for Pay-In ${assignFor}`} submitLabel="Assign" onCancel={() => setAssignFor(null)} onSubmit={() => void handleAssign()}>
+            <FormField label="Target UPI Account" required>
+              <Select value={assignUpi} onChange={(event) => handleUpiChange(event.target.value, 'assign')}>
+                <option value="" disabled>Select UPI</option>
+                {upis.map((upi) => (
+                  <option key={upi.id} value={upi.id}>{upi.upi_address}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Assign operator" required>
+              <Select value={assignOperator} onChange={(event) => setAssignOperator(event.target.value)} aria-label="Assign operator">
+                <option value="">Select operator</option>
+                {assigneesForUpi(assignUpi).map((row) => (
+                  <option key={row.id} value={row.id}>{row.label}</option>
+                ))}
+              </Select>
+            </FormField>
+          </FormShell>
+        </div>
+      ) : null}
+
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
@@ -142,22 +378,30 @@ export default function PayinPage() {
             type: row.auto_accepted ? 'PAYIN BOT' : 'PAYIN',
             status: <StatusBadge status={row.status} />,
             actions: (
-              <span className="flex flex-wrap gap-1">
-                <a className="underline" href={`/payin/${row.id}`}>View</a>
-                {hasMenu(menus, 'PAYIN', 'can_edit') && ['CREATED', 'PENDING', 'ASSIGNED'].includes(row.status) ? (
-                  <button type="button" className="underline" onClick={() => setAssignFor(row.id)}>Assign UPI</button>
+              <span className="flex flex-wrap items-center gap-1">
+                <IconButton href={`/payin/${row.id}`} icon={<Eye size={15} strokeWidth={1.75} />} tooltip="View details" />
+                {hasMenu(menus, 'PAYIN', 'can_edit') && (row.status === 'INITIATE' || row.status === 'IN_PROCESS') ? (
+                  <IconButton
+                    icon={<Link2 size={15} strokeWidth={1.75} />}
+                    tooltip="Assign UPI"
+                    onClick={() => {
+                      setAssignFor(row.id)
+                      handleUpiChange(row.assigned_upi_id ?? '', 'assign')
+                      if (row.assigned_operator_id) setAssignOperator(row.assigned_operator_id)
+                    }}
+                  />
                 ) : null}
-                {hasMenu(menus, 'PAYIN', 'can_approve') && ['IN_PROCESS', 'PAYMENT_RECEIVED', 'UNDER_REVIEW'].includes(row.status) ? (
+                {hasMenu(menus, 'PAYIN', 'can_approve') && row.status === 'IN_PROCESS' ? (
                   <>
-                    <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'accept' })}>Accept</button>
-                    <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'reject' })}>Reject</button>
+                    <IconButton variant="primary" icon={<Check size={15} strokeWidth={1.75} />} tooltip="Accept" onClick={() => setConfirm({ id: row.id, action: 'accept' })} />
+                    <IconButton variant="danger" icon={<X size={15} strokeWidth={1.75} />} tooltip="Reject" onClick={() => setConfirm({ id: row.id, action: 'reject' })} />
                   </>
                 ) : null}
-                {hasMenu(menus, 'PAYIN', 'can_edit') && ['CREATED', 'PENDING'].includes(row.status) ? (
-                  <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'cancel' })}>Cancel</button>
+                {hasMenu(menus, 'PAYIN', 'can_edit') && row.status === 'INITIATE' ? (
+                  <IconButton variant="secondary" icon={<XCircle size={15} strokeWidth={1.75} />} tooltip="Cancel" onClick={() => setConfirm({ id: row.id, action: 'cancel' })} />
                 ) : null}
-                {user.role === 'SUPER_ADMIN' && row.status === 'SUCCESS' ? (
-                  <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'refund' })}>Refund</button>
+                {user.role === 'SUPER_ADMIN' && row.status === 'COMPLETED' ? (
+                  <IconButton variant="danger" icon={<Undo2 size={15} strokeWidth={1.75} />} tooltip="Refund" onClick={() => setConfirm({ id: row.id, action: 'refund' })} />
                 ) : null}
               </span>
             ),
@@ -176,7 +420,7 @@ export default function PayinPage() {
           <div className="w-full max-w-sm rounded border border-zinc-200 bg-white p-3">
             <label className="text-xs" htmlFor="assign-upi">
               UPI
-              <select id="assign-upi" className="mt-1 h-8 w-full rounded border border-zinc-300" value={assignUpi} onChange={(event) => setAssignUpi(event.target.value)}>
+              <select id="assign-upi" className="mt-1 h-8 w-full rounded border border-zinc-300" value={assignUpi} onChange={(event) => handleUpiChange(event.target.value, 'assign')}>
                 <option value="">Select</option>
                 {upis.filter((row) => row.status === 'ACTIVE').map((upi) => (
                   <option key={upi.id} value={upi.id}>{upi.upi_address}</option>

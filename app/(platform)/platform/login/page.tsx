@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
+import { FormShell } from '@/components/forms/FormShell'
 
 export default function PlatformLoginPage() {
   const router = useRouter()
@@ -25,32 +28,19 @@ export default function PlatformLoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-sm p-6">
-      <h1 className="mb-3 text-sm font-semibold">Platform sign-in</h1>
-      <form
-        className="space-y-2 text-xs"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void handleSubmit()
-        }}
-      >
-        <label className="block">
-          Email
-          <input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" value={email} onChange={(event) => setEmail(event.target.value)} />
-        </label>
-        <label className="block">
-          Password
-          <input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-        </label>
-        <label className="block">
-          TOTP
-          <input className="mt-0.5 h-7 w-full rounded border border-zinc-300 px-1" value={totp} onChange={(event) => setTotp(event.target.value)} />
-        </label>
-        {error ? <p className="text-red-700">{error}</p> : null}
-        <button type="submit" className="h-7 rounded bg-zinc-900 px-3 text-white">
-          Sign in
-        </button>
-      </form>
+    <main className="mx-auto mt-20 max-w-sm p-6">
+      <FormShell submitLabel="Sign in" onSubmit={() => void handleSubmit()}>
+        <FormField label="Email" required>
+          <Input value={email} onChange={(event) => setEmail(event.target.value)} />
+        </FormField>
+        <FormField label="Password" required>
+          <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        </FormField>
+        <FormField label="TOTP" required>
+          <Input value={totp} onChange={(event) => setTotp(event.target.value)} />
+        </FormField>
+        {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
+      </FormShell>
     </main>
   )
 }

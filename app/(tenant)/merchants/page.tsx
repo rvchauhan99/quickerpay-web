@@ -6,8 +6,14 @@ import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MerchantDetail, MerchantListItem, Pagination } from '@quickerpay/shared-types'
 import { MERCHANT_STATUSES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, EmptyState, FilterBar, StatusBadge, TableSkeleton, Toast } from '@/components/ui/FilterBar'
+import { IconButton } from '@/components/ui/IconButton'
+import { Pencil, List, Ban } from 'lucide-react'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -76,26 +82,38 @@ export default function MerchantsPage() {
 
   return (
     <AppShell title="Merchants" role={user.role} menus={menus}>
+      <PageHeader
+        title="Merchants"
+        action={
+          hasMenu(menus, 'MERCHANTS', 'can_create') ? (
+            <PrimaryButton href="/merchants/new">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Merchant
+            </PrimaryButton>
+          ) : null
+        }
+      />
       <Toast message={toast} />
       <FilterBar
         onApply={() => void load()}
         onClear={() => void setFilters({ status: '', q: '', page: 1 })}
         onReload={() => void load()}
       >
-        <select className="h-7 rounded border border-zinc-300 text-xs" value={filters.status} onChange={(event) => void setFilters({ status: event.target.value, page: 1 })} aria-label="Status">
-          <option value="">All statuses</option>
-          {MERCHANT_STATUSES.map((status) => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="code or name" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
-        {hasMenu(menus, 'MERCHANTS', 'can_create') ? (
-          <Link className="h-7 rounded bg-zinc-900 px-2 text-xs leading-7 text-white" href="/merchants/new">
-            Create
-          </Link>
-        ) : null}
+        <FormField label="Status">
+          <Select value={filters.status} onChange={(event) => void setFilters({ status: event.target.value, page: 1 })} aria-label="Status">
+            <option value="">All statuses</option>
+            {MERCHANT_STATUSES.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Search">
+          <Input placeholder="code or name" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
+        </FormField>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? (
         <TableSkeleton />
       ) : (
@@ -117,17 +135,11 @@ export default function MerchantsPage() {
             status: <StatusBadge status={row.status} />,
             created: new Date(row.created_at).toLocaleString(),
             actions: (
-              <span className="flex gap-2">
-                <Link className="underline" href={`/merchants/${row.id}`}>
-                  Edit
-                </Link>
-                <Link className="underline" href={`/transactions?merchant_id=${row.id}`}>
-                  View transactions
-                </Link>
+              <span className="flex items-center gap-1">
+                <IconButton href={`/merchants/${row.id}`} icon={<Pencil size={15} strokeWidth={1.75} />} tooltip="Edit" />
+                <IconButton href={`/transactions?merchant_id=${row.id}`} icon={<List size={15} strokeWidth={1.75} />} tooltip="View transactions" />
                 {hasMenu(menus, 'MERCHANTS', 'can_edit') && row.status === 'ACTIVE' ? (
-                  <button type="button" className="underline" onClick={() => setSuspend(row)}>
-                    Suspend
-                  </button>
+                  <IconButton variant="danger" icon={<Ban size={15} strokeWidth={1.75} />} tooltip="Suspend" onClick={() => setSuspend(row)} />
                 ) : null}
               </span>
             ),

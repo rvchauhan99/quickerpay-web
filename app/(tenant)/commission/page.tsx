@@ -5,12 +5,17 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsString, useQueryStates } from 'nuqs'
 import type { CommissionEntry, CommissionSummary } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatCard, TableSkeleton } from '@/components/ui/FilterBar'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { FormField } from '@/components/forms/FormField'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { hasMenu, useSession } from '@/lib/session'
+import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 
 const EMPTY: CommissionSummary = {
   kinds: [
@@ -50,10 +55,14 @@ export default function CommissionPage() {
     date_from: parseAsString.withDefault(''),
     date_to: parseAsString.withDefault(''),
     rate_kind: parseAsString.withDefault(''),
+    admin_user_id: parseAsString.withDefault(''),
+    merchant_id: parseAsString.withDefault(''),
   })
   const dateFrom = filters.date_from
   const dateTo = filters.date_to
   const rateKind = filters.rate_kind
+  const adminUserId = filters.admin_user_id
+  const merchantId = filters.merchant_id
   const [summary, setSummary] = useState<CommissionSummary>(EMPTY)
   const [entries, setEntries] = useState<CommissionEntry[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -69,6 +78,8 @@ export default function CommissionPage() {
     if (dateFrom) query.set('date_from', dateFrom)
     if (dateTo) query.set('date_to', dateTo)
     if (rateKind) query.set('rate_kind', rateKind)
+    if (adminUserId) query.set('admin_user_id', adminUserId)
+    if (merchantId) query.set('merchant_id', merchantId)
     const suffix = query.toString() ? `?${query.toString()}` : ''
     try {
       const [nextSummary, nextEntries] = await Promise.all([
@@ -86,7 +97,9 @@ export default function CommissionPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, dateFrom, dateTo, rateKind])
+  }, [accessToken, dateFrom, dateTo, rateKind, adminUserId, merchantId])
+
+  const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
 
   useEffect(() => {
     if (!ready) return
@@ -106,58 +119,56 @@ export default function CommissionPage() {
   const payoutKind = summary.kinds.find((row) => row.rate_kind === 'PAYOUT') ?? EMPTY.kinds[1]!
 
   const handleClear = () => {
-    void setFilters({ date_from: '', date_to: '', rate_kind: '' })
+    void setFilters({ date_from: '', date_to: '', rate_kind: '', admin_user_id: '', merchant_id: '' })
   }
 
   return (
     <AppShell title="Commission" role={user.role} menus={menus}>
+      <PageHeader
+        title="Commission"
+      />
       <FilterBar onApply={() => void load()} onClear={handleClear} onReload={() => void load()}>
-        <label className="text-xs text-zinc-600" htmlFor="date_from">
-          From
-          <input
-            id="date_from"
-            type="date"
-            className="ml-1 h-7 rounded border border-zinc-300 px-1"
-            value={dateFrom}
-            onChange={(event) => void setFilters({ date_from: event.target.value })}
-          />
-        </label>
-        <label className="text-xs text-zinc-600" htmlFor="date_to">
-          To
-          <input
-            id="date_to"
-            type="date"
-            className="ml-1 h-7 rounded border border-zinc-300 px-1"
-            value={dateTo}
-            onChange={(event) => void setFilters({ date_to: event.target.value })}
-          />
-        </label>
-        <label className="text-xs text-zinc-600" htmlFor="rate_kind">
-          Rate kind
-          <select
-            id="rate_kind"
-            className="ml-1 h-7 rounded border border-zinc-300 px-1"
-            value={rateKind}
-            onChange={(event) => void setFilters({ rate_kind: event.target.value })}
-          >
-            <option value="">All</option>
+        <FormField label="From Date">
+          <Input type="date" value={dateFrom} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
+        </FormField>
+        <FormField label="To Date">
+          <Input type="date" value={dateTo} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
+        </FormField>
+        <FormField label="Rate Kind">
+          <Select value={rateKind} onChange={(event) => void setFilters({ rate_kind: event.target.value })} aria-label="Rate kind">
+            <option value="">All kinds</option>
             <option value="PAYIN">PAYIN</option>
             <option value="PAYOUT">PAYOUT</option>
-          </select>
-        </label>
-        <ExportButton
-          disabled={entries.length === 0}
-          canExport={hasMenu(menus, 'COMMISSION', 'can_export')}
-          onExport={() => {
-            const query = new URLSearchParams()
-            if (dateFrom) query.set('date_from', dateFrom)
-            if (dateTo) query.set('date_to', dateTo)
-            if (rateKind) query.set('rate_kind', rateKind)
-            return downloadExport(`/api/v1/commission/export?${query}`, accessToken)
-          }}
-        />
+          </Select>
+        </FormField>
+        {isSuperAdmin ? (
+          <SuperAdminDirectoryFilters
+            admins={admins}
+            merchants={merchants}
+            adminId={adminUserId}
+            merchantId={merchantId}
+            onAdminChange={(value) => void setFilters({ admin_user_id: value })}
+            onMerchantChange={(value) => void setFilters({ merchant_id: value })}
+          />
+        ) : null}
+        <div>
+          <ExportButton
+            disabled={entries.length === 0}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (dateFrom) query.set('date_from', dateFrom)
+              if (dateTo) query.set('date_to', dateTo)
+              if (rateKind) query.set('rate_kind', rateKind)
+              if (adminUserId) query.set('admin_user_id', adminUserId)
+              if (merchantId) query.set('merchant_id', merchantId)
+              void downloadExport(`/api/v1/commission/export?${query}`, 'commission.csv', accessToken!)
+            }}
+          />
+        </div>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : null}
       <div className="mb-3 overflow-x-auto rounded border border-zinc-200 bg-white">
         <table className="min-w-full text-xs">

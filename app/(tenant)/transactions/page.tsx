@@ -6,11 +6,16 @@ import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { Pagination, TransactionListItem } from '@quickerpay/shared-types'
 import { TRANSACTION_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { DataTable, FilterBar, StatusBadge, TableSkeleton, EmptyState, ExportButton } from '@/components/ui/FilterBar'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function TransactionsPage() {
@@ -22,6 +27,7 @@ export default function TransactionsPage() {
     status: parseAsString.withDefault(''),
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
+    admin_user_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -43,6 +49,7 @@ export default function TransactionsPage() {
     if (filters.status) query.set('status', filters.status)
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
     try {
       const result = await apiListRequest<TransactionListItem>(`/api/v1/transactions?${query}`, { token: accessToken })
       setRows(result.items)
@@ -54,6 +61,8 @@ export default function TransactionsPage() {
     }
   }, [accessToken, filters])
 
+  const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
+
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
@@ -63,58 +72,58 @@ export default function TransactionsPage() {
 
   return (
     <AppShell title="Transactions" role={user.role} menus={menus}>
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', page: 1 })} onReload={() => void load()}>
-        <input
-          className="h-8 rounded-lg border px-2 text-xs"
-          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-          type="date"
-          value={filters.date_from}
-          onChange={(event) => void setFilters({ date_from: event.target.value })}
-          aria-label="Start Date"
-        />
-        <input
-          className="h-8 rounded-lg border px-2 text-xs"
-          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-          type="date"
-          value={filters.date_to}
-          onChange={(event) => void setFilters({ date_to: event.target.value })}
-          aria-label="End Date"
-        />
-        <select
-          className="h-8 rounded-lg border px-2 text-xs"
-          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-          value={filters.type}
-          onChange={(event) => void setFilters({ type: event.target.value })}
-          aria-label="Type"
-        >
-          <option value="">All types</option>
-          {TRANSACTION_TYPES.map((type) => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
-        <input
-          className="h-8 rounded-lg border px-2 text-xs"
-          style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}
-          placeholder="Gateway Ref. No / UTR"
-          value={filters.q}
-          onChange={(event) => void setFilters({ q: event.target.value })}
-          aria-label="Search"
-        />
-        <ExportButton
-          disabled={rows.length === 0}
-          canExport={hasMenu(menus, 'TRANSACTIONS', 'can_export')}
-          onExport={() => {
-            const query = new URLSearchParams()
-            if (filters.date_from) query.set('date_from', filters.date_from)
-            if (filters.date_to) query.set('date_to', filters.date_to)
-            if (filters.type) query.set('type', filters.type)
-            if (filters.status) query.set('status', filters.status)
-            if (filters.q) query.set('q', filters.q)
-            return downloadExport(`/api/v1/transactions/export?${query}`, accessToken)
-          }}
-        />
+      <PageHeader
+        title="Transactions"
+      />
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
+        <FormField label="From Date">
+          <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
+        </FormField>
+        <FormField label="To Date">
+          <Input type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
+        </FormField>
+        <FormField label="Type">
+          <Select value={filters.type} onChange={(event) => void setFilters({ type: event.target.value })} aria-label="Type">
+            <option value="">All types</option>
+            {TRANSACTION_TYPES.map((type) => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Search">
+          <Input placeholder="Gateway Ref. No / UTR" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
+        </FormField>
+        {isSuperAdmin ? (
+          <SuperAdminDirectoryFilters
+            admins={admins}
+            merchants={merchants}
+            adminId={filters.admin_user_id}
+            merchantId={filters.merchant_id}
+            onAdminChange={(value) => void setFilters({ admin_user_id: value, page: 1 })}
+            onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
+          />
+        ) : null}
+        <div>
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'TRANSACTIONS', 'can_export')}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.type) query.set('type', filters.type)
+              if (filters.status) query.set('status', filters.status)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              void downloadExport(`/api/v1/transactions/export?${query}`, 'transactions.csv', accessToken!)
+            }}
+          />
+        </div>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[

@@ -2,15 +2,27 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
-import type { Pagination, PayoutListItem } from '@quickerpay/shared-types'
+import type { BankAccountListItem, MerchantListItem, Pagination, PayoutListItem } from '@quickerpay/shared-types'
 import { PAYOUT_STATUSES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
+import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton, Toast } from '@/components/ui/FilterBar'
+import { FormShell } from '@/components/forms/FormShell'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { IconButton } from '@/components/ui/IconButton'
+import { Eye, Check, X, CheckCircle, XCircle } from 'lucide-react'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { isLabConsole } from '@/lib/lab'
+import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function PayoutPage() {
@@ -20,6 +32,8 @@ export default function PayoutPage() {
     date_to: parseAsString.withDefault(''),
     status: parseAsString.withDefault('IN_PROCESS'),
     q: parseAsString.withDefault(''),
+    merchant_id: parseAsString.withDefault(''),
+    admin_user_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -31,6 +45,14 @@ export default function PayoutPage() {
   const [confirm, setConfirm] = useState<{ id: string; action: 'approve' | 'process' | 'fail' | 'reject' | 'cancel' | 'retry' } | null>(null)
   const [successFor, setSuccessFor] = useState<string | null>(null)
   const [utr, setUtr] = useState('')
+  const [merchants, setMerchants] = useState<MerchantListItem[]>([])
+  const [banks, setBanks] = useState<BankAccountListItem[]>([])
+  const [creating, setCreating] = useState(false)
+  const [merchantId, setMerchantId] = useState('')
+  const [amountMinor, setAmountMinor] = useState(0)
+  const [beneficiaryName, setBeneficiaryName] = useState('')
+  const [beneficiaryAccount, setBeneficiaryAccount] = useState('')
+  const [sourceBankId, setSourceBankId] = useState('')
 
   const load = useCallback(async () => {
     if (!accessToken) return
@@ -43,6 +65,8 @@ export default function PayoutPage() {
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
+    if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
     try {
       const result = await apiListRequest<PayoutListItem>(`/api/v1/payout?${query}`, { token: accessToken })
       setRows(result.items)
@@ -58,61 +82,193 @@ export default function PayoutPage() {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
 
+  useEffect(() => {
+    if (!accessToken || !allowed || !hasMenu(menus, 'PAYOUT', 'can_create')) return
+    if (user?.role === 'SUPER_ADMIN') {
+      void apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken })
+        .then((result) => setMerchants(result.items.filter((row) => row.status === 'ACTIVE')))
+        .catch((caught) => {
+          setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
+        })
+    }
+    void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken })
+      .then((result) => setBanks(result.items.filter((row) => row.status === 'ACTIVE')))
+      .catch((caught) => {
+        setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load banks')
+      })
+  }, [accessToken, allowed, menus, user?.role])
+
+  const { isSuperAdmin, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
+
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
+  const canPickMerchant = user.role === 'SUPER_ADMIN'
+
   const handleAction = async () => {
     if (!confirm || !accessToken) return
-    await apiRequest(`/api/v1/payout/${confirm.id}/${confirm.action}`, {
-      method: 'POST',
-      token: accessToken,
-      body: confirm.action === 'fail' || confirm.action === 'reject' ? { reason: 'Rejected' } : undefined,
-    })
-    setConfirm(null)
-    setToast('Success')
-    await load()
+    try {
+      await apiRequest(`/api/v1/payout/${confirm.id}/${confirm.action}`, {
+        method: 'POST',
+        token: accessToken,
+        body: confirm.action === 'fail' || confirm.action === 'reject' ? { reason: 'Rejected' } : undefined,
+      })
+      setConfirm(null)
+      setToast('Success')
+      await load()
+    } catch (caught) {
+      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-out')
+    }
   }
 
   const handleSuccess = async () => {
     if (!successFor || !accessToken) return
-    await apiRequest(`/api/v1/payout/${successFor}/success`, {
-      method: 'POST',
-      token: accessToken,
-      body: { utr },
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
-    })
-    setSuccessFor(null)
-    setUtr('')
-    setToast('Success')
-    await load()
+    try {
+      await apiRequest(`/api/v1/payout/${successFor}/success`, {
+        method: 'POST',
+        token: accessToken,
+        body: { utr },
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+      })
+      setSuccessFor(null)
+      setUtr('')
+      setToast('Success')
+      await load()
+    } catch (caught) {
+      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not mark success')
+    }
+  }
+
+  const handleCreate = async () => {
+    if (!accessToken || amountMinor <= 0 || !beneficiaryName || !beneficiaryAccount || !sourceBankId) return
+    if (canPickMerchant && !merchantId) return
+    try {
+      await apiRequest('/api/v1/payout', {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          ...(canPickMerchant ? { merchant_id: merchantId } : {}),
+          amount_minor: amountMinor,
+          beneficiary_name: beneficiaryName,
+          beneficiary_account: beneficiaryAccount,
+          source_bank_account_id: sourceBankId,
+        },
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+      })
+      setCreating(false)
+      setMerchantId('')
+      setAmountMinor(0)
+      setBeneficiaryName('')
+      setBeneficiaryAccount('')
+      setSourceBankId('')
+      setToast('Success')
+      await setFilters({ status: 'INITIATE', page: 1 })
+      await load()
+    } catch (caught) {
+      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not create pay-out')
+    }
   }
 
   return (
     <AppShell title="Pay-Out Requests" role={user.role} menus={menus}>
+      <PageHeader
+        title="Pay-Out Requests"
+        action={
+          hasMenu(menus, 'PAYOUT', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+            <PrimaryButton onClick={() => setCreating(true)}>Create</PrimaryButton>
+          ) : null
+        }
+      />
       <Toast message={toast} />
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', page: 1 })} onReload={() => void load()}>
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
-        <input className="h-7 rounded border border-zinc-300 px-1 text-xs" type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
-        <select className="h-7 rounded border border-zinc-300 text-xs" value={filters.status} onChange={(event) => void setFilters({ status: event.target.value, page: 1 })} aria-label="Status">
-          {PAYOUT_STATUSES.map((status) => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="Gateway Ref. No / UTR" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
-        <ExportButton
-          disabled={rows.length === 0}
-          canExport={hasMenu(menus, 'PAYOUT', 'can_export')}
-          onExport={() => {
-            const query = new URLSearchParams()
-            query.set('status', filters.status || 'IN_PROCESS')
-            if (filters.date_from) query.set('date_from', filters.date_from)
-            if (filters.date_to) query.set('date_to', filters.date_to)
-            if (filters.q) query.set('q', filters.q)
-            return downloadExport(`/api/v1/payout/export?${query}`, accessToken)
-          }}
-        />
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
+        <FormField label="From Date">
+          <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
+        </FormField>
+        <FormField label="To Date">
+          <Input type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
+        </FormField>
+        <FormField label="Status">
+          <Select value={filters.status} onChange={(event) => void setFilters({ status: event.target.value })} aria-label="Status">
+            <option value="">All statuses</option>
+            {PAYOUT_STATUSES.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Search">
+          <Input placeholder="Gateway Ref. No / UTR" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
+        </FormField>
+        {isSuperAdmin ? (
+          <SuperAdminDirectoryFilters
+            admins={admins}
+            merchants={directoryMerchants}
+            adminId={filters.admin_user_id}
+            merchantId={filters.merchant_id}
+            onAdminChange={(value) => void setFilters({ admin_user_id: value, page: 1 })}
+            onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
+          />
+        ) : null}
+        <div>
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'PAYOUT', 'can_export')}
+            onExport={() => {
+              const query = new URLSearchParams()
+              query.set('status', filters.status || 'IN_PROCESS')
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              void downloadExport(`/api/v1/payout/export?${query}`, 'payouts.csv', accessToken!)
+            }}
+          />
+        </div>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      {creating && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+        <div className="mb-4">
+          <FormShell title="Create Pay-Out" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
+            <FormSection title="Request">
+              <FormGrid>
+                {canPickMerchant ? (
+                <FormField label="Merchant" required>
+                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Merchant">
+                    <option value="">Select merchant</option>
+                    {merchants.map((merchant) => (
+                      <option key={merchant.id} value={merchant.id}>
+                        {merchant.merchant_code} — {merchant.display_name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+                ) : null}
+                <FormField label="Amount" required>
+                  <MoneyInput id="payout-amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
+                </FormField>
+                <FormField label="Source bank" required>
+                  <Select value={sourceBankId} onChange={(event) => setSourceBankId(event.target.value)} aria-label="Source bank">
+                    <option value="">Select bank</option>
+                    {banks.map((bank) => (
+                      <option key={bank.id} value={bank.id}>
+                        {bank.label} {bank.account_number_masked ?? ''}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label="Beneficiary name" required>
+                  <Input value={beneficiaryName} onChange={(event) => setBeneficiaryName(event.target.value)} />
+                </FormField>
+                <FormField label="Beneficiary account" required>
+                  <Input value={beneficiaryAccount} onChange={(event) => setBeneficiaryAccount(event.target.value)} />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          </FormShell>
+        </div>
+      ) : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
@@ -134,28 +290,22 @@ export default function PayoutPage() {
             type: 'PAYOUT',
             status: <StatusBadge status={row.status} />,
             actions: (
-              <span className="flex flex-wrap gap-1">
-                <a className="underline" href={`/payout/${row.id}`}>View</a>
-                {hasMenu(menus, 'PAYOUT', 'can_approve') && row.status === 'PENDING' ? (
+              <span className="flex flex-wrap items-center gap-1">
+                <IconButton href={`/payout/${row.id}`} icon={<Eye size={15} strokeWidth={1.75} />} tooltip="View details" />
+                {hasMenu(menus, 'PAYOUT', 'can_approve') && row.status === 'INITIATE' ? (
                   <>
-                    <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'approve' })}>Approve</button>
-                    <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'reject' })}>Reject</button>
+                    <IconButton variant="primary" icon={<Check size={15} strokeWidth={1.75} />} tooltip="Approve" onClick={() => setConfirm({ id: row.id, action: 'approve' })} />
+                    <IconButton variant="danger" icon={<X size={15} strokeWidth={1.75} />} tooltip="Reject" onClick={() => setConfirm({ id: row.id, action: 'reject' })} />
                   </>
                 ) : null}
                 {hasMenu(menus, 'PAYOUT', 'can_edit') && row.status === 'IN_PROCESS' ? (
-                  <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'process' })}>Process</button>
-                ) : null}
-                {hasMenu(menus, 'PAYOUT', 'can_edit') && row.status === 'PROCESSING' ? (
                   <>
-                    <button type="button" className="underline" onClick={() => setSuccessFor(row.id)}>Success</button>
-                    <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'fail' })}>Fail</button>
+                    <IconButton variant="primary" icon={<CheckCircle size={15} strokeWidth={1.75} />} tooltip="Complete" onClick={() => setSuccessFor(row.id)} />
+                    <IconButton variant="danger" icon={<X size={15} strokeWidth={1.75} />} tooltip="Fail" onClick={() => setConfirm({ id: row.id, action: 'fail' })} />
                   </>
                 ) : null}
-                {hasMenu(menus, 'PAYOUT', 'can_edit') && row.status === 'FAILED' ? (
-                  <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'retry' })}>Retry</button>
-                ) : null}
-                {hasMenu(menus, 'PAYOUT', 'can_edit') && ['CREATED', 'PENDING'].includes(row.status) ? (
-                  <button type="button" className="underline" onClick={() => setConfirm({ id: row.id, action: 'cancel' })}>Cancel</button>
+                {hasMenu(menus, 'PAYOUT', 'can_edit') && row.status === 'INITIATE' ? (
+                  <IconButton variant="secondary" icon={<XCircle size={15} strokeWidth={1.75} />} tooltip="Cancel" onClick={() => setConfirm({ id: row.id, action: 'cancel' })} />
                 ) : null}
               </span>
             ),

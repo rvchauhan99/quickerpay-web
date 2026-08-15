@@ -18,11 +18,9 @@ export const WRITE_MENU_ACTIONS = ['can_create', 'can_edit', 'can_approve'] as c
 export const PLATFORM_ROLES = ['PLATFORM_OWNER', 'PLATFORM_SUPPORT', 'PLATFORM_AUDITOR'] as const
 export type PlatformRole = (typeof PLATFORM_ROLES)[number]
 
-/** Roles that cannot log in without a second factor, per docs/04_API_CONTRACT.md section 2.1. */
-export const ROLES_REQUIRING_TWO_FACTOR = ['SUPER_ADMIN'] as const satisfies readonly UserRole[]
-export const PLATFORM_ROLES_REQUIRING_TWO_FACTOR = [
-  'PLATFORM_OWNER',
-] as const satisfies readonly PlatformRole[]
+/** 2FA is opt-in per user (`two_fa_enabled`). No role is forced to enrol. */
+export const ROLES_REQUIRING_TWO_FACTOR = [] as const satisfies readonly UserRole[]
+export const PLATFORM_ROLES_REQUIRING_TWO_FACTOR = [] as const satisfies readonly PlatformRole[]
 
 export interface MenuGrant extends MenuActions {
   menu_code: MenuCode
@@ -46,6 +44,7 @@ export interface SessionUser {
   supervisor_admin_id: string | null
   operational_state: OperationalState
   auto_accept_enabled: boolean
+  two_fa_enabled: boolean
 }
 
 export interface SessionTenant {
@@ -61,6 +60,11 @@ export interface LoginResponse {
   tenant: SessionTenant
   menus: MenuGrant[]
   scope: BankingScope
+}
+
+/** Password was accepted; the client must resubmit with `totp`. No session is issued. */
+export interface TwoFaChallengeResponse {
+  two_fa_required: true
 }
 
 export interface PlatformUserSummary {

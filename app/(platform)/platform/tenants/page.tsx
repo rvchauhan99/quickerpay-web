@@ -3,6 +3,11 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { DataTable, EmptyState, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { Input } from '@/components/forms/Input'
+import { FormField } from '@/components/forms/FormField'
+import { PrimaryButton } from '@/components/ui/PageHeader'
+import { IconButton } from '@/components/ui/IconButton'
+import { Ban, Play } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 
 interface PlatformTenantRow {
@@ -83,16 +88,16 @@ export default function PlatformTenantsPage() {
             void handleLogin()
           }}
         >
-          <input className="h-7 rounded border border-zinc-300 px-2 text-xs" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          <input className="h-7 rounded border border-zinc-300 px-2 text-xs" aria-label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          <input className="h-7 w-24 rounded border border-zinc-300 px-2 text-xs" aria-label="TOTP" value={totp} onChange={(event) => setTotp(event.target.value)} />
-          <button type="submit" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white">
-            Sign in
-          </button>
+          <div className="w-48"><Input placeholder="Email" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} /></div>
+          <div className="w-48"><Input placeholder="Password" aria-label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></div>
+          <div className="w-24"><Input placeholder="TOTP" aria-label="TOTP" value={totp} onChange={(event) => setTotp(event.target.value)} /></div>
+          <PrimaryButton type="submit">Sign in</PrimaryButton>
         </form>
       ) : null}
       <FilterBar onApply={() => token && void load(token)} onClear={() => setQ('')} onReload={() => token && void load(token)}>
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="name or slug" value={q} onChange={(event) => setQ(event.target.value)} aria-label="Search" />
+        <FormField label="Search">
+          <Input placeholder="name or slug" value={q} onChange={(event) => setQ(event.target.value)} aria-label="Search" />
+        </FormField>
         <Link className="h-7 rounded border border-zinc-300 px-2 text-xs leading-7" href="/platform/tenants/new">
           Create tenant
         </Link>
@@ -119,15 +124,11 @@ export default function PlatformTenantsPage() {
             health: row.health_status ?? '—',
             backup: row.last_backup_at ? new Date(row.last_backup_at).toLocaleString() : '—',
             actions: (
-              <span className="flex gap-2">
+              <span className="flex items-center gap-1">
                 {row.status === 'ACTIVE' ? (
-                  <button type="button" className="underline" onClick={() => void handleStatus(row.id, 'SUSPENDED')}>
-                    Suspend
-                  </button>
+                  <IconButton variant="danger" icon={<Ban size={15} strokeWidth={1.75} />} tooltip="Suspend" onClick={() => void handleStatus(row.id, 'SUSPENDED')} />
                 ) : (
-                  <button type="button" className="underline" onClick={() => void handleStatus(row.id, 'ACTIVE')}>
-                    Resume
-                  </button>
+                  <IconButton variant="primary" icon={<Play size={15} strokeWidth={1.75} />} tooltip="Resume" onClick={() => void handleStatus(row.id, 'ACTIVE')} />
                 )}
               </span>
             ),

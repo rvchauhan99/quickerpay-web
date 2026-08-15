@@ -1,6 +1,6 @@
 import { ApiClientError } from './api'
 
-export async function downloadExport(path: string, token: string | null): Promise<void> {
+export async function downloadExport(path: string, token: string | null, fallbackFilename?: string): Promise<void> {
   if (!token) return
   const headers: Record<string, string> = { accept: '*/*', authorization: `Bearer ${token}` }
   const response = await fetch(path, { method: 'GET', credentials: 'include', headers })
@@ -20,7 +20,7 @@ export async function downloadExport(path: string, token: string | null): Promis
   }
   const blob = await response.blob()
   const matched = /filename="?([^"]+)"?/i.exec(disposition)
-  const filename = matched?.[1] ?? 'export.xlsx'
+  const filename = matched?.[1] ?? fallbackFilename ?? 'export.xlsx'
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

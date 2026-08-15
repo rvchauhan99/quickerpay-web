@@ -1,6 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { FormField } from '@/components/forms/FormField'
+import { Input } from '@/components/forms/Input'
+import { PrimaryButton } from '@/components/ui/PageHeader'
 import { useState } from 'react'
 import { ApiClientError } from '@/lib/api'
 import { useSession } from '@/lib/session'
@@ -11,6 +14,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [totp, setTotp] = useState('')
+  const [needsTotp, setNeedsTotp] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -18,11 +22,15 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
     try {
-      await login({
+      const outcome = await login({
         username,
         password,
-        ...(totp ? { totp } : {}),
+        ...(needsTotp && totp ? { totp } : {}),
       })
+      if (outcome === 'two_fa_required') {
+        setNeedsTotp(true)
+        return
+      }
       router.replace('/dashboard')
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Invalid credentials')
@@ -111,8 +119,12 @@ export default function LoginPage() {
 
           {/* Heading */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--qp-text-primary)' }}>Sign in</h2>
-            <p className="mt-1 text-sm" style={{ color: 'var(--qp-text-muted)' }}>Enter your credentials to access the console</p>
+            <h2 className="text-2xl font-bold" style={{ color: 'var(--qp-text-primary)' }}>
+              {needsTotp ? 'Authenticator' : 'Sign in'}
+            </h2>
+            <p className="mt-1 text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+              {needsTotp ? 'Enter the 6-digit code from your authenticator app.' : 'Enter your credentials to access the console'}
+            </p>
           </div>
 
           {/* Form */}
@@ -123,78 +135,50 @@ export default function LoginPage() {
               void handleSubmit()
             }}
           >
-            {/* Username */}
-            <div>
-              <label
-                htmlFor="username"
-                className="block text-xs font-semibold mb-1.5"
-                style={{ color: 'var(--qp-text-secondary)' }}
-              >
-                Username
-              </label>
-              <input
-                id="username"
-                className="h-10 w-full rounded-lg border px-3 text-sm transition-colors"
-                style={{
-                  borderColor: 'var(--qp-border)',
-                  backgroundColor: '#fff',
-                  color: 'var(--qp-text-primary)',
-                }}
-                value={username}
-                autoComplete="username"
-                autoFocus
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
+            {!needsTotp ? (
+              <>
+                <FormField label="Username" required>
+                  <Input
+                    id="username"
+                    autoComplete="username"
+                    required
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    disabled={loading}
+                  />
+                </FormField>
 
-            {/* Password */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-xs font-semibold mb-1.5"
-                style={{ color: 'var(--qp-text-secondary)' }}
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                className="h-10 w-full rounded-lg border px-3 text-sm transition-colors"
-                style={{
-                  borderColor: 'var(--qp-border)',
-                  backgroundColor: '#fff',
-                  color: 'var(--qp-text-primary)',
-                }}
-                value={password}
-                autoComplete="current-password"
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            {/* TOTP */}
-            <div>
-              <label
-                htmlFor="totp"
-                className="block text-xs font-semibold mb-1.5"
-                style={{ color: 'var(--qp-text-secondary)' }}
-              >
-                Authenticator Code <span className="font-normal" style={{ color: 'var(--qp-text-muted)' }}>(if required)</span>
-              </label>
-              <input
-                id="totp"
-                className="h-10 w-full rounded-lg border px-3 text-sm tracking-widest transition-colors"
-                style={{
-                  borderColor: 'var(--qp-border)',
-                  backgroundColor: '#fff',
-                  color: 'var(--qp-text-primary)',
-                }}
-                value={totp}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="000000"
-                onChange={(e) => setTotp(e.target.value)}
-              />
-            </div>
+                <FormField label="Password" required>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={loading}
+                  />
+                </FormField>
+              </>
+            ) : (
+              <FormField label="Authenticator Code" required>
+                <Input
+                  id="totp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  autoFocus
+                  required
+                  value={totp}
+                  onChange={(event) => setTotp(event.target.value)}
+                  disabled={loading}
+                  className="tracking-widest text-center text-lg"
+                />
+              </FormField>
+            )}
 
             {/* Error */}
             {error ? (

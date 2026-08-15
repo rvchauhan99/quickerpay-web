@@ -4,8 +4,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { Pagination, UpiAccountListItem, UpiStatusHistoryItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { DataTable, FilterBar, StatusBadge, TableSkeleton, EmptyState, ExportButton } from '@/components/ui/FilterBar'
+import { Input } from '@/components/forms/Input'
+import { FormField } from '@/components/forms/FormField'
+import { IconButton } from '@/components/ui/IconButton'
+import { History } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function UpiPage() {
@@ -14,6 +20,7 @@ export default function UpiPage() {
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
     q: parseAsString.withDefault(''),
+    owner_user_id: parseAsString.withDefault(''),
   })
   const [rows, setRows] = useState<UpiAccountListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
@@ -29,6 +36,8 @@ export default function UpiPage() {
     const query = new URLSearchParams()
     query.set('page', String(filters.page))
     query.set('page_size', String(filters.page_size))
+    if (filters.q) query.set('q', filters.q)
+    if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
     try {
       const result = await apiListRequest<UpiAccountListItem>(`/api/v1/upi-accounts?${query}`, { token: accessToken })
       setRows(result.items)
@@ -44,6 +53,8 @@ export default function UpiPage() {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
 
+  const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
+
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
@@ -56,10 +67,29 @@ export default function UpiPage() {
 
   return (
     <AppShell title="UPI" role={user.role} menus={menus}>
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ page: 1 })} onReload={() => void load()}>
-        <ExportButton disabled={rows.length === 0} />
+      <PageHeader
+        title="UPI"
+      />
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ page: 1, q: '', owner_user_id: '' })} onReload={() => void load()}>
+        <FormField label="Search">
+          <Input placeholder="Search" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
+        </FormField>
+        {isSuperAdmin ? (
+          <SuperAdminDirectoryFilters
+            admins={admins}
+            merchants={merchants}
+            adminId={filters.owner_user_id}
+            onAdminChange={(value) => void setFilters({ owner_user_id: value, page: 1 })}
+            showMerchant={false}
+          />
+        ) : null}
+        <div>
+          <ExportButton disabled={rows.length === 0} />
+        </div>
       </FilterBar>
-      {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
+      <div className="mb-4">
+        <ErrorAlert message={error} />
+      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
@@ -75,7 +105,9 @@ export default function UpiPage() {
             bank: row.bank_label,
             status: <StatusBadge status={row.status} />,
             actions: (
-              <button type="button" className="underline" onClick={() => void handleHistory(row.id)}>History</button>
+              <span className="flex items-center gap-1">
+                <IconButton icon={<History size={15} strokeWidth={1.75} />} tooltip="View history" onClick={() => void handleHistory(row.id)} />
+              </span>
             ),
           }))}
           empty={<EmptyState message="No UPI accounts found" />}

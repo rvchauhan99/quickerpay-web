@@ -141,7 +141,6 @@ export default function CommissionConfigPage() {
                     <span>Admin rate</span>
                     <RateInput
                       id={`${admin.id}-payin`}
-                      label=""
                       valueBp={draft.PAYIN}
                       onChangeBp={(rateBp) =>
                         setDrafts((current) => ({ ...current, [admin.id]: { ...draft, PAYIN: rateBp } }))
@@ -149,7 +148,6 @@ export default function CommissionConfigPage() {
                     />
                     <RateInput
                       id={`${admin.id}-payout`}
-                      label=""
                       valueBp={draft.PAYOUT}
                       onChangeBp={(rateBp) =>
                         setDrafts((current) => ({ ...current, [admin.id]: { ...draft, PAYOUT: rateBp } }))
@@ -180,6 +178,8 @@ export default function CommissionConfigPage() {
   )
 }
 
+import { FormField } from '@/components/forms/FormField'
+
 function MerchantRateRow({
   merchant,
   onSave,
@@ -192,8 +192,12 @@ function MerchantRateRow({
   return (
     <div className="flex flex-wrap items-end gap-2 rounded border border-zinc-200 bg-white p-2">
       <p className="w-40 text-sm font-medium">{merchant.legal_name}</p>
-      <RateInput id={`${merchant.id}-payin`} label="PAY-IN" valueBp={payin} onChangeBp={setPayin} />
-      <RateInput id={`${merchant.id}-payout`} label="PAY-OUT" valueBp={payout} onChangeBp={setPayout} />
+      <FormField label="PAY-IN">
+        <RateInput id={`${merchant.id}-payin`} valueBp={payin} onChangeBp={setPayin} />
+      </FormField>
+      <FormField label="PAY-OUT">
+        <RateInput id={`${merchant.id}-payout`} valueBp={payout} onChangeBp={setPayout} />
+      </FormField>
       <button
         type="button"
         className="h-7 rounded bg-zinc-900 px-3 text-xs text-white"

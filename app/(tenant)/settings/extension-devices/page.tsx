@@ -7,6 +7,11 @@ import type { ExtensionDeviceListItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, EmptyState, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
+import { IconButton } from '@/components/ui/IconButton'
+import { List, Ban } from 'lucide-react'
+import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
+import { FormField } from '@/components/forms/FormField'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { hasMenu, useSession } from '@/lib/session'
@@ -93,18 +98,26 @@ export default function ExtensionDevicesPage() {
         onClear={() => void setFilters({ owner: '', upi: '', status: '', last_seen: '' })}
         onReload={() => void load()}
       >
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="owner" value={filters.owner} onChange={(event) => void setFilters({ owner: event.target.value })} aria-label="owner" />
-        <input className="h-7 rounded border border-zinc-300 px-2 text-xs" placeholder="UPI" value={filters.upi} onChange={(event) => void setFilters({ upi: event.target.value })} aria-label="UPI" />
-        <select className="h-7 rounded border border-zinc-300 text-xs" value={filters.status} onChange={(event) => void setFilters({ status: event.target.value })} aria-label="status">
-          <option value="">All statuses</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="REVOKED">REVOKED</option>
-        </select>
-        <select className="h-7 rounded border border-zinc-300 text-xs" value={filters.last_seen} onChange={(event) => void setFilters({ last_seen: event.target.value })} aria-label="last seen">
-          <option value="">Last seen</option>
-          <option value="Online">Online</option>
-          <option value="Offline">Offline</option>
-        </select>
+        <FormField label="Owner">
+          <Input placeholder="owner" value={filters.owner} onChange={(event) => void setFilters({ owner: event.target.value })} aria-label="owner" />
+        </FormField>
+        <FormField label="UPI">
+          <Input placeholder="UPI" value={filters.upi} onChange={(event) => void setFilters({ upi: event.target.value })} aria-label="UPI" />
+        </FormField>
+        <FormField label="Status">
+          <Select value={filters.status} onChange={(event) => void setFilters({ status: event.target.value })} aria-label="status">
+            <option value="">All statuses</option>
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="REVOKED">REVOKED</option>
+          </Select>
+        </FormField>
+        <FormField label="Last Seen">
+          <Select value={filters.last_seen} onChange={(event) => void setFilters({ last_seen: event.target.value })} aria-label="last seen">
+            <option value="">Last seen</option>
+            <option value="Online">Online</option>
+            <option value="Offline">Offline</option>
+          </Select>
+        </FormField>
       </FilterBar>
       {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
       {loading ? (
@@ -144,14 +157,10 @@ export default function ExtensionDevicesPage() {
             enrolled_by: row.enrolled_by,
             created_at: new Date(row.created_at).toLocaleString(),
             actions: (
-              <span className="flex gap-2">
-                <Link className="underline" href={`/utr?status=PENDING&extension_device_id=${row.id}`}>
-                  View posted entries
-                </Link>
+              <span className="flex items-center gap-1">
+                <IconButton href={`/utr?status=PENDING&extension_device_id=${row.id}`} icon={<List size={15} strokeWidth={1.75} />} tooltip="View posted entries" />
                 {canRevoke && row.status !== 'REVOKED' ? (
-                  <button type="button" className="underline" onClick={() => setRevoke(row)}>
-                    Revoke
-                  </button>
+                  <IconButton variant="danger" icon={<Ban size={15} strokeWidth={1.75} />} tooltip="Revoke" onClick={() => setRevoke(row)} />
                 ) : null}
               </span>
             ),
