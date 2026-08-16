@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { LoginResponse, MenuGrant, SessionUser, TwoFaChallengeResponse } from '@quickerpay/shared-types'
-import { apiRequest, refreshSession } from './api'
+import { apiRequest, bindApiSession, refreshSession } from './api'
 
 interface SessionState {
   accessToken: string | null
@@ -28,21 +28,37 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setMenus(payload.menus)
   }, [])
 
+  const clearSession = useCallback(() => {
+    setAccessToken(null)
+    setUser(null)
+    setMenus([])
+  }, [])
+
+  const tokenRef = useRef<string | null>(null)
+  tokenRef.current = accessToken
+
+  useEffect(() => {
+    bindApiSession({
+      getAccessToken: () => tokenRef.current,
+      applyLogin,
+      clearSession,
+    })
+    return () => bindApiSession(null)
+  }, [applyLogin, clearSession])
+
   useEffect(() => {
     const restore = async () => {
       try {
         const payload = await refreshSession()
         applyLogin(payload)
       } catch {
-        setAccessToken(null)
-        setUser(null)
-        setMenus([])
+        clearSession()
       } finally {
         setReady(true)
       }
     }
     void restore()
-  }, [applyLogin])
+  }, [applyLogin, clearSession])
 
   const login = useCallback(
     async (body: { username: string; password: string; totp?: string }) => {
@@ -61,10 +77,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (accessToken) {
       await apiRequest('/api/v1/auth/logout', { method: 'POST', token: accessToken }).catch(() => undefined)
     }
-    setAccessToken(null)
-    setUser(null)
-    setMenus([])
-  }, [accessToken])
+    clearSession()
+  }, [accessToken, clearSession])
 
   const refreshUser = useCallback(async () => {
     if (!accessToken) return

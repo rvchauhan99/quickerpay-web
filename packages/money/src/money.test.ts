@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromMinor, toMinor } from './minor'
+import { fromMinor, rupeeUnits, toMinor } from './minor'
 import { applyRateBp, bpToPercent, percentToBp, splitCommission } from './rates'
 import { roundHalfUp } from './rounding'
 import { MoneyError } from './errors'
@@ -45,6 +45,9 @@ describe('fromMinor', () => {
 
   it('pads paise to two digits', () => {
     expect(fromMinor(1n)).toBe('₹0.01')
+  })
+
+  it('formats a whole rupee', () => {
     expect(fromMinor(100n)).toBe('₹1.00')
   })
 
@@ -54,6 +57,14 @@ describe('fromMinor', () => {
       expect(toMinor(fromMinor(minor))).toBe(minor)
       expect(toMinor(fromMinor(-minor))).toBe(-minor)
     }
+  })
+})
+
+describe('rupeeUnits', () => {
+  it('drops leftover paise', () => {
+    expect(rupeeUnits(125_000n)).toBe(1_250n)
+    expect(rupeeUnits(125_050n)).toBe(1_250n)
+    expect(rupeeUnits(1n)).toBe(0n)
   })
 })
 

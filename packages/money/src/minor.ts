@@ -54,6 +54,12 @@ export function fromMinor(minor: bigint): string {
   return `₹${negative ? '-' : ''}${grouped}.${fraction}`
 }
 
+/** Whole rupees; leftover paise are dropped. Used only for UTR/pay-in match. */
+export function rupeeUnits(amountMinor: bigint): bigint {
+  if (amountMinor < 0n) return -((-amountMinor) / MINOR_PER_MAJOR)
+  return amountMinor / MINOR_PER_MAJOR
+}
+
 function groupIndian(digits: string): string {
   if (digits.length <= 3) return digits
   const lastThree = digits.slice(-3)

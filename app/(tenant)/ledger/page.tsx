@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { parseAsString, useQueryStates } from 'nuqs'
+import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { BankAccountListItem, LedgerAdjustment, LedgerStatement, UserListItem } from '@quickerpay/shared-types'
+import { LEDGER_DIRECTIONS, LEDGER_EVENT_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -20,13 +21,23 @@ import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
+function todayIso() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 export default function LedgerPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('LEDGER')
   const [filters, setFilters] = useQueryStates({
-    date_from: parseAsString.withDefault(''),
-    date_to: parseAsString.withDefault(''),
+    date_from: parseAsString.withDefault(todayIso()),
+    date_to: parseAsString.withDefault(todayIso()),
     owner_user_id: parseAsString.withDefault(''),
     bank_account_id: parseAsString.withDefault(''),
+    q: parseAsString.withDefault(''),
+    event_type: parseAsString.withDefault(''),
+    direction: parseAsString.withDefault(''),
+    page: parseAsInteger.withDefault(1),
+    page_size: parseAsInteger.withDefault(100),
   })
   const [admins, setAdmins] = useState<UserListItem[]>([])
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
@@ -55,6 +66,11 @@ export default function LedgerPage() {
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
     if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
+    if (filters.q) query.set('q', filters.q)
+    if (filters.event_type) query.set('event_type', filters.event_type)
+    if (filters.direction) query.set('direction', filters.direction)
+    query.set('page', String(filters.page))
+    query.set('page_size', String(filters.page_size))
     try {
       setStatement(await apiRequest<LedgerStatement>(`/api/v1/ledger?${query}`, { token: accessToken }))
     } catch (caught) {
@@ -73,10 +89,11 @@ export default function LedgerPage() {
       void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }).then((result) =>
         setBanks(result.items),
       )
-    } else {
+    }
+    if (!isSuperAdmin || filters.owner_user_id || filters.bank_account_id) {
       void load()
     }
-  }, [ready, allowed, accessToken, isSuperAdmin, load])
+  }, [ready, allowed, accessToken, isSuperAdmin, load, filters.owner_user_id, filters.bank_account_id])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -120,7 +137,7 @@ export default function LedgerPage() {
           ) : null
         }
       />
-      <FilterBar onApply={() => void load()} onClear={() => { void setFilters({ date_from: '', date_to: '', owner_user_id: '', bank_account_id: '' }); void (!isSuperAdmin && load()) }} onReload={() => void load()}>
+      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: todayIso(), date_to: todayIso(), owner_user_id: '', bank_account_id: '', q: '', event_type: '', direction: '', page: 1, page_size: 100 }); void (!isSuperAdmin && load()) }} onReload={() => void load()}>
         {isSuperAdmin ? (
           <>
             <FormField label="Admin">
@@ -151,10 +168,39 @@ export default function LedgerPage() {
         <FormField label="To Date">
           <Input type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
         </FormField>
+        <FormField label="Search">
+          <Input placeholder="Gateway Ref. No or UTR" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
+        </FormField>
+        <FormField label="Event type">
+          <Select value={filters.event_type} onChange={(event) => void setFilters({ event_type: event.target.value })} aria-label="Event type">
+            <option value="">All</option>
+            {LEDGER_EVENT_TYPES.filter((value) => value !== 'OPENING').map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Direction">
+          <Select value={filters.direction} onChange={(event) => void setFilters({ direction: event.target.value })} aria-label="Direction">
+            <option value="">All</option>
+            {LEDGER_DIRECTIONS.map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </Select>
+        </FormField>
         <div>
           <ExportButton
-            disabled={!statement || statement.lines.length === 0}
-            onExport={() => void downloadExport(`/api/v1/ledger/export?${new URLSearchParams(filters as any).toString()}`, 'ledger.csv', accessToken!)}
+            disabled={!statement || statement.pagination.total === 0}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
+              if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.event_type) query.set('event_type', filters.event_type)
+              if (filters.direction) query.set('direction', filters.direction)
+              void downloadExport(`/api/v1/ledger/export?${query}`, accessToken, 'ledger.csv')
+            }}
           />
         </div>
       </FilterBar>
@@ -214,6 +260,9 @@ export default function LedgerPage() {
           utr: row.utr ?? '—',
         }))}
         empty={<EmptyState message="No ledger entries" />}
+        pagination={statement?.pagination}
+        onPage={(page) => void setFilters({ page })}
+        onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
       />
 
     </AppShell>

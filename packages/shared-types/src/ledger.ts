@@ -4,6 +4,7 @@
  */
 
 import type { LedgerDirection } from './domain'
+import type { Pagination } from './envelope'
 
 export const LEDGER_EVENT_TYPES = [
   'PAYIN',
@@ -37,6 +38,7 @@ export interface LedgerStatement {
   owner_display_name: string | null
   opening_balance_minor: number
   lines: LedgerLine[]
+  pagination: Pagination
 }
 
 export interface LedgerAdjustment {

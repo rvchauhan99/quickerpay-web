@@ -56,6 +56,29 @@ interface RequestOptions {
   headers?: Record<string, string> | undefined
 }
 
+export interface ApiSessionBinder {
+  getAccessToken: () => string | null
+  applyLogin: (payload: LoginResponse) => void
+  clearSession: () => void
+}
+
+const AUTH_BOOTSTRAP_PATHS = new Set([
+  '/api/v1/auth/login',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/logout',
+])
+
+let sessionBinder: ApiSessionBinder | null = null
+let refreshInFlight: Promise<string> | null = null
+
+export function bindApiSession(binder: ApiSessionBinder | null): void {
+  sessionBinder = binder
+}
+
+export function refreshSession() {
+  return request('/api/v1/auth/refresh', { method: 'POST' }).then((parsed) => parsed.data as LoginResponse)
+}
+
 async function request(path: string, options: RequestOptions): Promise<Parsed> {
   const headers: Record<string, string> = { accept: 'application/json', ...options.headers }
   if (options.body !== undefined) headers['content-type'] = 'application/json'
@@ -79,8 +102,50 @@ async function request(path: string, options: RequestOptions): Promise<Parsed> {
   return parsed
 }
 
+function isUnauthenticated(error: unknown): boolean {
+  return error instanceof ApiClientError && (error.status === 401 || error.code === 'UNAUTHENTICATED')
+}
+
+function isAuthBootstrapPath(path: string): boolean {
+  return AUTH_BOOTSTRAP_PATHS.has(path) || path.startsWith('/api/v1/platform/auth/')
+}
+
+function redirectToLogin(): void {
+  if (typeof window === 'undefined') return
+  if (window.location.pathname === '/login') return
+  window.location.replace('/login')
+}
+
+function recoverAccessToken(): Promise<string> {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = refreshSession()
+    .then((payload) => {
+      sessionBinder?.applyLogin(payload)
+      return payload.access_token
+    })
+    .catch((error: unknown) => {
+      sessionBinder?.clearSession()
+      redirectToLogin()
+      throw error
+    })
+    .finally(() => {
+      refreshInFlight = null
+    })
+  return refreshInFlight
+}
+
+async function requestWithRefresh(path: string, options: RequestOptions): Promise<Parsed> {
+  try {
+    return await request(path, options)
+  } catch (error) {
+    if (isAuthBootstrapPath(path) || !isUnauthenticated(error)) throw error
+    const accessToken = await recoverAccessToken()
+    return request(path, { ...options, token: accessToken })
+  }
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const parsed = await request(path, options)
+  const parsed = await requestWithRefresh(path, options)
   return parsed.data as T
 }
 
@@ -88,7 +153,7 @@ export async function apiListRequest<T>(
   path: string,
   options: { token?: string | null } = {},
 ): Promise<{ items: T[]; pagination: Pagination }> {
-  const parsed = await request(path, options)
+  const parsed = await requestWithRefresh(path, options)
   return {
     items: (parsed.data as T[]) ?? [],
     pagination: parsed.pagination ?? {
@@ -99,8 +164,4 @@ export async function apiListRequest<T>(
       has_next: false,
     },
   }
-}
-
-export async function refreshSession() {
-  return apiRequest<LoginResponse>('/api/v1/auth/refresh', { method: 'POST' })
 }

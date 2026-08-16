@@ -1,3 +1,13 @@
+export interface ExtensionTenantPickerItem {
+  slug: string
+  display_name: string
+}
+
+export interface ExtensionTenantPickerResponse {
+  deployment_mode: 'SINGLE_TENANT' | 'MULTI_TENANT'
+  tenants: ExtensionTenantPickerItem[]
+}
+
 export interface ExtensionDeviceListItem {
   id: string
   label: string

@@ -1,6 +1,6 @@
 export { MoneyError } from './errors'
 export { roundHalfUp } from './rounding'
-export { toMinor, fromMinor, MINOR_PER_MAJOR } from './minor'
+export { toMinor, fromMinor, rupeeUnits, MINOR_PER_MAJOR } from './minor'
 export {
   applyRateBp,
   bpToPercent,
