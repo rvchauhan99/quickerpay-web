@@ -9,6 +9,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { toast } from 'sonner'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { useRouter } from 'next/navigation'
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
   const [totpBusy, setTotpBusy] = useState(false)
   const [totpError, setTotpError] = useState<string | null>(null)
   const [totpOk, setTotpOk] = useState<string | null>(null)
@@ -35,8 +37,9 @@ export default function ProfilePage() {
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
 
   const handleSubmit = async () => {
-    if (!accessToken) return
+    if (!accessToken || changingPassword) return
     setError(null)
+    setChangingPassword(true)
     try {
       await apiRequest('/api/v1/auth/change-password', {
         method: 'POST',
@@ -44,8 +47,11 @@ export default function ProfilePage() {
         body: { current_password: currentPassword, new_password: newPassword },
       })
       setDone(true)
+      toast.success('Password changed. Sign in again.')
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not change password')
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -116,7 +122,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="flex flex-col gap-6">
-        <FormShell submitLabel={done ? undefined : "Change password"} onSubmit={done ? undefined : () => void handleSubmit()}>
+        <FormShell submitLabel={done ? undefined : changingPassword ? 'Saving…' : 'Change password'} onSubmit={done ? undefined : () => void handleSubmit()}>
           <FormSection title="Password Change" description="Update your login password.">
             {done ? (
               <ErrorAlert message="Password changed. Sign in again." type="success" />

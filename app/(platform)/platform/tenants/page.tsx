@@ -8,6 +8,7 @@ import { FormField } from '@/components/forms/FormField'
 import { PrimaryButton } from '@/components/ui/PageHeader'
 import { IconButton } from '@/components/ui/IconButton'
 import { Ban, Play } from 'lucide-react'
+import { toast } from 'sonner'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 
 interface PlatformTenantRow {
@@ -29,6 +30,7 @@ export default function PlatformTenantsPage() {
   const [rows, setRows] = useState<PlatformTenantRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState<string | null>(null)
   const [q, setQ] = useState('')
 
   const load = useCallback(async (accessToken: string) => {
@@ -51,6 +53,7 @@ export default function PlatformTenantsPage() {
   }, [token, load])
 
   const handleLogin = async () => {
+    setSubmitting('login')
     try {
       const payload = await apiRequest<{ access_token: string }>('/api/v1/platform/auth/login', {
         method: 'POST',
@@ -59,17 +62,27 @@ export default function PlatformTenantsPage() {
       setToken(payload.access_token)
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Sign-in failed')
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleStatus = async (id: string, status: 'ACTIVE' | 'SUSPENDED') => {
-    if (!token) return
-    await apiRequest(`/api/v1/platform/tenants/${id}/status`, {
-      method: 'POST',
-      token,
-      body: { status, reason: status === 'SUSPENDED' ? 'platform suspend' : 'platform resume' },
-    })
-    await load(token)
+    if (!token || submitting) return
+    setSubmitting(id)
+    try {
+      await apiRequest(`/api/v1/platform/tenants/${id}/status`, {
+        method: 'POST',
+        token,
+        body: { status, reason: status === 'SUSPENDED' ? 'platform suspend' : 'platform resume' },
+      })
+      toast.success(status === 'SUSPENDED' ? 'Tenant suspended' : 'Tenant resumed')
+      await load(token)
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.message : 'Could not update status')
+    } finally {
+      setSubmitting(null)
+    }
   }
 
   return (
@@ -91,7 +104,9 @@ export default function PlatformTenantsPage() {
           <div className="w-48"><Input placeholder="Email" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} /></div>
           <div className="w-48"><Input placeholder="Password" aria-label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></div>
           <div className="w-24"><Input placeholder="TOTP" aria-label="TOTP" value={totp} onChange={(event) => setTotp(event.target.value)} /></div>
-          <PrimaryButton type="submit">Sign in</PrimaryButton>
+          <PrimaryButton type="submit" disabled={submitting === 'login'}>
+            {submitting === 'login' ? 'Signing in…' : 'Sign in'}
+          </PrimaryButton>
         </form>
       ) : null}
       <FilterBar onApply={() => token && void load(token)} onClear={() => setQ('')} onReload={() => token && void load(token)}>

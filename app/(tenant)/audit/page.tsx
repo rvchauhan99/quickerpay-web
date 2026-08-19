@@ -47,11 +47,10 @@ export default function AuditPage() {
   }
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     try {
-      const result = await apiListRequest<AuditLogItem>(`/api/v1/audit?${queryString()}`, { token: accessToken })
+      const result = await apiListRequest<AuditLogItem>(`/api/v1/audit?${queryString()}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
@@ -59,7 +58,7 @@ export default function AuditPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.date_from, filters.date_to, filters.actor, filters.action, filters.entity_type, filters.ip, filters.request_id])
 
   useEffect(() => {
     if (ready && allowed) void load()

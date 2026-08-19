@@ -37,7 +37,6 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
@@ -51,7 +50,7 @@ export default function TransactionsPage() {
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
     try {
-      const result = await apiListRequest<TransactionListItem>(`/api/v1/transactions?${query}`, { token: accessToken })
+      const result = await apiListRequest<TransactionListItem>(`/api/v1/transactions?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
@@ -59,7 +58,7 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.date_from, filters.date_to, filters.type, filters.status, filters.q, filters.merchant_id, filters.admin_user_id])
 
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
 

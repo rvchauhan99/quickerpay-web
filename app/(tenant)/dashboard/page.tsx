@@ -58,7 +58,6 @@ export default function DashboardPage() {
   const [upis, setUpis] = useState<UpiAccountListItem[]>([])
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
@@ -69,13 +68,13 @@ export default function DashboardPage() {
     if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
     if (filters.upi_account_id) query.set('upi_account_id', filters.upi_account_id)
     try {
-      setData(await apiRequest<DashboardSummary>(`/api/v1/dashboard/summary?${query}`, { token: accessToken }))
+      setData(await apiRequest<DashboardSummary>(`/api/v1/dashboard/summary?${query}`))
     } catch (caught) {
       setError(caught instanceof ApiClientError ? `${caught.message}${caught.requestId ? ` (${caught.requestId})` : ''}` : 'Could not load dashboard')
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.date_from, filters.date_to, filters.admin_user_id, filters.merchant_id, filters.bank_account_id, filters.upi_account_id])
 
   useEffect(() => {
     if (ready && allowed) void load()

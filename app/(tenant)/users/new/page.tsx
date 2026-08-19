@@ -29,6 +29,7 @@ export default function NewUserPage() {
   const [selected, setSelected] = useState<string[]>([...PHASE_1_ADMIN_MENUS])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!accessToken || user?.role !== 'SUPER_ADMIN') return
@@ -41,9 +42,10 @@ export default function NewUserPage() {
   if (!allowed) return Forbidden
 
   const handleSubmit = async () => {
-    if (!accessToken) return
+    if (!accessToken || submitting) return
     setError(null)
     setFieldErrors({})
+    setSubmitting(true)
     try {
       await apiRequest('/api/v1/users', {
         method: 'POST',
@@ -80,12 +82,14 @@ export default function NewUserPage() {
         return
       }
       setError('Could not create')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   return (
     <AppShell title="Create user" role={user.role} menus={menus}>
-      <FormShell submitLabel="Create" error={error} onSubmit={() => void handleSubmit()}>
+      <FormShell submitLabel={submitting ? 'Creating…' : 'Create'} error={error} onSubmit={() => void handleSubmit()}>
         <FormSection title="Account Information" description="Set up the user's basic login credentials.">
           <FormGrid>
             <FormField label="Username" required error={fieldErrors.username}>
@@ -98,7 +102,7 @@ export default function NewUserPage() {
               <FormField
                 label="Temporary password"
                 required
-                hint="At least 12 characters"
+                hint="6-20 chars, include uppercase + number + special character"
                 error={fieldErrors.temporary_password}
               >
                 <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />

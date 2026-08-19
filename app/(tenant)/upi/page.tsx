@@ -30,7 +30,6 @@ export default function UpiPage() {
   const [history, setHistory] = useState<UpiStatusHistoryItem[]>([])
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
@@ -39,7 +38,7 @@ export default function UpiPage() {
     if (filters.q) query.set('q', filters.q)
     if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
     try {
-      const result = await apiListRequest<UpiAccountListItem>(`/api/v1/upi-accounts?${query}`, { token: accessToken })
+      const result = await apiListRequest<UpiAccountListItem>(`/api/v1/upi-accounts?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
@@ -47,7 +46,7 @@ export default function UpiPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.q, filters.owner_user_id])
 
   useEffect(() => {
     if (ready && allowed) void load()

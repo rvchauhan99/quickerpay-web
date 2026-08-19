@@ -70,6 +70,10 @@ const AUTH_BOOTSTRAP_PATHS = new Set([
 
 let sessionBinder: ApiSessionBinder | null = null
 let refreshInFlight: Promise<string> | null = null
+// Set to true the moment a redirect to /login is triggered. Any in-flight or
+// subsequent request silently hangs so React components never see a rejection
+// after navigation has started.
+let isRedirecting = false
 
 export function bindApiSession(binder: ApiSessionBinder | null): void {
   sessionBinder = binder
@@ -113,7 +117,14 @@ function isAuthBootstrapPath(path: string): boolean {
 function redirectToLogin(): void {
   if (typeof window === 'undefined') return
   if (window.location.pathname === '/login') return
+  isRedirecting = true
   window.location.replace('/login')
+}
+
+// Called by the login page on mount so that any previous redirect flag is cleared
+// and the login POST can proceed normally.
+export function resetRedirectingFlag(): void {
+  isRedirecting = false
 }
 
 function recoverAccessToken(): Promise<string> {
@@ -134,13 +145,24 @@ function recoverAccessToken(): Promise<string> {
   return refreshInFlight
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const SILENT: Promise<Parsed> = new Promise(() => {})
+
 async function requestWithRefresh(path: string, options: RequestOptions): Promise<Parsed> {
+  if (isRedirecting) return SILENT
+  // Auto-inject the current access token when the caller did not supply one.
+  // This keeps page-level load() callbacks free of accessToken as a dep.
+  const opts =
+    options.token == null && !isAuthBootstrapPath(path)
+      ? { ...options, token: sessionBinder?.getAccessToken() }
+      : options
   try {
-    return await request(path, options)
+    return await request(path, opts)
   } catch (error) {
+    if (isRedirecting) return SILENT
     if (isAuthBootstrapPath(path) || !isUnauthenticated(error)) throw error
-    const accessToken = await recoverAccessToken()
-    return request(path, { ...options, token: accessToken })
+    const freshToken = await recoverAccessToken()
+    return request(path, { ...opts, token: freshToken })
   }
 }
 

@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import type { MerchantDetail, MerchantRate } from '@quickerpay/shared-types'
@@ -13,10 +12,21 @@ import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { toast } from 'sonner'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
+
+interface SupagoStatus {
+  connected: boolean
+  uname?: string
+  bcode?: string
+  transaction_code?: string | null
+  expires_at?: string
+  last_error?: string
+}
 
 export default function MerchantDetailPage() {
   const params = useParams<{ id: string }>()
@@ -27,6 +37,27 @@ export default function MerchantDetailPage() {
   const [payoutBp, setPayoutBp] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [savingRate, setSavingRate] = useState<'PAYIN' | 'PAYOUT' | null>(null)
+
+  // Supago state
+  const [supagoStatus, setSupagoStatus] = useState<SupagoStatus | null>(null)
+  const [supagoUsername, setSupagoUsername] = useState('')
+  const [supagoPassword, setSupagoPassword] = useState('')
+  const [supagoTransactionCode, setSupagoTransactionCode] = useState('')
+  const [supagoLoading, setSupagoLoading] = useState(false)
+  const [supagoError, setSupagoError] = useState<string | null>(null)
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
+  const [updateCredsOpen, setUpdateCredsOpen] = useState(false)
+
+  const loadSupagoStatus = useCallback(async (token: string, id: string) => {
+    try {
+      const status = await apiRequest<SupagoStatus>(`/api/v1/merchants/${id}/supago/status`, { token })
+      setSupagoStatus(status)
+      setSupagoTransactionCode(status.transaction_code ?? '')
+    } catch {
+      setSupagoStatus({ connected: false })
+    }
+  }, [])
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
@@ -39,12 +70,13 @@ export default function MerchantDetailPage() {
       setHistory(rates)
       setPayinBp(detail.rates.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
       setPayoutBp(detail.rates.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
+      void loadSupagoStatus(accessToken, params.id)
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not load')
     } finally {
       setLoading(false)
     }
-  }, [accessToken, params.id])
+  }, [accessToken, params.id, loadSupagoStatus])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -54,19 +86,70 @@ export default function MerchantDetailPage() {
   if (!allowed) return Forbidden
 
   const handleSaveKind = async (kind: 'PAYIN' | 'PAYOUT') => {
-    if (!accessToken || !params.id) return
-    setError(null)
+    if (!accessToken || !params.id || savingRate) return
+    setSavingRate(kind)
     try {
       await apiRequest(`/api/v1/merchants/${params.id}/rates`, {
         method: 'POST',
         token: accessToken,
         body: { rate_kind: kind, rate_bp: kind === 'PAYIN' ? payinBp : payoutBp },
       })
+      toast.success(`${kind} rate updated`)
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Save failed')
+      toast.error(caught instanceof ApiClientError ? caught.message : 'Save failed')
+    } finally {
+      setSavingRate(null)
     }
   }
+
+  const handleSupagoConnect = async () => {
+    if (!accessToken || !params.id || !supagoUsername || !supagoPassword) return
+    setSupagoLoading(true)
+    setSupagoError(null)
+    try {
+      const status = await apiRequest<SupagoStatus>(`/api/v1/merchants/${params.id}/supago`, {
+        method: 'PATCH',
+        token: accessToken,
+        body: {
+          supago_username: supagoUsername,
+          supago_password: supagoPassword,
+          ...(supagoTransactionCode.trim() ? { supago_transaction_code: supagoTransactionCode.trim() } : {}),
+        },
+      })
+      setSupagoStatus(status)
+      setSupagoUsername('')
+      setSupagoPassword('')
+      setSupagoTransactionCode(status.transaction_code ?? supagoTransactionCode.trim())
+      setUpdateCredsOpen(false)
+      toast.success(updateCredsOpen ? 'Supago credentials updated' : 'Supago connected')
+    } catch (caught) {
+      setSupagoError(caught instanceof ApiClientError ? caught.message : 'Connection failed')
+    } finally {
+      setSupagoLoading(false)
+    }
+  }
+
+  const handleSupagoDisconnect = async () => {
+    if (!accessToken || !params.id) return
+    setSupagoLoading(true)
+    setSupagoError(null)
+    setConfirmDisconnect(false)
+    try {
+      const status = await apiRequest<SupagoStatus>(`/api/v1/merchants/${params.id}/supago`, {
+        method: 'DELETE',
+        token: accessToken,
+      })
+      setSupagoStatus(status)
+      toast.success('Supago disconnected')
+    } catch (caught) {
+      setSupagoError(caught instanceof ApiClientError ? caught.message : 'Disconnect failed')
+    } finally {
+      setSupagoLoading(false)
+    }
+  }
+
+  const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
 
   return (
     <AppShell title="Merchant Detail" role={user.role} menus={menus}>
@@ -98,19 +181,23 @@ export default function MerchantDetailPage() {
               </FormGrid>
             </FormSection>
 
-            {hasMenu(menus, 'MERCHANTS', 'can_edit') ? (
+            {canEdit ? (
               <FormSection title="Manage Rates" description="Update PAY-IN and PAY-OUT commission rates.">
                 <FormGrid>
                   <FormField label="PAY-IN Rate">
                     <div className="flex items-center gap-2">
                       <RateInput id="edit-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
-                      <PrimaryButton onClick={() => void handleSaveKind('PAYIN')}>Update</PrimaryButton>
+                      <PrimaryButton disabled={savingRate === 'PAYIN'} onClick={() => void handleSaveKind('PAYIN')}>
+                        {savingRate === 'PAYIN' ? 'Saving…' : 'Update'}
+                      </PrimaryButton>
                     </div>
                   </FormField>
                   <FormField label="PAY-OUT Rate">
                     <div className="flex items-center gap-2">
                       <RateInput id="edit-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
-                      <PrimaryButton onClick={() => void handleSaveKind('PAYOUT')}>Update</PrimaryButton>
+                      <PrimaryButton disabled={savingRate === 'PAYOUT'} onClick={() => void handleSaveKind('PAYOUT')}>
+                        {savingRate === 'PAYOUT' ? 'Saving…' : 'Update'}
+                      </PrimaryButton>
                     </div>
                   </FormField>
                 </FormGrid>
@@ -135,8 +222,162 @@ export default function MerchantDetailPage() {
               />
             </FormSection>
           </FormShell>
+
+          <FormShell>
+            <FormSection title="Supago Integration" description="Connect this merchant to the Supago platform for automated deposits.">
+              {supagoError ? (
+                <div className="mb-3">
+                  <ErrorAlert message={supagoError} />
+                </div>
+              ) : null}
+
+              {supagoStatus?.connected ? (
+                <>
+                  <FormGrid>
+                    <FormField label="Supago Username">
+                      <Input value={supagoStatus.uname ?? ''} readOnly />
+                    </FormField>
+                    <FormField label="Branch Code">
+                      <Input value={supagoStatus.bcode ?? ''} readOnly />
+                    </FormField>
+                    <FormField label="Token Expires">
+                      <Input
+                        value={supagoStatus.expires_at ? new Date(supagoStatus.expires_at).toLocaleString() : ''}
+                        readOnly
+                      />
+                    </FormField>
+                    <FormField label="Transaction Code">
+                      <Input value={supagoStatus.transaction_code ?? ''} readOnly />
+                    </FormField>
+                    <FormField label="Status">
+                      <div className="flex h-10 items-center px-3">
+                        <StatusBadge status="ACTIVE" />
+                      </div>
+                    </FormField>
+                  </FormGrid>
+
+                  {canEdit ? (
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUpdateCredsOpen((open) => !open)
+                          setSupagoUsername('')
+                          setSupagoPassword('')
+                          setSupagoTransactionCode(supagoStatus.transaction_code ?? '')
+                          setSupagoError(null)
+                        }}
+                        disabled={supagoLoading}
+                        className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                        style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+                      >
+                        {updateCredsOpen ? 'Cancel' : 'Change'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDisconnect(true)}
+                        disabled={supagoLoading}
+                        className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                        style={{ borderColor: 'var(--qp-danger)', color: 'var(--qp-danger)', backgroundColor: 'var(--qp-danger-bg)' }}
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {canEdit && updateCredsOpen ? (
+                    <div className="mt-3 rounded-lg border p-4" style={{ borderColor: 'var(--qp-border)', backgroundColor: 'var(--qp-bg-card)' }}>
+                      <FormGrid>
+                        <FormField label="Username">
+                          <Input
+                            value={supagoUsername}
+                            onChange={(e) => setSupagoUsername(e.target.value)}
+                            placeholder="New Supago username"
+                          />
+                        </FormField>
+                        <FormField label="Password">
+                          <Input
+                            type="password"
+                            value={supagoPassword}
+                            onChange={(e) => setSupagoPassword(e.target.value)}
+                            placeholder="New Supago password"
+                          />
+                        </FormField>
+                        <FormField label="Transaction Code">
+                          <Input
+                            value={supagoTransactionCode}
+                            onChange={(e) => setSupagoTransactionCode(e.target.value)}
+                            placeholder="e.g. 643795"
+                          />
+                        </FormField>
+                      </FormGrid>
+                      <div className="mt-3 flex justify-end">
+                        <PrimaryButton
+                          onClick={() => void handleSupagoConnect()}
+                          disabled={supagoLoading || !supagoUsername || !supagoPassword}
+                        >
+                          {supagoLoading ? 'Saving…' : 'Save'}
+                        </PrimaryButton>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                canEdit ? (
+                  <>
+                    <FormGrid>
+                      <FormField label="Supago Username">
+                        <Input
+                          value={supagoUsername}
+                          onChange={(e) => setSupagoUsername(e.target.value)}
+                          placeholder="Enter Supago username"
+                        />
+                      </FormField>
+                      <FormField label="Supago Password">
+                        <Input
+                          type="password"
+                          value={supagoPassword}
+                          onChange={(e) => setSupagoPassword(e.target.value)}
+                          placeholder="Enter Supago password"
+                        />
+                      </FormField>
+                      <FormField label="Transaction Code">
+                        <Input
+                          value={supagoTransactionCode}
+                          onChange={(e) => setSupagoTransactionCode(e.target.value)}
+                          placeholder="e.g. 643795"
+                        />
+                      </FormField>
+                    </FormGrid>
+                    <div className="mt-4 flex justify-end">
+                      <PrimaryButton
+                        onClick={() => void handleSupagoConnect()}
+                        disabled={supagoLoading || !supagoUsername || !supagoPassword}
+                      >
+                        {supagoLoading ? 'Connecting…' : 'Connect'}
+                      </PrimaryButton>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs py-2" style={{ color: 'var(--qp-text-muted)' }}>Not connected</p>
+                )
+              )}
+            </FormSection>
+          </FormShell>
         </div>
       )}
+
+      {confirmDisconnect ? (
+        <ConfirmDialog
+          title="Disconnect Supago?"
+          subtitle="The cached token will be evicted and credentials removed. You can reconnect at any time."
+          confirmLabel="Disconnect"
+          variant="danger"
+          loading={supagoLoading}
+          onConfirm={() => void handleSupagoDisconnect()}
+          onCancel={() => setConfirmDisconnect(false)}
+        />
+      ) : null}
     </AppShell>
   )
 }

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { BankAccountListItem, MerchantListItem, Pagination, PayoutListItem } from '@quickerpay/shared-types'
 import { PAYOUT_STATUSES } from '@quickerpay/shared-types'
+import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
+import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton, Toast } from '@/components/ui/FilterBar'
+import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
@@ -40,8 +41,8 @@ export default function PayoutPage() {
   const [rows, setRows] = useState<PayoutListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<{ id: string; action: 'approve' | 'process' | 'fail' | 'reject' | 'cancel' | 'retry' } | null>(null)
   const [successFor, setSuccessFor] = useState<string | null>(null)
   const [utr, setUtr] = useState('')
@@ -55,7 +56,6 @@ export default function PayoutPage() {
   const [sourceBankId, setSourceBankId] = useState('')
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
@@ -68,7 +68,7 @@ export default function PayoutPage() {
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
     try {
-      const result = await apiListRequest<PayoutListItem>(`/api/v1/payout?${query}`, { token: accessToken })
+      const result = await apiListRequest<PayoutListItem>(`/api/v1/payout?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
@@ -76,7 +76,7 @@ export default function PayoutPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.admin_user_id])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -106,7 +106,8 @@ export default function PayoutPage() {
   const canPickMerchant = user.role === 'SUPER_ADMIN'
 
   const handleAction = async () => {
-    if (!confirm || !accessToken) return
+    if (!confirm || !accessToken || submitting) return
+    setSubmitting(confirm.id)
     try {
       await apiRequest(`/api/v1/payout/${confirm.id}/${confirm.action}`, {
         method: 'POST',
@@ -114,15 +115,19 @@ export default function PayoutPage() {
         body: confirm.action === 'fail' || confirm.action === 'reject' ? { reason: 'Rejected' } : undefined,
       })
       setConfirm(null)
-      setToast('Success')
+      toast.success(`Pay-out ${confirm.action}d`)
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-out')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-out')
+      setConfirm(null)
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleSuccess = async () => {
-    if (!successFor || !accessToken) return
+    if (!successFor || !accessToken || submitting) return
+    setSubmitting(successFor)
     try {
       await apiRequest(`/api/v1/payout/${successFor}/success`, {
         method: 'POST',
@@ -132,16 +137,19 @@ export default function PayoutPage() {
       })
       setSuccessFor(null)
       setUtr('')
-      setToast('Success')
+      toast.success('Pay-out marked as complete')
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not mark success')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not mark success')
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleCreate = async () => {
-    if (!accessToken || amountMinor <= 0 || !beneficiaryName || !beneficiaryAccount || !sourceBankId) return
+    if (!accessToken || amountMinor <= 0 || !beneficiaryName || !beneficiaryAccount || !sourceBankId || submitting) return
     if (canPickMerchant && !merchantId) return
+    setSubmitting('create')
     try {
       await apiRequest('/api/v1/payout', {
         method: 'POST',
@@ -161,11 +169,13 @@ export default function PayoutPage() {
       setBeneficiaryName('')
       setBeneficiaryAccount('')
       setSourceBankId('')
-      setToast('Success')
+      toast.success('Pay-out created')
       await setFilters({ status: 'INITIATE', page: 1 })
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not create pay-out')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not create pay-out')
+    } finally {
+      setSubmitting(null)
     }
   }
 
@@ -179,7 +189,6 @@ export default function PayoutPage() {
           ) : null
         }
       />
-      <Toast message={toast} />
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
@@ -266,9 +275,6 @@ export default function PayoutPage() {
           </FormShell>
         </div>
       ) : null}
-      <div className="mb-4">
-        <ErrorAlert message={error} />
-      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
@@ -316,7 +322,7 @@ export default function PayoutPage() {
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
         />
       )}
-      {confirm ? <ConfirmDialog title={`${confirm.action} this pay-out?`} confirmLabel={confirm.action} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} /> : null}
+      {confirm ? <ConfirmDialog title={`${confirm.action} this pay-out?`} confirmLabel={confirm.action} loading={submitting === confirm.id} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} /> : null}
       {successFor ? (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30" role="dialog" aria-label="Mark success">
           <div className="w-full max-w-sm rounded border border-zinc-200 bg-white p-3">
@@ -326,7 +332,9 @@ export default function PayoutPage() {
             </label>
             <div className="mt-3 flex justify-end gap-2">
               <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={() => setSuccessFor(null)}>Cancel</button>
-              <button type="button" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white" onClick={() => void handleSuccess()}>Confirm</button>
+              <button type="button" disabled={submitting === successFor} className="h-7 rounded bg-zinc-900 px-2 text-xs text-white disabled:opacity-60" onClick={() => void handleSuccess()}>
+                {submitting === successFor ? 'Saving…' : 'Confirm'}
+              </button>
             </div>
           </div>
         </div>

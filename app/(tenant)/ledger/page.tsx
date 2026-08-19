@@ -15,6 +15,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { MoneyInput } from '@/components/forms/MoneyInput'
+import { toast } from 'sonner'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
@@ -49,11 +50,11 @@ export default function LedgerPage() {
   const [direction, setDirection] = useState<'CREDIT' | 'DEBIT'>('CREDIT')
   const [reason, setReason] = useState('')
   const [pending, setPending] = useState<LedgerAdjustment | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     if (isSuperAdmin && !filters.owner_user_id && !filters.bank_account_id) {
       setStatement(null)
       setError('Pick an Admin or a bank account')
@@ -72,28 +73,28 @@ export default function LedgerPage() {
     query.set('page', String(filters.page))
     query.set('page_size', String(filters.page_size))
     try {
-      setStatement(await apiRequest<LedgerStatement>(`/api/v1/ledger?${query}`, { token: accessToken }))
+      setStatement(await apiRequest<LedgerStatement>(`/api/v1/ledger?${query}`))
     } catch (caught) {
       setError(caught instanceof ApiClientError ? `${caught.message}${caught.requestId ? ` (${caught.requestId})` : ''}` : 'Could not load ledger')
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters, isSuperAdmin])
+  }, [isSuperAdmin, filters.date_from, filters.date_to, filters.owner_user_id, filters.bank_account_id, filters.q, filters.event_type, filters.direction, filters.page, filters.page_size])
 
   useEffect(() => {
-    if (!ready || !allowed || !accessToken) return
+    if (!ready || !allowed) return
     if (isSuperAdmin) {
-      void apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }).then((result) =>
+      void apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100').then((result) =>
         setAdmins(result.items),
       )
-      void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }).then((result) =>
+      void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100').then((result) =>
         setBanks(result.items),
       )
     }
     if (!isSuperAdmin || filters.owner_user_id || filters.bank_account_id) {
       void load()
     }
-  }, [ready, allowed, accessToken, isSuperAdmin, load, filters.owner_user_id, filters.bank_account_id])
+  }, [ready, allowed, isSuperAdmin, load, filters.owner_user_id, filters.bank_account_id])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -103,25 +104,40 @@ export default function LedgerPage() {
     : 'Ledger'
 
   const handleCreate = async () => {
-    if (!accessToken || !filters.owner_user_id) return
-    const created = await apiRequest<LedgerAdjustment>('/api/v1/ledger/adjustments', {
-      method: 'POST',
-      token: accessToken,
-      body: { owner_user_id: filters.owner_user_id, amount_minor: amountMinor, direction, reason },
-    })
-    setAdjustOpen(false)
-    setPending(created)
+    if (!accessToken || !filters.owner_user_id || submitting) return
+    setSubmitting(true)
+    try {
+      const created = await apiRequest<LedgerAdjustment>('/api/v1/ledger/adjustments', {
+        method: 'POST',
+        token: accessToken,
+        body: { owner_user_id: filters.owner_user_id, amount_minor: amountMinor, direction, reason },
+      })
+      setAdjustOpen(false)
+      setPending(created)
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.message : 'Could not create adjustment')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleApprove = async () => {
-    if (!accessToken || !pending) return
-    await apiRequest(`/api/v1/ledger/adjustments/${pending.id}/approve`, {
-      method: 'POST',
-      token: accessToken,
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
-    })
-    setPending(null)
-    await load()
+    if (!accessToken || !pending || submitting) return
+    setSubmitting(true)
+    try {
+      await apiRequest(`/api/v1/ledger/adjustments/${pending.id}/approve`, {
+        method: 'POST',
+        token: accessToken,
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+      })
+      setPending(null)
+      toast.success('Adjustment approved')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.message : 'Could not approve')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -232,6 +248,7 @@ export default function LedgerPage() {
           subtitle={`This will post a ${pending.direction} of ₹${pending.amount_minor / 100} for reason "${pending.reason}".`}
           confirmLabel="Approve"
           variant="primary"
+          loading={submitting}
           onConfirm={() => void handleApprove()}
           onCancel={() => setPending(null)}
         />

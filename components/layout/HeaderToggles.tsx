@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { apiRequest } from '@/lib/api'
 import { useSession } from '@/lib/session'
 
@@ -17,6 +18,8 @@ function ToggleChip({
   return (
     <button
       type="button"
+      aria-label={label}
+      aria-pressed={active}
       onClick={onClick}
       className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150"
       style={{
@@ -57,30 +60,53 @@ function UserAvatar({ name }: { name: string }) {
 export function HeaderToggles() {
   const { user, accessToken, logout, refreshUser } = useSession()
   const [error, setError] = useState<string | null>(null)
+  const [offlineConfirmOpen, setOfflineConfirmOpen] = useState(false)
+  const [onlineSubmitting, setOnlineSubmitting] = useState(false)
+  const [autoAcceptConfirm, setAutoAcceptConfirm] = useState<'on' | 'off' | null>(null)
+  const [autoAcceptSubmitting, setAutoAcceptSubmitting] = useState(false)
 
   if (!user) return null
 
   const showAutoAccept = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN'
   const showOnline = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'OPERATOR'
 
-  const handleAutoAccept = async () => {
+  const handleAutoAccept = () => {
     if (!accessToken) return
-    const next = !user.auto_accept_enabled
+    setAutoAcceptConfirm(user.auto_accept_enabled ? 'off' : 'on')
+  }
+
+  const patchAutoAccept = async (enabled: boolean) => {
+    if (!accessToken) return
+    setAutoAcceptSubmitting(true)
+    setError(null)
     try {
       await apiRequest('/api/v1/users/me/auto-accept', {
         method: 'PATCH',
         token: accessToken,
-        body: { auto_accept_enabled: next },
+        body: { auto_accept_enabled: enabled },
       })
       await refreshUser()
+      setAutoAcceptConfirm(null)
     } catch {
       setError('Auto Accept could not be updated')
+    } finally {
+      setAutoAcceptSubmitting(false)
     }
   }
 
   const handleOnline = async () => {
     if (!accessToken) return
-    const next = user.operational_state === 'ONLINE' ? 'OFFLINE' : 'ONLINE'
+    if (user.operational_state === 'ONLINE') {
+      setOfflineConfirmOpen(true)
+      return
+    }
+    await patchOperationalState('ONLINE')
+  }
+
+  const patchOperationalState = async (next: 'ONLINE' | 'OFFLINE') => {
+    if (!accessToken) return
+    setOnlineSubmitting(true)
+    setError(null)
     try {
       await apiRequest('/api/v1/users/me/operational-state', {
         method: 'PATCH',
@@ -88,8 +114,11 @@ export function HeaderToggles() {
         body: { operational_state: next },
       })
       await refreshUser()
+      setOfflineConfirmOpen(false)
     } catch {
       setError('Online status could not be updated')
+    } finally {
+      setOnlineSubmitting(false)
     }
   }
 
@@ -104,12 +133,46 @@ export function HeaderToggles() {
         </span>
       ) : null}
 
+      {offlineConfirmOpen ? (
+        <ConfirmDialog
+          title="Go offline?"
+          subtitle="All ACTIVE banks you own will be disabled, including their UPIs. Linked Supago banks will sync to inactive. Other Admins' banks are not affected. Going Online again will not re-enable them — turn banks back on from Bank Details."
+          confirmLabel="Go offline"
+          loading={onlineSubmitting}
+          onCancel={() => setOfflineConfirmOpen(false)}
+          onConfirm={() => void patchOperationalState('OFFLINE')}
+        />
+      ) : null}
+
+      {autoAcceptConfirm === 'on' ? (
+        <ConfirmDialog
+          title="Turn on Auto Accept?"
+          subtitle="Matching pay-ins may auto-accept when every condition is met: this master switch ON, per-UPI auto-accept ON, UPI and bank ACTIVE, an assigned Operator ONLINE, within limits, no duplicate UTR, and tenant active. If any condition fails, the pay-in stays UNDER_REVIEW for manual action."
+          confirmLabel="Turn on"
+          variant="primary"
+          loading={autoAcceptSubmitting}
+          onCancel={() => setAutoAcceptConfirm(null)}
+          onConfirm={() => void patchAutoAccept(true)}
+        />
+      ) : null}
+
+      {autoAcceptConfirm === 'off' ? (
+        <ConfirmDialog
+          title="Turn off Auto Accept?"
+          subtitle="This master switch turns off auto-accept on all your UPIs, even if a UPI still has auto-accept enabled. New matching pay-ins go to UNDER_REVIEW until you accept manually. Bank and UPI status are not changed."
+          confirmLabel="Turn off"
+          loading={autoAcceptSubmitting}
+          onCancel={() => setAutoAcceptConfirm(null)}
+          onConfirm={() => void patchAutoAccept(false)}
+        />
+      ) : null}
+
       {/* Status toggles */}
       {showAutoAccept ? (
         <ToggleChip
           label="Auto Accept"
           active={user.auto_accept_enabled}
-          onClick={() => void handleAutoAccept()}
+          onClick={() => handleAutoAccept()}
         />
       ) : null}
       {showOnline ? (

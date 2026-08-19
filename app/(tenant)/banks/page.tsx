@@ -8,12 +8,13 @@ import type {
   UpiAccountListItem,
   UpiStatusHistoryItem,
 } from '@quickerpay/shared-types'
+import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
-import { DataTable, FilterBar, StatusBadge, TableSkeleton, EmptyState, Toast, ExportButton } from '@/components/ui/FilterBar'
+import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
+import { DataTable, FilterBar, StatusBadge, TableSkeleton, EmptyState, ExportButton } from '@/components/ui/FilterBar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { IconButton } from '@/components/ui/IconButton'
-import { Ban, CircleCheck, Eye, History, ScrollText, Trash2 } from 'lucide-react'
+import { Ban, CircleCheck, History, ScrollText, Trash2 } from 'lucide-react'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormSection } from '@/components/forms/FormSection'
 import { Input } from '@/components/forms/Input'
@@ -21,6 +22,7 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { FormShell } from '@/components/forms/FormShell'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { useBankListSync } from '@/lib/live/useBankListSync'
 import { hasMenu } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -41,12 +43,11 @@ export default function BanksPage() {
   const [rows, setRows] = useState<BankAccountListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [submitting, setSubmitting] = useState<string | null>(null)
   const [upiAddress, setUpiAddress] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [revealed, setRevealed] = useState<Record<string, string>>({})
   const [closeTarget, setCloseTarget] = useState<BankAccountListItem | null>(null)
   const [historyFor, setHistoryFor] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryRow[]>([])
@@ -54,7 +55,6 @@ export default function BanksPage() {
   const canEdit = hasMenu(menus, 'BANKS', 'can_edit')
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
@@ -64,7 +64,7 @@ export default function BanksPage() {
     if (filters.status) query.set('status', filters.status)
     if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
     try {
-      const result = await apiListRequest<BankAccountListItem>(`/api/v1/bank-accounts?${query}`, { token: accessToken })
+      const result = await apiListRequest<BankAccountListItem>(`/api/v1/bank-accounts?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
@@ -72,11 +72,13 @@ export default function BanksPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.q, filters.status, filters.owner_user_id])
 
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
+
+  useBankListSync({ enabled: ready && allowed, onRefresh: load })
 
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
   const ownerOptions = user
@@ -87,8 +89,8 @@ export default function BanksPage() {
   if (!allowed) return Forbidden
 
   const handleCreate = async () => {
-    if (!accessToken) return
-    setError(null)
+    if (!accessToken || submitting) return
+    setSubmitting('create')
     try {
       await apiRequest('/api/v1/bank-accounts', {
         method: 'POST',
@@ -96,46 +98,36 @@ export default function BanksPage() {
         body: { upi_address: upiAddress, display_name: displayName },
       })
       setCreating(false)
-      setToast('Success')
+      toast.success('Bank account added')
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not create')
-    }
-  }
-
-  const handleReveal = async (id: string) => {
-    if (!accessToken) return
-    setError(null)
-    try {
-      const result = await apiRequest<{ account_number: string }>(`/api/v1/bank-accounts/${id}/reveal`, {
-        method: 'POST',
-        token: accessToken,
-      })
-      setRevealed((current) => ({ ...current, [id]: result.account_number }))
-    } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not reveal')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not create')
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleStatus = async (id: string, status: 'ACTIVE' | 'DISABLED') => {
-    if (!accessToken) return
-    setError(null)
+    if (!accessToken || submitting) return
+    setSubmitting(id)
     try {
       await apiRequest(`/api/v1/bank-accounts/${id}/status`, {
         method: 'POST',
         token: accessToken,
         body: { status },
       })
-      setToast(status === 'DISABLED' ? 'Disabled' : 'Enabled')
+      toast.success(status === 'DISABLED' ? 'Account disabled' : 'Account enabled')
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update status')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update status')
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleClose = async () => {
-    if (!accessToken || !closeTarget) return
-    setError(null)
+    if (!accessToken || !closeTarget || submitting) return
+    setSubmitting(closeTarget.id)
     try {
       await apiRequest(`/api/v1/bank-accounts/${closeTarget.id}/close`, {
         method: 'POST',
@@ -143,16 +135,17 @@ export default function BanksPage() {
         body: { reason: 'Closed from Bank Details' },
       })
       setCloseTarget(null)
-      setToast('Closed')
+      toast.success('Account closed')
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not close')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not close')
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleHistory = async (row: BankAccountListItem) => {
     if (!accessToken) return
-    setError(null)
     try {
       const upis = await apiListRequest<UpiAccountListItem>(
         `/api/v1/upi-accounts?bank_account_id=${row.id}&page_size=25`,
@@ -171,7 +164,7 @@ export default function BanksPage() {
       setHistoryFor(row.label)
       setHistory(entries)
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load history')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load history')
     }
   }
 
@@ -188,7 +181,6 @@ export default function BanksPage() {
           ) : null
         }
       />
-      <Toast message={toast} />
       <FilterBar
         onApply={() => void load()}
         onClear={() => void setFilters({ q: '', status: '', owner_user_id: '', page: 1 })}
@@ -240,22 +232,19 @@ export default function BanksPage() {
         </div>
       ) : null}
 
-      <div className="mb-4">
-        <ErrorAlert message={error} />
-      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
             { key: 'owner', heading: 'OWNER' },
             { key: 'label', heading: 'LABEL' },
-            { key: 'masked', heading: 'ACCOUNT' },
+            { key: 'upi', heading: 'UPI ID' },
             { key: 'status', heading: 'STATUS' },
             { key: 'actions', heading: 'ACTION' },
           ]}
           rows={rows.map((row) => ({
             owner: row.owner_username,
             label: row.label,
-            masked: revealed[row.id] ?? row.account_number_masked ?? '—',
+            upi: row.upi_address ?? '—',
             status: <StatusBadge status={row.status} />,
             actions: (
               <span className="flex items-center gap-1">
@@ -291,9 +280,6 @@ export default function BanksPage() {
                     variant="danger"
                     onClick={() => setCloseTarget(row)}
                   />
-                ) : null}
-                {row.account_number_masked ? (
-                  <IconButton icon={<Eye size={15} strokeWidth={1.75} />} tooltip="Reveal account number" onClick={() => void handleReveal(row.id)} />
                 ) : null}
               </span>
             ),
@@ -334,6 +320,7 @@ export default function BanksPage() {
           title={`Close ${closeTarget.label}?`}
           subtitle="This is a soft close. The row stays in the list as CLOSED and cannot be reopened."
           confirmLabel="Close"
+          loading={submitting === closeTarget.id}
           onCancel={() => setCloseTarget(null)}
           onConfirm={() => void handleClose()}
         />

@@ -10,6 +10,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { RateInput } from '@/components/forms/RateInput'
+import { toast } from 'sonner'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -23,16 +24,20 @@ export default function NewMerchantPage() {
   const [mobile, setMobile] = useState('')
   const [payinBp, setPayinBp] = useState(400)
   const [payoutBp, setPayoutBp] = useState(200)
+  const [supagoUsername, setSupagoUsername] = useState('')
+  const [supagoPassword, setSupagoPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
   const handleSubmit = async () => {
-    if (!accessToken) return
+    if (!accessToken || submitting) return
     setError(null)
+    setSubmitting(true)
     try {
-      await apiRequest('/api/v1/merchants', {
+      const created = await apiRequest<{ id: string }>('/api/v1/merchants', {
         method: 'POST',
         token: accessToken,
         body: {
@@ -47,9 +52,19 @@ export default function NewMerchantPage() {
           ],
         },
       })
+      if (supagoUsername && supagoPassword) {
+        await apiRequest(`/api/v1/merchants/${created.id}/supago`, {
+          method: 'PATCH',
+          token: accessToken,
+          body: { supago_username: supagoUsername, supago_password: supagoPassword },
+        })
+      }
+      toast.success('Merchant created')
       router.replace('/merchants')
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not create')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -59,7 +74,7 @@ export default function NewMerchantPage() {
       <div className="mb-4">
         <ErrorAlert message={error} />
       </div>
-      <FormShell submitLabel="Create" onSubmit={() => void handleSubmit()}>
+      <FormShell submitLabel={submitting ? 'Creating…' : 'Create'} onSubmit={() => void handleSubmit()}>
         <FormSection title="Merchant Information" description="Legal and contact details.">
           <FormGrid>
             <FormField label="Legal Name" required>
@@ -87,6 +102,26 @@ export default function NewMerchantPage() {
             </FormField>
             <FormField label="PAY-OUT Rate">
               <RateInput id="m-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
+            </FormField>
+          </FormGrid>
+        </FormSection>
+
+        <FormSection title="Supago Integration" description="Optional. Connect to the Supago platform at creation time. Leave blank to skip and connect later from the merchant detail page.">
+          <FormGrid>
+            <FormField label="Supago Username">
+              <Input
+                value={supagoUsername}
+                onChange={(event) => setSupagoUsername(event.target.value)}
+                placeholder="Supago username (optional)"
+              />
+            </FormField>
+            <FormField label="Supago Password">
+              <Input
+                type="password"
+                value={supagoPassword}
+                onChange={(event) => setSupagoPassword(event.target.value)}
+                placeholder="Supago password (optional)"
+              />
             </FormField>
           </FormGrid>
         </FormSection>

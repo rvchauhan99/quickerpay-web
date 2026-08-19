@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MerchantListItem, Pagination, PayinListItem, UpiAccountListItem, UserListItem } from '@quickerpay/shared-types'
 import { PAYIN_STATUSES } from '@quickerpay/shared-types'
+import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
+import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton, Toast } from '@/components/ui/FilterBar'
+import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
@@ -24,6 +25,7 @@ import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
+import { useQueueSync } from '@/lib/live/useQueueSync'
 
 function formatApiError(caught: unknown, fallback: string): string {
   if (!(caught instanceof ApiClientError)) return fallback
@@ -46,8 +48,8 @@ export default function PayinPage() {
   const [rows, setRows] = useState<PayinListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<{ id: string; action: 'accept' | 'reject' | 'cancel' | 'refund' } | null>(null)
   const [assignFor, setAssignFor] = useState<string | null>(null)
   const [assignUpi, setAssignUpi] = useState('')
@@ -62,9 +64,8 @@ export default function PayinPage() {
   const [createOperator, setCreateOperator] = useState('')
   const [createUtr, setCreateUtr] = useState('')
 
-  const load = useCallback(async () => {
-    if (!accessToken) return
-    setLoading(true)
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true)
     setError(null)
     const query = new URLSearchParams()
     query.set('page', String(filters.page))
@@ -76,19 +77,39 @@ export default function PayinPage() {
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
     try {
-      const result = await apiListRequest<PayinListItem>(`/api/v1/payin?${query}`, { token: accessToken })
+      const result = await apiListRequest<PayinListItem>(`/api/v1/payin?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
       setError(caught instanceof ApiClientError ? `${caught.message}${caught.requestId ? ` (${caught.requestId})` : ''}` : 'Could not load')
     } finally {
-      setLoading(false)
+      if (!options?.silent) setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.admin_user_id])
 
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
+
+  const { pendingOnPage1 } = useQueueSync({
+    entity: 'payin',
+    enabled: ready && allowed,
+    accessToken,
+    statusFilter: filters.status || 'IN_PROCESS',
+    page: filters.page,
+    pageSize: filters.page_size,
+    query: {
+      date_from: filters.date_from || undefined,
+      date_to: filters.date_to || undefined,
+      q: filters.q || undefined,
+      merchant_id: filters.merchant_id || undefined,
+      admin_user_id: filters.admin_user_id || undefined,
+    },
+    rows,
+    setRows,
+    pagination,
+    setPagination,
+  })
 
   useEffect(() => {
     if (!accessToken || !allowed) return
@@ -146,7 +167,8 @@ export default function PayinPage() {
   }
 
   const handleAction = async () => {
-    if (!confirm || !accessToken) return
+    if (!confirm || !accessToken || submitting) return
+    setSubmitting(confirm.id)
     try {
       await apiRequest(`/api/v1/payin/${confirm.id}/${confirm.action}`, {
         method: 'POST',
@@ -155,15 +177,19 @@ export default function PayinPage() {
         headers: confirm.action === 'accept' || confirm.action === 'refund' ? { 'Idempotency-Key': crypto.randomUUID() } : undefined,
       })
       setConfirm(null)
-      setToast('Success')
+      toast.success(`Pay-in ${confirm.action}ed`)
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-in')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-in')
+      setConfirm(null)
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleAssign = async () => {
-    if (!assignFor || !accessToken || !assignUpi) return
+    if (!assignFor || !accessToken || !assignUpi || submitting) return
+    setSubmitting(assignFor)
     try {
       await apiRequest(`/api/v1/payin/${assignFor}/assign`, {
         method: 'POST',
@@ -176,18 +202,21 @@ export default function PayinPage() {
       setAssignFor(null)
       setAssignUpi('')
       setAssignOperator('')
-      setToast('Success')
+      toast.success('UPI assigned')
       await setFilters({ status: 'IN_PROCESS', page: 1 })
       await load()
     } catch (caught) {
-      setError(formatApiError(caught, 'Could not assign UPI'))
+      toast.error(formatApiError(caught, 'Could not assign UPI'))
+    } finally {
+      setSubmitting(null)
     }
   }
 
   const handleCreate = async () => {
     const utr = createUtr.trim()
-    if (!accessToken || amountMinor <= 0 || !createUpi || !/^\d{6,32}$/.test(utr)) return
+    if (!accessToken || amountMinor <= 0 || !createUpi || !/^\d{6,32}$/.test(utr) || submitting) return
     if (canPickMerchant && !merchantId) return
+    setSubmitting('create')
     try {
       const created = await apiRequest<PayinListItem>('/api/v1/payin', {
         method: 'POST',
@@ -212,11 +241,13 @@ export default function PayinPage() {
       setCreateUpi('')
       setCreateOperator('')
       setCreateUtr('')
-      setToast('Success')
+      toast.success('Pay-in created')
       await setFilters({ status: 'IN_PROCESS', page: 1 })
       await load()
     } catch (caught) {
-      setError(formatApiError(caught, 'Could not create pay-in'))
+      toast.error(formatApiError(caught, 'Could not create pay-in'))
+    } finally {
+      setSubmitting(null)
     }
   }
 
@@ -232,7 +263,19 @@ export default function PayinPage() {
           ) : null
         }
       />
-      <Toast message={toast} />
+      {pendingOnPage1 > 0 && filters.page > 1 ? (
+        <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {pendingOnPage1} new pay-in{pendingOnPage1 === 1 ? '' : 's'} on page 1.{' '}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void setFilters({ page: 1 })}
+            aria-label="Go to page 1"
+          >
+            Go to page 1
+          </button>
+        </div>
+      ) : null}
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
@@ -354,9 +397,6 @@ export default function PayinPage() {
         </div>
       ) : null}
 
-      <div className="mb-4">
-        <ErrorAlert message={error} />
-      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
@@ -413,7 +453,7 @@ export default function PayinPage() {
         />
       )}
       {confirm ? (
-        <ConfirmDialog title={`${confirm.action} this pay-in?`} confirmLabel={confirm.action} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} />
+        <ConfirmDialog title={`${confirm.action} this pay-in?`} confirmLabel={confirm.action} loading={submitting === confirm.id} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} />
       ) : null}
       {assignFor ? (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30" role="dialog" aria-label="Assign UPI">
@@ -429,7 +469,9 @@ export default function PayinPage() {
             </label>
             <div className="mt-3 flex justify-end gap-2">
               <button type="button" className="h-7 rounded border border-zinc-300 px-2 text-xs" onClick={() => setAssignFor(null)}>Cancel</button>
-              <button type="button" className="h-7 rounded bg-zinc-900 px-2 text-xs text-white" onClick={() => void handleAssign()}>Assign</button>
+              <button type="button" disabled={submitting === assignFor} className="h-7 rounded bg-zinc-900 px-2 text-xs text-white disabled:opacity-60" onClick={() => void handleAssign()}>
+                {submitting === assignFor ? 'Assigning…' : 'Assign'}
+              </button>
             </div>
           </div>
         </div>

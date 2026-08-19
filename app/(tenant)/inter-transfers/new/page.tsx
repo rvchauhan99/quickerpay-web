@@ -14,6 +14,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
+import { toast } from 'sonner'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { hasMenu, useSession } from '@/lib/session'
 
@@ -57,6 +58,7 @@ export default function NewInterTransferPage() {
   const [reference, setReference] = useState('')
   const [remark, setRemark] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!ready) return
@@ -100,8 +102,9 @@ export default function NewInterTransferPage() {
   }
 
   const handleSubmit = async () => {
-    if (!accessToken) return
+    if (!accessToken || submitting) return
     setError(null)
+    setSubmitting(true)
     try {
       await apiRequest('/api/v1/inter-transfers', {
         method: 'POST',
@@ -116,9 +119,12 @@ export default function NewInterTransferPage() {
           remark: remark || undefined,
         },
       })
+      toast.success('Transfer created')
       router.push('/inter-transfers')
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not create transfer')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -128,7 +134,7 @@ export default function NewInterTransferPage() {
       <div className="mb-4">
         <ErrorAlert message={error} />
       </div>
-      <FormShell submitLabel="Create transfer" onSubmit={() => void handleSubmit()}>
+      <FormShell submitLabel={submitting ? 'Creating…' : 'Create transfer'} onSubmit={() => void handleSubmit()}>
         <FormSection title="Transfer Details" description="Select the accounts and specify the amount.">
           <FormGrid>
             <div className="md:col-span-2">

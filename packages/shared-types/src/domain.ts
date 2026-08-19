@@ -49,6 +49,7 @@ export const MENU_CODES = [
   'AUDIT',
   'SETTINGS',
   'SUPPORT',
+  'SUPAGO_BANKS',
 ] as const
 export type MenuCode = (typeof MENU_CODES)[number]
 

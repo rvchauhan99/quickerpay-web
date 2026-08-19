@@ -5,10 +5,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MerchantDetail, MerchantListItem, Pagination } from '@quickerpay/shared-types'
 import { MERCHANT_STATUSES } from '@quickerpay/shared-types'
+import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
+import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { DataTable, EmptyState, FilterBar, StatusBadge, TableSkeleton, Toast } from '@/components/ui/FilterBar'
+import { DataTable, EmptyState, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { IconButton } from '@/components/ui/IconButton'
 import { Pencil, List, Ban } from 'lucide-react'
 import { Input } from '@/components/forms/Input'
@@ -34,12 +35,11 @@ export default function MerchantsPage() {
   const [rows, setRows] = useState<MerchantDetail[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [suspend, setSuspend] = useState<MerchantDetail | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
@@ -48,9 +48,9 @@ export default function MerchantsPage() {
     if (filters.status) query.set('status', filters.status)
     if (filters.q) query.set('q', filters.q)
     try {
-      const result = await apiListRequest<MerchantListItem>(`/api/v1/merchants?${query}`, { token: accessToken })
+      const result = await apiListRequest<MerchantListItem>(`/api/v1/merchants?${query}`)
       const details = await Promise.all(
-        result.items.map((row) => apiRequest<MerchantDetail>(`/api/v1/merchants/${row.id}`, { token: accessToken })),
+        result.items.map((row) => apiRequest<MerchantDetail>(`/api/v1/merchants/${row.id}`)),
       )
       setRows(details)
       setPagination(result.pagination)
@@ -59,7 +59,7 @@ export default function MerchantsPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.status, filters.q])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -69,15 +69,22 @@ export default function MerchantsPage() {
   if (!allowed) return Forbidden
 
   const handleSuspend = async () => {
-    if (!accessToken || !suspend) return
-    await apiRequest(`/api/v1/merchants/${suspend.id}/status`, {
-      method: 'POST',
-      token: accessToken,
-      body: { status: 'SUSPENDED' },
-    })
-    setSuspend(null)
-    setToast('Success')
-    await load()
+    if (!accessToken || !suspend || submitting) return
+    setSubmitting(true)
+    try {
+      await apiRequest(`/api/v1/merchants/${suspend.id}/status`, {
+        method: 'POST',
+        token: accessToken,
+        body: { status: 'SUSPENDED' },
+      })
+      setSuspend(null)
+      toast.success('Merchant suspended')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not suspend')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -93,7 +100,6 @@ export default function MerchantsPage() {
           ) : null
         }
       />
-      <Toast message={toast} />
       <FilterBar
         onApply={() => void load()}
         onClear={() => void setFilters({ status: '', q: '', page: 1 })}
@@ -111,9 +117,6 @@ export default function MerchantsPage() {
           <Input placeholder="code or name" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
       </FilterBar>
-      <div className="mb-4">
-        <ErrorAlert message={error} />
-      </div>
       {loading ? (
         <TableSkeleton />
       ) : (
@@ -154,6 +157,7 @@ export default function MerchantsPage() {
         <ConfirmDialog
           title={`Suspend ${suspend.legal_name}?`}
           confirmLabel="Suspend"
+          loading={submitting}
           onCancel={() => setSuspend(null)}
           onConfirm={() => void handleSuspend()}
         />

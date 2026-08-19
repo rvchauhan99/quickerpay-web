@@ -27,6 +27,7 @@ export interface BankAccountListItem {
   per_txn_limit_minor: number | null
   created_at: string
   approved_at: string | null
+  upi_address: string | null
 }
 
 export interface BankAccountDetail extends BankAccountListItem {

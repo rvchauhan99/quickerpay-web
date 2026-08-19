@@ -5,9 +5,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MenuCode, Pagination, UserListItem } from '@quickerpay/shared-types'
 import { USER_ROLES, USER_STATUSES } from '@quickerpay/shared-types'
+import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
-import { ExportButton, FilterBar, StatusBadge, TableSkeleton, DataTable, EmptyState, Toast } from '@/components/ui/FilterBar'
+import { ExportButton, FilterBar, StatusBadge, TableSkeleton, DataTable, EmptyState } from '@/components/ui/FilterBar'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormShell } from '@/components/forms/FormShell'
@@ -34,9 +35,9 @@ export default function UsersPage() {
   const [rows, setRows] = useState<UserListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -48,7 +49,6 @@ export default function UsersPage() {
   const offerableModules = menus.filter((grant) => grant.can_view && grant.menu_code !== 'USERS')
 
   const load = useCallback(async () => {
-    if (!accessToken) return
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
@@ -59,7 +59,7 @@ export default function UsersPage() {
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     try {
-      const result = await apiListRequest<UserListItem>(`/api/v1/users?${query}`, { token: accessToken })
+      const result = await apiListRequest<UserListItem>(`/api/v1/users?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
@@ -67,7 +67,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.role, filters.status, filters.q, filters.merchant_id])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -95,13 +95,14 @@ export default function UsersPage() {
   }
 
   const handleCreateOperator = async () => {
-    if (!accessToken) return
+    if (!accessToken || submitting) return
     setCreateError(null)
     setFieldErrors({})
     if (selectedModules.length === 0) {
       setFieldErrors({ menus: 'Select at least one module' })
       return
     }
+    setSubmitting(true)
     try {
       await apiRequest('/api/v1/users', {
         method: 'POST',
@@ -123,7 +124,7 @@ export default function UsersPage() {
         },
       })
       handleCloseCreate()
-      setToast('Success')
+      toast.success('Operator created')
       await load()
     } catch (caught) {
       if (caught instanceof ApiClientError) {
@@ -132,14 +133,20 @@ export default function UsersPage() {
         return
       }
       setCreateError('Could not create operator')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleDisable = async (id: string) => {
     if (!accessToken) return
-    await apiRequest(`/api/v1/users/${id}/status`, { method: 'POST', token: accessToken, body: { status: 'DISABLED' } })
-    setToast('Success')
-    await load()
+    try {
+      await apiRequest(`/api/v1/users/${id}/status`, { method: 'POST', token: accessToken, body: { status: 'DISABLED' } })
+      toast.success('User disabled')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not disable user')
+    }
   }
 
   const adminColumns = [
@@ -180,7 +187,6 @@ export default function UsersPage() {
           ) : null
         }
       />
-      <Toast message={toast} />
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ role: '', status: '', q: '', merchant_id: '', page: 1 })} onReload={() => void load()}>
         {isAdmin ? null : (
           <FormField label="Role">
@@ -237,7 +243,7 @@ export default function UsersPage() {
                 <FormField
                   label="Password"
                   required
-                  hint="At least 12 characters. They can change it later from Profile."
+                  hint="6-20 chars, include uppercase + number + special character. They can change it later from Profile."
                   error={fieldErrors.temporary_password}
                 >
                   <div className="relative">

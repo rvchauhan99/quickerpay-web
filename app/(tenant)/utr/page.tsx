@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { Pagination, UpiAccountListItem, UtrListItem } from '@quickerpay/shared-types'
 import { UTR_STATUSES } from '@quickerpay/shared-types'
+import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
+import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton, Toast } from '@/components/ui/FilterBar'
+import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormShell } from '@/components/forms/FormShell'
@@ -23,7 +24,7 @@ import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
-import { useUtrLive } from '@/lib/useUtrLive'
+import { useQueueSync } from '@/lib/live/useQueueSync'
 
 export default function UtrPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('UTR')
@@ -41,9 +42,8 @@ export default function UtrPage() {
   const [rows, setRows] = useState<UtrListItem[]>([])
   const [upis, setUpis] = useState<UpiAccountListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [amountMinor, setAmountMinor] = useState(0)
   const [utr, setUtr] = useState('')
@@ -51,10 +51,8 @@ export default function UtrPage() {
   const [confirm, setConfirm] = useState<{ id: string; action: 'reject' } | null>(null)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
-    if (!accessToken) return
     if (!options?.silent) {
       setLoading(true)
-      setError(null)
     }
     const query = new URLSearchParams()
     query.set('page', String(filters.page))
@@ -67,19 +65,36 @@ export default function UtrPage() {
     if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
     if (filters.extension_device_id) query.set('extension_device_id', filters.extension_device_id)
     try {
-      const result = await apiListRequest<UtrListItem>(`/api/v1/utr?${query}`, { token: accessToken })
+      const result = await apiListRequest<UtrListItem>(`/api/v1/utr?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
     } catch (caught) {
       if (options?.silent) return
-      setError(caught instanceof ApiClientError ? `${caught.message}${caught.requestId ? ` (${caught.requestId})` : ''}` : 'Could not load')
+      toast.error(caught instanceof ApiClientError ? `${caught.message}${caught.requestId ? ` (${caught.requestId})` : ''}` : 'Could not load')
     } finally {
       if (!options?.silent) setLoading(false)
     }
-  }, [accessToken, filters])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.upi_account_id, filters.q, filters.admin_user_id, filters.extension_device_id])
 
-  useUtrLive(allowed && accessToken ? accessToken : null, () => {
-    void load({ silent: true })
+  const { pendingOnPage1 } = useQueueSync({
+    entity: 'utr',
+    enabled: ready && allowed,
+    accessToken,
+    statusFilter: filters.status || 'PENDING',
+    page: filters.page,
+    pageSize: filters.page_size,
+    query: {
+      date_from: filters.date_from || undefined,
+      date_to: filters.date_to || undefined,
+      upi_account_id: filters.upi_account_id || undefined,
+      q: filters.q || undefined,
+      admin_user_id: filters.admin_user_id || undefined,
+      extension_device_id: filters.extension_device_id || undefined,
+    },
+    rows,
+    setRows,
+    pagination,
+    setPagination,
   })
 
   useEffect(() => {
@@ -88,7 +103,7 @@ export default function UtrPage() {
     void apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken })
       .then((result) => setUpis(result.items))
       .catch((caught) => {
-        setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load UPI accounts')
+        toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load UPI accounts')
       })
   }, [ready, allowed, accessToken, load])
 
@@ -108,26 +123,41 @@ export default function UtrPage() {
   }
 
   const handleCreate = async () => {
-    if (!accessToken) return
-    await apiRequest('/api/v1/utr', {
-      method: 'POST',
-      token: accessToken,
-      body: { amount_minor: amountMinor, utr, upi_account_id: upiId },
-    })
-    setCreating(false)
-    setToast('Success')
-    await load()
+    if (!accessToken || submitting) return
+    setSubmitting('create')
+    try {
+      await apiRequest('/api/v1/utr', {
+        method: 'POST',
+        token: accessToken,
+        body: { amount_minor: amountMinor, utr, upi_account_id: upiId },
+      })
+      setCreating(false)
+      toast.success('UTR added')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not add UTR')
+    } finally {
+      setSubmitting(null)
+    }
   }
 
   const handleAction = async () => {
-    if (!confirm || !accessToken) return
-    await apiRequest(`/api/v1/utr/${confirm.id}/${confirm.action}`, {
-      method: 'POST',
-      token: accessToken,
-    })
-    setConfirm(null)
-    setToast('Success')
-    await load()
+    if (!confirm || !accessToken || submitting) return
+    setSubmitting(confirm.id)
+    try {
+      await apiRequest(`/api/v1/utr/${confirm.id}/${confirm.action}`, {
+        method: 'POST',
+        token: accessToken,
+      })
+      setConfirm(null)
+      toast.success(`UTR ${confirm.action}ed`)
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update UTR')
+      setConfirm(null)
+    } finally {
+      setSubmitting(null)
+    }
   }
 
   return (
@@ -143,7 +173,19 @@ export default function UtrPage() {
           ) : null
         }
       />
-      <Toast message={toast} />
+      {pendingOnPage1 > 0 && filters.page > 1 ? (
+        <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {pendingOnPage1} new UTR entr{pendingOnPage1 === 1 ? 'y' : 'ies'} on page 1.{' '}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void setFilters({ page: 1 })}
+            aria-label="Go to page 1"
+          >
+            Go to page 1
+          </button>
+        </div>
+      ) : null}
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', upi_account_id: '', q: '', admin_user_id: '', extension_device_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
@@ -226,9 +268,6 @@ export default function UtrPage() {
         </div>
       ) : null}
 
-      <div className="mb-4">
-        <ErrorAlert message={error} />
-      </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
@@ -263,7 +302,7 @@ export default function UtrPage() {
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
         />
       )}
-      {confirm ? <ConfirmDialog title={`${confirm.action} this UTR?`} confirmLabel={confirm.action} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} /> : null}
+      {confirm ? <ConfirmDialog title={`${confirm.action} this UTR?`} confirmLabel={confirm.action} loading={submitting === confirm.id} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} /> : null}
     </AppShell>
   )
 }

@@ -4,19 +4,28 @@ import { useRouter } from 'next/navigation'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { PrimaryButton } from '@/components/ui/PageHeader'
-import { useState } from 'react'
-import { ApiClientError } from '@/lib/api'
+import { useEffect, useState } from 'react'
+import { ApiClientError, resetRedirectingFlag } from '@/lib/api'
 import { useSession } from '@/lib/session'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useSession()
+  const { login, user, ready } = useSession()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [totp, setTotp] = useState('')
   const [needsTotp, setNeedsTotp] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Clear any module-level redirect guard so login POST is not silenced
+  useEffect(() => {
+    resetRedirectingFlag()
+  }, [])
+
+  useEffect(() => {
+    if (ready && user) router.replace('/dashboard')
+  }, [ready, user, router])
 
   const handleSubmit = async () => {
     setError(null)
@@ -38,6 +47,8 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  if (!ready || user) return null
 
   return (
     <main className="flex min-h-screen qp-auth-page">
