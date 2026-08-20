@@ -1,8 +1,8 @@
 /**
  * The Users module contract, docs/04_API_CONTRACT.md section 8.2.
  *
- * Rates are integer basis points, never a percentage. There is no money on this module,
- * so no field here ends `_minor`.
+ * Rates are integer basis points, never a percentage. Admin daily deposit limit is
+ * integer paise (`daily_deposit_limit_minor`); enforced on IST-day COMPLETED Pay-In volume.
  */
 
 import type { BankingScope, MenuGrant } from './auth'
@@ -30,6 +30,8 @@ export interface UserListItem {
   user_code: string | null
   /** Bound merchant for an Admin. Null for every other role. */
   merchant_id: string | null
+  /** Admin daily deposit ceiling in paise. Null for non-Admin roles. */
+  daily_deposit_limit_minor: number | null
   status: UserStatus
   operational_state: OperationalState
   auto_accept_enabled: boolean

@@ -20,7 +20,7 @@ describe('applyLiveEnvelope', () => {
       rows: [{ id: 'payin-1', status: 'IN_PROCESS' }],
       event: envelope({ status: 'COMPLETED' }),
       statusFilter: 'IN_PROCESS',
-      pagination: { page: 1, page_size: 10, total: 1 },
+      pagination: { page: 1, page_size: 10, total: 1, total_is_estimate: false, has_next: false },
     })
 
     expect(result.rows).toEqual([])
@@ -61,7 +61,7 @@ describe('applyLiveEnvelope', () => {
         admin_user_id: 'admin-1',
       }),
       statusFilter: 'INITIATE',
-      pagination: { page: 1, page_size: 10, total: 1 },
+      pagination: { page: 1, page_size: 10, total: 1, total_is_estimate: false, has_next: false },
       unassignedFilter: true,
     })
 

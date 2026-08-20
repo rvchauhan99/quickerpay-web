@@ -45,6 +45,10 @@ export interface SessionUser {
   operational_state: OperationalState
   auto_accept_enabled: boolean
   two_fa_enabled: boolean
+  /** Admin only; null for other roles. IST-day COMPLETED Pay-In cap. */
+  daily_deposit_limit_minor: number | null
+  daily_deposit_used_minor: number | null
+  daily_deposit_limit_reached: boolean
 }
 
 export interface SessionTenant {

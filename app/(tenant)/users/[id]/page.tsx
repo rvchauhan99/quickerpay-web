@@ -210,6 +210,7 @@ export default function UserDetailPage() {
                 >
                   {canEditDepositLimit ? (
                     <MoneyInput
+                      id="user-daily-deposit-limit"
                       valueMinor={dailyDepositLimitMinor}
                       onChangeMinor={setDailyDepositLimitMinor}
                       aria-label="Daily deposit limit"
