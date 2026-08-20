@@ -104,7 +104,10 @@ export default function MerchantDetailPage() {
   }
 
   const handleSupagoConnect = async () => {
-    if (!accessToken || !params.id || !supagoUsername || !supagoPassword) return
+    const trimmedUsername = supagoUsername.trim()
+    const trimmedPassword = supagoPassword.trim()
+    const trimmedTransactionCode = supagoTransactionCode.trim()
+    if (!accessToken || !params.id || !trimmedUsername || !trimmedPassword || !trimmedTransactionCode) return
     setSupagoLoading(true)
     setSupagoError(null)
     try {
@@ -112,15 +115,15 @@ export default function MerchantDetailPage() {
         method: 'PATCH',
         token: accessToken,
         body: {
-          supago_username: supagoUsername,
-          supago_password: supagoPassword,
-          ...(supagoTransactionCode.trim() ? { supago_transaction_code: supagoTransactionCode.trim() } : {}),
+          supago_username: trimmedUsername,
+          supago_password: trimmedPassword,
+          supago_transaction_code: trimmedTransactionCode,
         },
       })
       setSupagoStatus(status)
       setSupagoUsername('')
       setSupagoPassword('')
-      setSupagoTransactionCode(status.transaction_code ?? supagoTransactionCode.trim())
+      setSupagoTransactionCode(status.transaction_code ?? trimmedTransactionCode)
       setUpdateCredsOpen(false)
       toast.success(updateCredsOpen ? 'Supago credentials updated' : 'Supago connected')
     } catch (caught) {
@@ -288,33 +291,41 @@ export default function MerchantDetailPage() {
                   {canEdit && updateCredsOpen ? (
                     <div className="mt-3 rounded-lg border p-4" style={{ borderColor: 'var(--qp-border)', backgroundColor: 'var(--qp-bg-card)' }}>
                       <FormGrid>
-                        <FormField label="Username">
+                        <FormField label="Username" required>
                           <Input
                             value={supagoUsername}
                             onChange={(e) => setSupagoUsername(e.target.value)}
                             placeholder="New Supago username"
+                            aria-label="Supago username"
                           />
                         </FormField>
-                        <FormField label="Password">
+                        <FormField label="Password" required>
                           <Input
                             type="password"
                             value={supagoPassword}
                             onChange={(e) => setSupagoPassword(e.target.value)}
                             placeholder="New Supago password"
+                            aria-label="Supago password"
                           />
                         </FormField>
-                        <FormField label="Transaction Code">
+                        <FormField label="Transaction Code" required>
                           <Input
                             value={supagoTransactionCode}
                             onChange={(e) => setSupagoTransactionCode(e.target.value)}
                             placeholder="e.g. 643795"
+                            aria-label="Supago transaction code"
                           />
                         </FormField>
                       </FormGrid>
                       <div className="mt-3 flex justify-end">
                         <PrimaryButton
                           onClick={() => void handleSupagoConnect()}
-                          disabled={supagoLoading || !supagoUsername || !supagoPassword}
+                          disabled={
+                            supagoLoading ||
+                            !supagoUsername.trim() ||
+                            !supagoPassword.trim() ||
+                            !supagoTransactionCode.trim()
+                          }
                         >
                           {supagoLoading ? 'Saving…' : 'Save'}
                         </PrimaryButton>
@@ -326,33 +337,41 @@ export default function MerchantDetailPage() {
                 canEdit ? (
                   <>
                     <FormGrid>
-                      <FormField label="Supago Username">
+                      <FormField label="Supago Username" required>
                         <Input
                           value={supagoUsername}
                           onChange={(e) => setSupagoUsername(e.target.value)}
                           placeholder="Enter Supago username"
+                          aria-label="Supago username"
                         />
                       </FormField>
-                      <FormField label="Supago Password">
+                      <FormField label="Supago Password" required>
                         <Input
                           type="password"
                           value={supagoPassword}
                           onChange={(e) => setSupagoPassword(e.target.value)}
                           placeholder="Enter Supago password"
+                          aria-label="Supago password"
                         />
                       </FormField>
-                      <FormField label="Transaction Code">
+                      <FormField label="Transaction Code" required>
                         <Input
                           value={supagoTransactionCode}
                           onChange={(e) => setSupagoTransactionCode(e.target.value)}
                           placeholder="e.g. 643795"
+                          aria-label="Supago transaction code"
                         />
                       </FormField>
                     </FormGrid>
                     <div className="mt-4 flex justify-end">
                       <PrimaryButton
                         onClick={() => void handleSupagoConnect()}
-                        disabled={supagoLoading || !supagoUsername || !supagoPassword}
+                        disabled={
+                          supagoLoading ||
+                          !supagoUsername.trim() ||
+                          !supagoPassword.trim() ||
+                          !supagoTransactionCode.trim()
+                        }
                       >
                         {supagoLoading ? 'Connecting…' : 'Connect'}
                       </PrimaryButton>

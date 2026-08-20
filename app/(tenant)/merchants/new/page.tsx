@@ -26,6 +26,7 @@ export default function NewMerchantPage() {
   const [payoutBp, setPayoutBp] = useState(200)
   const [supagoUsername, setSupagoUsername] = useState('')
   const [supagoPassword, setSupagoPassword] = useState('')
+  const [supagoTransactionCode, setSupagoTransactionCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -37,6 +38,25 @@ export default function NewMerchantPage() {
     if (!accessToken || submitting) return
     setError(null)
     setFieldErrors({})
+
+    const trimmedUsername = supagoUsername.trim()
+    const trimmedPassword = supagoPassword.trim()
+    const trimmedTransactionCode = supagoTransactionCode.trim()
+    const hasAnySupago =
+      trimmedUsername.length > 0 || trimmedPassword.length > 0 || trimmedTransactionCode.length > 0
+    const wantsSupagoConnect =
+      trimmedUsername.length > 0 && trimmedPassword.length > 0 && trimmedTransactionCode.length > 0
+
+    if (hasAnySupago && !wantsSupagoConnect) {
+      const nextErrors: Record<string, string> = {}
+      if (!trimmedUsername) nextErrors.supago_username = 'Required when connecting Supago'
+      if (!trimmedPassword) nextErrors.supago_password = 'Required when connecting Supago'
+      if (!trimmedTransactionCode) nextErrors.supago_transaction_code = 'Required when connecting Supago'
+      setFieldErrors(nextErrors)
+      setError('Supago username, password, and transaction code are all required to connect')
+      return
+    }
+
     setSubmitting(true)
     try {
       const created = await apiRequest<{ id: string }>('/api/v1/merchants', {
@@ -54,11 +74,15 @@ export default function NewMerchantPage() {
           ],
         },
       })
-      if (supagoUsername && supagoPassword) {
+      if (wantsSupagoConnect) {
         await apiRequest(`/api/v1/merchants/${created.id}/supago`, {
           method: 'PATCH',
           token: accessToken,
-          body: { supago_username: supagoUsername, supago_password: supagoPassword },
+          body: {
+            supago_username: trimmedUsername,
+            supago_password: trimmedPassword,
+            supago_transaction_code: trimmedTransactionCode,
+          },
         })
       }
       toast.success('Merchant created')
@@ -110,21 +134,31 @@ export default function NewMerchantPage() {
           </FormGrid>
         </FormSection>
 
-        <FormSection title="Supago Integration" description="Optional. Connect to the Supago platform at creation time. Leave blank to skip and connect later from the merchant detail page.">
+        <FormSection title="Supago Integration" description="Optional. Connect to the Supago platform at creation time. Leave blank to skip and connect later from the merchant detail page. If connecting, username, password, and transaction code are all required.">
           <FormGrid>
-            <FormField label="Supago Username">
+            <FormField label="Supago Username" error={fieldErrors.supago_username}>
               <Input
                 value={supagoUsername}
                 onChange={(event) => setSupagoUsername(event.target.value)}
                 placeholder="Supago username (optional)"
+                aria-label="Supago username"
               />
             </FormField>
-            <FormField label="Supago Password">
+            <FormField label="Supago Password" error={fieldErrors.supago_password}>
               <Input
                 type="password"
                 value={supagoPassword}
                 onChange={(event) => setSupagoPassword(event.target.value)}
                 placeholder="Supago password (optional)"
+                aria-label="Supago password"
+              />
+            </FormField>
+            <FormField label="Transaction Code" error={fieldErrors.supago_transaction_code}>
+              <Input
+                value={supagoTransactionCode}
+                onChange={(event) => setSupagoTransactionCode(event.target.value)}
+                placeholder="e.g. 643795"
+                aria-label="Supago transaction code"
               />
             </FormField>
           </FormGrid>
