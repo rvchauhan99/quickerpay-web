@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MenuCode, Pagination, UserListItem } from '@quickerpay/shared-types'

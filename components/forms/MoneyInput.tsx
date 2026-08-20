@@ -1,6 +1,6 @@
 'use client'
 
-import { toMinor } from '@quickerpay/money'
+import { fromMinor, rupeeUnits, toMinor } from '@quickerpay/money'
 import { Input } from './Input'
 
 export function MoneyInput({
@@ -15,8 +15,8 @@ export function MoneyInput({
   wholeRupees?: boolean
 }) {
   const display = Number(valueMinor) === 0 ? '' : wholeRupees
-    ? String(Math.trunc(Number(valueMinor) / 100))
-    : (Number(valueMinor) / 100).toFixed(2)
+    ? String(rupeeUnits(BigInt(valueMinor)))
+    : fromMinor(BigInt(valueMinor)).replace(/^₹/, '')
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--qp-text-muted)' }}>₹</span>

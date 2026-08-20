@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import type { PayinListItem } from '@quickerpay/shared-types'

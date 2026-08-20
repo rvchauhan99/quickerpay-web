@@ -2,7 +2,6 @@
 
 import { percentToBp } from '@quickerpay/money'
 import { useState } from 'react'
-import { FormField } from './FormField'
 import { Input } from './Input'
 
 export function RateInput({

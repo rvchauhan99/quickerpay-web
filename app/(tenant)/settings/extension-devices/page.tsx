@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { parseAsString, useQueryStates } from 'nuqs'
 import type { ExtensionDeviceListItem } from '@quickerpay/shared-types'

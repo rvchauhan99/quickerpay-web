@@ -145,15 +145,16 @@ function recoverAccessToken(): Promise<string> {
   return refreshInFlight
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-const SILENT: Promise<Parsed> = new Promise(() => {})
+const SILENT: Promise<Parsed> = new Promise(() => {
+  /* intentionally never settles — caller is redirecting away */
+})
 
 async function requestWithRefresh(path: string, options: RequestOptions): Promise<Parsed> {
   if (isRedirecting) return SILENT
   // Auto-inject the current access token when the caller did not supply one.
   // This keeps page-level load() callbacks free of accessToken as a dep.
   const opts =
-    options.token == null && !isAuthBootstrapPath(path)
+    (options.token === undefined || options.token === null) && !isAuthBootstrapPath(path)
       ? { ...options, token: sessionBinder?.getAccessToken() }
       : options
   try {

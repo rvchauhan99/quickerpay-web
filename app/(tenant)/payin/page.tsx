@@ -47,7 +47,7 @@ export default function PayinPage() {
   })
   const [rows, setRows] = useState<PayinListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<{ id: string; action: 'accept' | 'reject' | 'cancel' | 'refund' } | null>(null)

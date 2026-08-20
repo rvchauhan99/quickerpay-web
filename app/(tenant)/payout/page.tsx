@@ -40,7 +40,7 @@ export default function PayoutPage() {
   })
   const [rows, setRows] = useState<PayoutListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<{ id: string; action: 'approve' | 'process' | 'fail' | 'reject' | 'cancel' | 'retry' } | null>(null)

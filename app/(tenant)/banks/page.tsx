@@ -42,7 +42,7 @@ export default function BanksPage() {
   })
   const [rows, setRows] = useState<BankAccountListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [submitting, setSubmitting] = useState<string | null>(null)

@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MerchantDetail, MerchantListItem, Pagination } from '@quickerpay/shared-types'
@@ -34,7 +33,7 @@ export default function MerchantsPage() {
   })
   const [rows, setRows] = useState<MerchantDetail[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [suspend, setSuspend] = useState<MerchantDetail | null>(null)
   const [submitting, setSubmitting] = useState(false)
