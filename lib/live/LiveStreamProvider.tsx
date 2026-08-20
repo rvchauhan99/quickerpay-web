@@ -15,6 +15,7 @@ import { useSession } from '../session'
 
 const FALLBACK_POLL_MS = 10_000
 const MAX_SSE_RETRIES = 3
+const FALLBACK_ENTITIES = ['payin', 'utr', 'payout'] as const
 
 interface LiveStreamContextValue {
   lastSeq: string
@@ -23,13 +24,11 @@ interface LiveStreamContextValue {
 
 const LiveStreamContext = createContext<LiveStreamContextValue | null>(null)
 
-const fallbackTick: LiveEventEnvelope = {
+const fallbackTickBase = {
   seq: '0-0',
-  entity: 'payin',
-  action: 'updated',
+  action: 'updated' as const,
   id: '',
   status: '',
-  updated_at: '',
 }
 
 export function LiveStreamProvider({ children }: { children: ReactNode }) {
@@ -81,7 +80,10 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
     const startFallback = () => {
       if (fallbackTimer) return
       fallbackTimer = setInterval(() => {
-        dispatch({ ...fallbackTick, updated_at: new Date().toISOString() })
+        const updated_at = new Date().toISOString()
+        for (const entity of FALLBACK_ENTITIES) {
+          dispatch({ ...fallbackTickBase, entity, updated_at })
+        }
       }, FALLBACK_POLL_MS)
     }
 

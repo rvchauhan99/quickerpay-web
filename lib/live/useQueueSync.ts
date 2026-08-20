@@ -20,6 +20,8 @@ interface UseQueueSyncOptions<T extends { id: string; status: string }> {
   setRows: (rows: T[]) => void
   pagination: Pagination | null
   setPagination: (pagination: Pagination | null) => void
+  /** Super Admin Unassigned queue: drop rows when admin_user_id becomes set. */
+  unassignedFilter?: boolean
 }
 
 export function useQueueSync<T extends { id: string; status: string }>({
@@ -34,6 +36,7 @@ export function useQueueSync<T extends { id: string; status: string }>({
   setRows,
   pagination,
   setPagination,
+  unassignedFilter = false,
 }: UseQueueSyncOptions<T>): { pendingOnPage1: number; clearPending: () => void } {
   const { subscribe } = useLiveStream()
   const cursorRef = useRef('')
@@ -49,7 +52,7 @@ export function useQueueSync<T extends { id: string; status: string }>({
   useEffect(() => {
     cursorRef.current = ''
     setPendingOnPage1(0)
-  }, [statusFilter, page, pageSize, entity, queryKey])
+  }, [statusFilter, page, pageSize, entity, queryKey, unassignedFilter])
 
   const pullChanges = useCallback(async () => {
     if (!accessToken || !enabled) return
@@ -62,7 +65,12 @@ export function useQueueSync<T extends { id: string; status: string }>({
       params.set(key, String(value))
     }
 
-    const path = entity === 'payin' ? `/api/v1/payin/changes?${params}` : `/api/v1/utr/changes?${params}`
+    const path =
+      entity === 'payin'
+        ? `/api/v1/payin/changes?${params}`
+        : entity === 'payout'
+          ? `/api/v1/payout/changes?${params}`
+          : `/api/v1/utr/changes?${params}`
     const payload = await apiRequest<LiveChangesResponse<T>>(path, { token: accessToken })
     if (payload.cursor) cursorRef.current = payload.cursor
 
@@ -88,6 +96,7 @@ export function useQueueSync<T extends { id: string; status: string }>({
         event,
         statusFilter,
         pagination: paginationRef.current,
+        unassignedFilter,
       })
       setRows(applied.rows)
       setPagination(applied.pagination)
@@ -96,7 +105,17 @@ export function useQueueSync<T extends { id: string; status: string }>({
       }
     }
     return subscribe(handleEvent)
-  }, [enabled, accessToken, entity, pullChanges, setPagination, setRows, statusFilter, subscribe])
+  }, [
+    enabled,
+    accessToken,
+    entity,
+    pullChanges,
+    setPagination,
+    setRows,
+    statusFilter,
+    subscribe,
+    unassignedFilter,
+  ])
 
   const clearPending = useCallback(() => setPendingOnPage1(0), [])
 

@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { MenuCode, MenuGrant, UserRole } from '@quickerpay/shared-types'
 import { HeaderToggles } from './HeaderToggles'
 import { isLabConsole } from '@/lib/lab'
+import { useSession } from '@/lib/session'
 import { FlaskConical } from 'lucide-react'
 
 /* ─── Nav metadata ─────────────────────────────────────────────────────────── */
@@ -160,6 +161,14 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { user, refreshUser } = useSession()
+
+  useEffect(() => {
+    if (role !== 'ADMIN') return
+    void refreshUser().catch(() => undefined)
+  }, [role, refreshUser])
+
+  const showDepositLimitStrip = Boolean(user?.daily_deposit_limit_reached)
 
   const order = NAV_ORDER
   const items = [...menus]
@@ -277,6 +286,21 @@ export function AppShell({
           </div>
           <HeaderToggles />
         </header>
+
+        {showDepositLimitStrip ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="px-4 py-2 text-xs font-medium"
+            style={{
+              backgroundColor: 'var(--qp-danger-bg)',
+              color: 'var(--qp-danger)',
+              borderBottom: '1px solid var(--qp-border)',
+            }}
+          >
+            Daily deposit limit reached. All accounts are deactivated for today.
+          </div>
+        ) : null}
 
         {/* Page content */}
         <main className="min-w-0 flex-1 overflow-y-auto p-4">{children}</main>

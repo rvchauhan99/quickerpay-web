@@ -28,6 +28,9 @@ export interface BankAccountListItem {
   created_at: string
   approved_at: string | null
   upi_address: string | null
+  /** True when bank_accounts.supago_payment_method_id is set. */
+  supago_linked: boolean
+  supago_payment_method_id: number | null
 }
 
 export interface BankAccountDetail extends BankAccountListItem {

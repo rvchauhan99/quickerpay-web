@@ -127,20 +127,21 @@ export default function PayinPage() {
 
   useEffect(() => {
     if (!accessToken || !allowed || !hasMenu(menus, 'PAYIN', 'can_create')) return
-    if (user?.role !== 'SUPER_ADMIN') return
-    void apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken })
-      .then((result) => setMerchants(result.items.filter((row) => row.status === 'ACTIVE')))
+    void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', {
+      token: accessToken,
+    })
+      .then((result) => setMerchants(result.items))
       .catch((caught) => {
         setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
       })
-  }, [accessToken, allowed, menus, user?.role])
+  }, [accessToken, allowed, menus])
 
   const { isSuperAdmin, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
-  const canPickMerchant = user.role === 'SUPER_ADMIN'
+  const createMerchants = merchants.length > 0 ? merchants : directoryMerchants.filter((row) => row.status === 'ACTIVE')
 
   const assigneesForUpi = (upiId: string) => {
     const upi = upis.find((row) => row.id === upiId)
@@ -215,7 +216,10 @@ export default function PayinPage() {
   const handleCreate = async () => {
     const utr = createUtr.trim()
     if (!accessToken || amountMinor <= 0 || !createUpi || !/^\d{6,32}$/.test(utr) || submitting) return
-    if (canPickMerchant && !merchantId) return
+    if (!merchantId) {
+      toast.error('Select a merchant')
+      return
+    }
     setSubmitting('create')
     try {
       const created = await apiRequest<PayinListItem>('/api/v1/payin', {
@@ -223,7 +227,7 @@ export default function PayinPage() {
         token: accessToken,
         body: {
           amount_minor: amountMinor,
-          ...(canPickMerchant ? { merchant_id: merchantId } : {}),
+          merchant_id: merchantId,
         },
       })
       await apiRequest(`/api/v1/payin/${created.id}/assign`, {
@@ -327,18 +331,16 @@ export default function PayinPage() {
           <FormShell title="Create Pay-In" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
               <FormGrid>
-                {canPickMerchant ? (
                 <FormField label="Merchant" required>
                   <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Merchant">
                     <option value="">Select merchant</option>
-                    {merchants.map((merchant) => (
+                    {createMerchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>
                         {merchant.merchant_code} — {merchant.display_name}
                       </option>
                     ))}
                   </Select>
                 </FormField>
-                ) : null}
                 <FormField label="Amount" required hint="Whole rupees. GPay paise are ignored when matching.">
                   <MoneyInput id="payin-amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} wholeRupees />
                 </FormField>

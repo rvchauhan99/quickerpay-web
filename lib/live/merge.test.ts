@@ -51,16 +51,38 @@ describe('applyLiveEnvelope', () => {
     expect(result.shouldPullChanges).toBe(true)
   })
 
-  it('ignores transitions for rows not on the current page', () => {
+  it('removes a row from the unassigned queue when admin_user_id is set', () => {
     const result = applyLiveEnvelope({
-      rows: [{ id: 'payin-2', status: 'IN_PROCESS' }],
-      event: envelope({ id: 'payin-1', status: 'COMPLETED' }),
-      statusFilter: 'IN_PROCESS',
+      rows: [{ id: 'payout-1', status: 'INITIATE' }],
+      event: envelope({
+        entity: 'payout',
+        id: 'payout-1',
+        status: 'INITIATE',
+        admin_user_id: 'admin-1',
+      }),
+      statusFilter: 'INITIATE',
       pagination: { page: 1, page_size: 10, total: 1 },
+      unassignedFilter: true,
     })
 
-    expect(result.rows).toHaveLength(1)
-    expect(result.pagination?.total).toBe(1)
+    expect(result.rows).toEqual([])
+    expect(result.pagination?.total).toBe(0)
     expect(result.shouldPullChanges).toBe(false)
+  })
+
+  it('still pulls changes for unassigned creates with null admin', () => {
+    const result = applyLiveEnvelope({
+      rows: [],
+      event: envelope({
+        entity: 'payout',
+        id: 'payout-2',
+        status: 'INITIATE',
+        admin_user_id: null,
+      }),
+      statusFilter: 'INITIATE',
+      pagination: null,
+      unassignedFilter: true,
+    })
+    expect(result.shouldPullChanges).toBe(true)
   })
 })

@@ -1,0 +1,22 @@
+---
+description: All document/image/proof uploads use DocumentUpload; no visible native file inputs in pages.
+globs: app/**/*.{tsx,ts},components/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Document upload (non-negotiable)
+
+Screens and feature modals never invent their own file picker chrome.
+
+```text
+Never render a visible native <input type="file"> in a page or feature modal.
+Never use browser-default “Choose file” chrome for attachments.
+All document / image / proof uploads go through components/forms/DocumentUpload.
+Camera / photo capture for proofs goes through DocumentUpload (not a one-off getUserMedia in a page).
+Form fields in dialogs use FormField + Input | Select | MoneyInput | DocumentUpload.
+Dialog surfaces use --qp-* tokens; no zinc-/slate-only one-off palettes in tenant modals.
+```
+
+Hidden `sr-only` file inputs are allowed **only inside** `DocumentUpload`. Pages pass `File | null` via props; they do not open the OS picker themselves.
+
+Default accept: PDF, JPEG, PNG, WEBP. Default max size: 10MB (match Pay-Out Accept API).

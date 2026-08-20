@@ -13,11 +13,14 @@ components/layout/     AppShell, Navigation, HeaderToggles
 components/ui/         DataTable, FilterBar, StatusBadge, DirectionBadge,
                        ConfirmDialog, ExportButton, EmptyState, StatCard
 components/forms/      FormShell, MoneyInput, RateInput, InlineCreatePanel,
-                       ScopePicker, MenuAccessPicker, ModuleMultiSelect
+                       ScopePicker, MenuAccessPicker, ModuleMultiSelect,
+                       FormField, Input, Select, DocumentUpload
 ```
 
-A hand-rolled table, filter bar, money input, status badge, pagination control or empty state inside a feature folder is a review rejection.
+A hand-rolled table, filter bar, money input, status badge, pagination control, empty state, or **visible file input** inside a feature folder is a review rejection.
 
 If a shared component cannot express what the screen needs, extend that component. Do not fork it into the page, and do not add Shadcn to paper over the gap.
 
 If the shared component does not exist yet, create it in the folder above first, then the page.
+
+Document / image / camera proofs: see `web-document-upload.mdc`. Always use `DocumentUpload`.

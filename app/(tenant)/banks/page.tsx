@@ -14,7 +14,7 @@ import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
 import { DataTable, FilterBar, StatusBadge, TableSkeleton, EmptyState, ExportButton } from '@/components/ui/FilterBar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { IconButton } from '@/components/ui/IconButton'
-import { Ban, CircleCheck, History, ScrollText, Trash2 } from 'lucide-react'
+import { Ban, CircleCheck, History, RefreshCw, ScrollText, Trash2 } from 'lucide-react'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormSection } from '@/components/forms/FormSection'
 import { Input } from '@/components/forms/Input'
@@ -102,6 +102,23 @@ export default function BanksPage() {
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not create')
+    } finally {
+      setSubmitting(null)
+    }
+  }
+
+  const handleResyncSupago = async (id: string) => {
+    if (!accessToken || submitting) return
+    setSubmitting(`resync-${id}`)
+    try {
+      await apiRequest(`/api/v1/bank-accounts/${id}/resync-supago`, {
+        method: 'POST',
+        token: accessToken,
+      })
+      toast.success('Linked to Supago')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not resync Supago')
     } finally {
       setSubmitting(null)
     }
@@ -218,7 +235,7 @@ export default function BanksPage() {
       {creating ? (
         <div className="mb-4">
           <FormShell submitLabel="Add" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
-            <FormSection title="Add UPI-First Bank" description="Register a new UPI ID as a target for payouts or collections.">
+            <FormSection title="Add UPI-First Bank" description="UPI must already exist on Supago (any connected merchant). Create resyncs Supago and refuses if there is no match.">
               <FormGrid>
                 <FormField label="UPI Address" required>
                   <Input value={upiAddress} onChange={(event) => setUpiAddress(event.target.value)} />
@@ -238,6 +255,7 @@ export default function BanksPage() {
             { key: 'owner', heading: 'OWNER' },
             { key: 'label', heading: 'LABEL' },
             { key: 'upi', heading: 'UPI ID' },
+            { key: 'supago', heading: 'SUPAGO' },
             { key: 'status', heading: 'STATUS' },
             { key: 'actions', heading: 'ACTION' },
           ]}
@@ -245,9 +263,23 @@ export default function BanksPage() {
             owner: row.owner_username,
             label: row.label,
             upi: row.upi_address ?? '—',
+            supago: row.supago_linked ? (
+              <span className="text-[11px] font-medium" style={{ color: 'var(--qp-success)' }}>
+                Linked
+              </span>
+            ) : (
+              <span className="text-[11px] text-zinc-400">—</span>
+            ),
             status: <StatusBadge status={row.status} />,
             actions: (
               <span className="flex items-center gap-1">
+                {canEdit && row.status !== 'CLOSED' && row.status !== 'REJECTED' ? (
+                  <IconButton
+                    icon={<RefreshCw size={15} strokeWidth={1.75} />}
+                    tooltip="Resync & link Supago"
+                    onClick={() => void handleResyncSupago(row.id)}
+                  />
+                ) : null}
                 {canEdit && row.status === 'ACTIVE' ? (
                   <IconButton
                     icon={<Ban size={15} strokeWidth={1.75} />}

@@ -1,9 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { MENU_CODES, PHASE_1_ADMIN_MENUS } from '@quickerpay/shared-types'
-import type { MerchantListItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
@@ -12,7 +11,8 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { RateInput } from '@/components/forms/RateInput'
-import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { MoneyInput } from '@/components/forms/MoneyInput'
+import { apiRequest, ApiClientError } from '@/lib/api'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function NewUserPage() {
@@ -20,23 +20,16 @@ export default function NewUserPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('USERS')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [mobile, setMobile] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'ADMIN' | 'OPERATOR' | 'AUDITOR'>('ADMIN')
   const [payinBp, setPayinBp] = useState(350)
   const [payoutBp, setPayoutBp] = useState(150)
-  const [merchantId, setMerchantId] = useState('')
-  const [merchants, setMerchants] = useState<MerchantListItem[]>([])
+  const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
   const [selected, setSelected] = useState<string[]>([...PHASE_1_ADMIN_MENUS])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (!accessToken || user?.role !== 'SUPER_ADMIN') return
-    void apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken })
-      .then((result) => setMerchants(result.items.filter((row) => row.status === 'ACTIVE')))
-      .catch(() => undefined)
-  }, [accessToken, user?.role])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -45,6 +38,20 @@ export default function NewUserPage() {
     if (!accessToken || submitting) return
     setError(null)
     setFieldErrors({})
+
+    if (role === 'ADMIN') {
+      const nextErrors: Record<string, string> = {}
+      if (!mobile.trim()) nextErrors.mobile = 'Required when creating an Admin'
+      if (!dailyDepositLimitMinor || dailyDepositLimitMinor <= 0) {
+        nextErrors.daily_deposit_limit_minor = 'Required when creating an Admin'
+      }
+      if (Object.keys(nextErrors).length > 0) {
+        setFieldErrors(nextErrors)
+        setError('Contact number and daily deposit limit are required for an Admin')
+        return
+      }
+    }
+
     setSubmitting(true)
     try {
       await apiRequest('/api/v1/users', {
@@ -56,7 +63,8 @@ export default function NewUserPage() {
           temporary_password: password,
           require_password_change: true,
           role,
-          merchant_id: role === 'ADMIN' ? merchantId : undefined,
+          mobile: mobile.trim() || undefined,
+          daily_deposit_limit_minor: role === 'ADMIN' ? dailyDepositLimitMinor : undefined,
           rates:
             role === 'ADMIN'
               ? [
@@ -93,10 +101,28 @@ export default function NewUserPage() {
         <FormSection title="Account Information" description="Set up the user's basic login credentials.">
           <FormGrid>
             <FormField label="Username" required error={fieldErrors.username}>
-              <Input value={username} onChange={(event) => setUsername(event.target.value)} />
+              <Input value={username} onChange={(event) => setUsername(event.target.value)} aria-label="Username" />
             </FormField>
             <FormField label="Display name" required error={fieldErrors.display_name}>
-              <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+              <Input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                aria-label="Display name"
+              />
+            </FormField>
+            <FormField
+              label="Contact number"
+              required={role === 'ADMIN'}
+              error={fieldErrors.mobile}
+              hint={role === 'ADMIN' ? 'Required for Admin' : 'Optional'}
+            >
+              <Input
+                type="tel"
+                value={mobile}
+                onChange={(event) => setMobile(event.target.value)}
+                aria-label="Contact number"
+                placeholder="98XXXXXXXX"
+              />
             </FormField>
             <div className="md:col-span-2">
               <FormField
@@ -105,17 +131,22 @@ export default function NewUserPage() {
                 hint="6-20 chars, include uppercase + number + special character"
                 error={fieldErrors.temporary_password}
               >
-                <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  aria-label="Temporary password"
+                />
               </FormField>
             </div>
           </FormGrid>
         </FormSection>
 
-        <FormSection title="Role & Rates" description="Assign the user's operational role and corresponding rates.">
+        <FormSection title="Role & Rates" description="Assign the user's operational role and corresponding rates. Merchant is chosen per Pay-In / Pay-Out.">
           <FormGrid>
             <div className="md:col-span-2">
               <FormField label="Role" required>
-                <Select value={role} onChange={(event) => setRole(event.target.value as typeof role)}>
+                <Select value={role} onChange={(event) => setRole(event.target.value as typeof role)} aria-label="Role">
                   <option value="ADMIN">ADMIN</option>
                   <option value="OPERATOR">OPERATOR</option>
                   <option value="AUDITOR">AUDITOR</option>
@@ -124,47 +155,46 @@ export default function NewUserPage() {
             </div>
             {role === 'ADMIN' ? (
               <>
-                <FormField label="Merchant" required error={fieldErrors.merchant_id}>
-                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Merchant">
-                    <option value="">Select merchant</option>
-                    {merchants.map((merchant) => (
-                      <option key={merchant.id} value={merchant.id}>
-                        {merchant.merchant_code} — {merchant.display_name}
-                      </option>
-                    ))}
-                  </Select>
-                </FormField>
                 <FormField label="PAYIN rate (bp)" error={fieldErrors.rates ?? fieldErrors['rates.0.rate_bp']}>
                   <RateInput id="payin" valueBp={payinBp} onChangeBp={setPayinBp} />
                 </FormField>
                 <FormField label="PAYOUT rate (bp)" error={fieldErrors['rates.1.rate_bp']}>
                   <RateInput id="payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
                 </FormField>
+                <FormField
+                  label="Daily deposit limit"
+                  required
+                  error={fieldErrors.daily_deposit_limit_minor}
+                  hint="Maximum COMPLETED Pay-In volume per IST day for this Admin"
+                >
+                  <MoneyInput
+                    id="daily-deposit-limit"
+                    valueMinor={dailyDepositLimitMinor}
+                    onChangeMinor={setDailyDepositLimitMinor}
+                  />
+                </FormField>
               </>
             ) : null}
           </FormGrid>
         </FormSection>
 
-        <FormSection title="Permissions" description="Select the operational menus this user can access.">
-          <div className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--qp-border)' }}>
-            <div className="flex flex-wrap gap-4">
-              {MENU_CODES.map((code) => (
-                <label key={code} className="flex cursor-pointer items-center gap-2 text-sm font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--qp-text-primary)' }}>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-zinc-300 text-[var(--qp-primary)] transition duration-150 ease-in-out focus:ring-[var(--qp-primary-light)]"
-                    checked={selected.includes(code)}
-                    onChange={(event) =>
-                      setSelected(event.target.checked ? [...selected, code] : selected.filter((item) => item !== code))
-                    }
-                  />
-                  {code.replaceAll('_', ' ')}
-                </label>
-              ))}
-            </div>
-            {fieldErrors.menus ? (
-              <p className="mt-3 text-[11px] font-medium" style={{ color: 'var(--qp-danger)' }}>{fieldErrors.menus}</p>
-            ) : null}
+        <FormSection title="Menus" description="Menus this user can open.">
+          <div className="flex flex-wrap gap-2">
+            {MENU_CODES.map((code) => {
+              const on = selected.includes(code)
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  className={`rounded px-2 py-1 text-xs ${on ? 'bg-zinc-900 text-white' : 'bg-zinc-100'}`}
+                  onClick={() =>
+                    setSelected((prev) => (on ? prev.filter((row) => row !== code) : [...prev, code]))
+                  }
+                >
+                  {code}
+                </button>
+              )
+            })}
           </div>
         </FormSection>
       </FormShell>

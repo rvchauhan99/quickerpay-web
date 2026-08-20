@@ -30,6 +30,9 @@ A column, filter, or widget 03 does not list
 A new CSS file, a gradient, or a hex colour in a page
 location.reload() for Reload
 Client-side filter or pagination of money rows
+A visible native <input type="file"> or browser “Choose file” chrome in a page/modal
+One-off getUserMedia / camera UI outside components/forms/DocumentUpload
+Unthemed dialog fields (use FormField + Input | Select | MoneyInput | DocumentUpload and --qp-* tokens)
 ```
 
 ## Additional resources

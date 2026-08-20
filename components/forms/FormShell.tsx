@@ -17,6 +17,7 @@ export function FormShell({
   error,
   submitLabel,
   loading = false,
+  actions,
   children,
 }: {
   title?: string | undefined
@@ -25,8 +26,13 @@ export function FormShell({
   error?: string | null | undefined
   submitLabel?: string | undefined
   loading?: boolean | undefined
+  /** Custom footer actions (e.g. Accept / Reject). Replaces default Cancel/Submit when set. */
+  actions?: React.ReactNode | undefined
   children: React.ReactNode
 }) {
+  const showDefaultActions = !actions && (onCancel || onSubmit)
+  const showFooter = Boolean(error || actions || showDefaultActions)
+
   return (
     <div
       className="rounded-xl border"
@@ -67,43 +73,47 @@ export function FormShell({
       >
         {children}
 
-        {/* Footer */}
-        <div
-          className="flex items-center justify-between pt-4"
-          style={{ borderTop: '1px solid var(--qp-border)' }}
-        >
-          <ErrorAlert message={error ?? null} />
-          {onCancel || onSubmit ? (
-            <div className="ml-auto flex items-center gap-2">
-              {onCancel ? (
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  disabled={loading}
-                  className="inline-flex h-9 items-center rounded-lg border px-5 text-sm font-medium transition-colors"
-                  style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
-                >
-                  Cancel
-                </button>
-              ) : null}
-              {onSubmit ? (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg px-5 text-sm font-semibold text-white transition-all disabled:opacity-60"
-                  style={{ backgroundColor: 'var(--qp-primary)' }}
-                >
-                  {loading ? (
-                    <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                  ) : null}
-                  {submitLabel || 'Submit'}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+        {showFooter ? (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 pt-4"
+            style={{ borderTop: '1px solid var(--qp-border)' }}
+          >
+            <ErrorAlert message={error ?? null} />
+            {actions ? (
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{actions}</div>
+            ) : null}
+            {showDefaultActions ? (
+              <div className="ml-auto flex items-center gap-2">
+                {onCancel ? (
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    disabled={loading}
+                    className="inline-flex h-9 items-center rounded-lg border px-5 text-sm font-medium transition-colors"
+                    style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+                {onSubmit ? (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg px-5 text-sm font-semibold text-white transition-all disabled:opacity-60"
+                    style={{ backgroundColor: 'var(--qp-primary)' }}
+                  >
+                    {loading ? (
+                      <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                      </svg>
+                    ) : null}
+                    {submitLabel || 'Submit'}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </form>
     </div>
   )

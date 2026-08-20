@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { apiRequest } from '@/lib/api'
+import { ApiClientError, apiRequest } from '@/lib/api'
 import { useSession } from '@/lib/session'
 
 /* ─── Toggle chip: pill-style with coloured dot indicator ─────────────────── */
@@ -115,8 +115,12 @@ export function HeaderToggles() {
       })
       await refreshUser()
       setOfflineConfirmOpen(false)
-    } catch {
-      setError('Online status could not be updated')
+    } catch (caught) {
+      setError(
+        caught instanceof ApiClientError
+          ? caught.displayMessage()
+          : 'Online status could not be updated',
+      )
     } finally {
       setOnlineSubmitting(false)
     }

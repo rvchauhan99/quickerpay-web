@@ -97,10 +97,8 @@ export type PayinStatus = (typeof PAYIN_STATUSES)[number]
 
 export const PAYOUT_STATUSES = [
   'INITIATE',
-  'IN_PROCESS',
   'COMPLETED',
   'REJECTED',
-  'REFUND',
 ] as const
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number]
 

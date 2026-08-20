@@ -112,14 +112,17 @@ export function refreshSession() {
 
 async function request(path: string, options: RequestOptions): Promise<Parsed> {
   const headers: Record<string, string> = { accept: 'application/json', ...options.headers }
-  if (options.body !== undefined) headers['content-type'] = 'application/json'
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+  if (options.body !== undefined && !isFormData) headers['content-type'] = 'application/json'
   if (options.token) headers.authorization = `Bearer ${options.token}`
   const init: RequestInit = {
     method: options.method ?? 'GET',
     credentials: 'include',
     headers,
   }
-  if (options.body !== undefined) init.body = JSON.stringify(options.body)
+  if (options.body !== undefined) {
+    init.body = isFormData ? (options.body as FormData) : JSON.stringify(options.body)
+  }
   const response = await fetch(path, init)
   const parsed = (await response.json().catch(() => ({}))) as Parsed
   if (!response.ok || parsed.success === false) {

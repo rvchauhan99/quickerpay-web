@@ -12,7 +12,8 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormShell } from '@/components/forms/FormShell'
 import { IconButton } from '@/components/ui/IconButton'
-import { Eye, Ban } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Pencil, Ban, CircleCheck } from 'lucide-react'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
@@ -43,6 +44,8 @@ export default function UsersPage() {
   const [selectedModules, setSelectedModules] = useState<MenuCode[]>([])
   const [createError, setCreateError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [statusTarget, setStatusTarget] = useState<{ id: string; username: string; next: 'ACTIVE' | 'DISABLED' } | null>(null)
+  const [statusSubmitting, setStatusSubmitting] = useState(false)
 
   const isAdmin = user?.role === 'ADMIN'
   const offerableModules = menus.filter((grant) => grant.can_view && grant.menu_code !== 'USERS')
@@ -137,14 +140,28 @@ export default function UsersPage() {
     }
   }
 
-  const handleDisable = async (id: string) => {
-    if (!accessToken) return
+  const handleConfirmStatus = async () => {
+    if (!accessToken || !statusTarget || statusSubmitting) return
+    setStatusSubmitting(true)
     try {
-      await apiRequest(`/api/v1/users/${id}/status`, { method: 'POST', token: accessToken, body: { status: 'DISABLED' } })
-      toast.success('User disabled')
+      await apiRequest(`/api/v1/users/${statusTarget.id}/status`, {
+        method: 'POST',
+        token: accessToken,
+        body: { status: statusTarget.next },
+      })
+      toast.success(statusTarget.next === 'DISABLED' ? 'User deactivated' : 'User activated')
+      setStatusTarget(null)
       await load()
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not disable user')
+      toast.error(
+        caught instanceof ApiClientError
+          ? caught.displayMessage()
+          : statusTarget.next === 'DISABLED'
+            ? 'Could not deactivate user'
+            : 'Could not activate user',
+      )
+    } finally {
+      setStatusSubmitting(false)
     }
   }
 
@@ -310,9 +327,22 @@ export default function UsersPage() {
             ops: row.operational_state,
             actions: (
               <span className="flex items-center gap-1">
-                <IconButton href={`/users/${row.id}`} icon={<Eye size={15} strokeWidth={1.75} />} tooltip="View user" />
+                <IconButton href={`/users/${row.id}`} icon={<Pencil size={15} strokeWidth={1.75} />} tooltip="Edit user" />
                 {hasMenu(menus, 'USERS', 'can_edit') && row.status === 'ACTIVE' ? (
-                  <IconButton onClick={() => void handleDisable(row.id)} icon={<Ban size={15} strokeWidth={1.75} />} tooltip="Disable user" variant="danger" />
+                  <IconButton
+                    onClick={() => setStatusTarget({ id: row.id, username: row.username, next: 'DISABLED' })}
+                    icon={<Ban size={15} strokeWidth={1.75} />}
+                    tooltip="Deactivate user"
+                    variant="danger"
+                  />
+                ) : null}
+                {hasMenu(menus, 'USERS', 'can_edit') && row.status === 'DISABLED' ? (
+                  <IconButton
+                    onClick={() => setStatusTarget({ id: row.id, username: row.username, next: 'ACTIVE' })}
+                    icon={<CircleCheck size={15} strokeWidth={1.75} />}
+                    tooltip="Activate user"
+                    variant="primary"
+                  />
                 ) : null}
               </span>
             ),
@@ -323,6 +353,21 @@ export default function UsersPage() {
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
         />
       )}
+      {statusTarget ? (
+        <ConfirmDialog
+          title={statusTarget.next === 'DISABLED' ? `Deactivate ${statusTarget.username}?` : `Activate ${statusTarget.username}?`}
+          subtitle={
+            statusTarget.next === 'DISABLED'
+              ? 'Their sessions end, they are forced Offline, and every ACTIVE bank they own is disabled. They cannot go Online until you activate them again.'
+              : 'They can sign in again. Banks stay disabled until enabled by hand, same as coming back Online after Offline.'
+          }
+          confirmLabel={statusTarget.next === 'DISABLED' ? 'Deactivate' : 'Activate'}
+          variant={statusTarget.next === 'DISABLED' ? 'danger' : 'primary'}
+          loading={statusSubmitting}
+          onCancel={() => setStatusTarget(null)}
+          onConfirm={() => void handleConfirmStatus()}
+        />
+      ) : null}
     </AppShell>
   )
 }
