@@ -28,6 +28,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
+import { fromMinor } from '@quickerpay/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -167,7 +168,7 @@ export default function PayoutPage() {
       toast.success(
         result.assigned_ids.length === 0
           ? 'No unassigned pay-outs fit that amount'
-          : `Assigned ${result.assigned_ids.length} pay-out(s) (${(result.assigned_amount_minor / 100).toFixed(2)})`,
+          : `Assigned ${result.assigned_ids.length} pay-out(s) (${fromMinor(BigInt(result.assigned_amount_minor))})`,
       )
       setAssignAmountMinor(0)
       await load()

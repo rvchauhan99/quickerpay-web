@@ -216,7 +216,7 @@ export default function UserDetailPage() {
                     />
                   ) : (
                     <div className="flex h-10 items-center px-3 text-sm font-medium">
-                      {detail.daily_deposit_limit_minor != null ? (
+                      {typeof detail.daily_deposit_limit_minor === 'number' ? (
                         <MoneyDisplay amountMinor={detail.daily_deposit_limit_minor} />
                       ) : (
                         '—'

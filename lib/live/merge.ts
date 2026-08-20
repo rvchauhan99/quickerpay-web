@@ -26,7 +26,7 @@ export function applyLiveEnvelope<T extends MergeableRow>(params: {
   const onPage = params.rows.some((row) => row.id === params.event.id)
   const leftUnassigned =
     params.unassignedFilter === true &&
-    params.event.admin_user_id != null &&
+    params.event.admin_user_id !== null &&
     params.event.admin_user_id !== ''
 
   if (params.event.status !== params.statusFilter || leftUnassigned) {

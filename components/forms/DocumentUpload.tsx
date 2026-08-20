@@ -20,8 +20,12 @@ export interface DocumentUploadProps {
 
 function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+  if (size < 1024 * 1024) {
+    const tenths = Math.round((size * 10) / 1024)
+    return `${Math.floor(tenths / 10)}.${tenths % 10} KB`
+  }
+  const tenths = Math.round((size * 10) / (1024 * 1024))
+  return `${Math.floor(tenths / 10)}.${tenths % 10} MB`
 }
 
 function isAllowedFile(file: File, accept: string, maxBytes: number): string | null {
@@ -217,7 +221,6 @@ export function DocumentUpload({
           }}
         >
           {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={previewUrl}
               alt=""
