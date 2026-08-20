@@ -16,7 +16,7 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { toast } from 'sonner'
-import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -114,7 +114,7 @@ export default function LedgerPage() {
       setAdjustOpen(false)
       setPending(created)
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.message : 'Could not create adjustment')
+      toast.error(formError(caught, 'Could not create adjustment').banner)
     } finally {
       setSubmitting(false)
     }
@@ -133,7 +133,7 @@ export default function LedgerPage() {
       toast.success('Adjustment approved')
       await load()
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.message : 'Could not approve')
+      toast.error(formError(caught, 'Could not approve').banner)
     } finally {
       setSubmitting(false)
     }

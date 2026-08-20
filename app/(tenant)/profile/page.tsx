@@ -10,9 +10,11 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from 'sonner'
-import { apiRequest, ApiClientError } from '@/lib/api'
+import { apiRequest, formError } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { useRouter } from 'next/navigation'
+
+const PASSWORD_HINT = '6-20 chars, include uppercase + number + special character'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -20,6 +22,7 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [done, setDone] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [totpBusy, setTotpBusy] = useState(false)
@@ -39,6 +42,7 @@ export default function ProfilePage() {
   const handleSubmit = async () => {
     if (!accessToken || changingPassword) return
     setError(null)
+    setFieldErrors({})
     setChangingPassword(true)
     try {
       await apiRequest('/api/v1/auth/change-password', {
@@ -49,7 +53,9 @@ export default function ProfilePage() {
       setDone(true)
       toast.success('Password changed. Sign in again.')
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Could not change password')
+      const next = formError(caught, 'Could not change password')
+      setError(next.banner)
+      setFieldErrors(next.fields)
     } finally {
       setChangingPassword(false)
     }
@@ -63,12 +69,13 @@ export default function ProfilePage() {
     try {
       const result = await apiRequest<{ otpauth_url: string; secret: string; qr_png_data_url: string }>(
         '/api/v1/auth/2fa/generate',
-        { method: 'POST', token: accessToken, body: {} },
+        { method: 'POST', token: accessToken,
+        body: {} },
       )
       setQr(result.qr_png_data_url)
       setSecret(result.secret)
     } catch (caught) {
-      setTotpError(caught instanceof ApiClientError ? caught.message : 'Could not generate QR code')
+      setTotpError(formError(caught, 'Could not generate QR code').banner)
     } finally {
       setTotpBusy(false)
     }
@@ -90,7 +97,7 @@ export default function ProfilePage() {
       setCode('')
       await refreshUser()
     } catch (caught) {
-      setTotpError(caught instanceof ApiClientError ? caught.message : 'Invalid code')
+      setTotpError(formError(caught, 'Invalid code').banner)
     } finally {
       setTotpBusy(false)
     }
@@ -106,7 +113,7 @@ export default function ProfilePage() {
       setTotpOk('2FA disabled')
       await refreshUser()
     } catch (caught) {
-      setTotpError(caught instanceof ApiClientError ? caught.message : 'Could not disable 2FA')
+      setTotpError(formError(caught, 'Could not disable 2FA').banner)
     } finally {
       setTotpBusy(false)
     }
@@ -131,11 +138,21 @@ export default function ProfilePage() {
                 <div className="md:col-span-2">
                   <ErrorAlert message={error} />
                 </div>
-                <FormField label="Current password" required>
-                  <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+                <FormField label="Current password" required error={fieldErrors.current_password}>
+                  <Input
+                    type="password"
+                    value={currentPassword}
+                    aria-invalid={Boolean(fieldErrors.current_password)}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                  />
                 </FormField>
-                <FormField label="New password" required>
-                  <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+                <FormField label="New password" required hint={PASSWORD_HINT} error={fieldErrors.new_password}>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    aria-invalid={Boolean(fieldErrors.new_password)}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                  />
                 </FormField>
               </FormGrid>
             )}

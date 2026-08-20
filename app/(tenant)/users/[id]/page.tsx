@@ -12,7 +12,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
-import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
 import { RateDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -21,6 +21,7 @@ export default function UserDetailPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('USERS')
   const [detail, setDetail] = useState<UserDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [merchantId, setMerchantId] = useState('')
 
@@ -55,7 +56,9 @@ export default function UserDetailPage() {
         body: { merchant_id: merchantId },
       }))
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Could not bind merchant')
+      const next = formError(caught, 'Could not bind merchant')
+      setError(next.banner)
+      setFieldErrors(next.fields)
     }
   }
 
@@ -92,7 +95,7 @@ export default function UserDetailPage() {
                 <Input value={detail.two_fa_enabled ? 'Enabled' : 'Disabled'} readOnly />
               </FormField>
               {user.role === 'SUPER_ADMIN' && detail.role === 'ADMIN' ? (
-                <FormField label="Bound merchant" required>
+                <FormField label="Bound merchant" required error={fieldErrors.merchant_id}>
                   <div className="flex gap-2">
                     <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Bound merchant">
                       <option value="">Select merchant</option>

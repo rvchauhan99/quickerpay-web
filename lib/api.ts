@@ -33,10 +33,37 @@ export class ApiClientError extends Error {
   }
 
   displayMessage(): string {
-    const parts = Object.entries(this.fieldErrors()).map(([field, text]) => `${field}: ${text}`)
-    if (parts.length === 0) return this.message
-    return `${this.message}. ${parts.join('; ')}`
+    const fields = this.fieldErrors()
+    const entries = Object.entries(fields)
+    if (entries.length === 0) return this.message
+    const parts = entries.map(([field, text]) => `${humanizeFieldName(field)}: ${text}`)
+    if (entries.length === 1 && entries[0]?.[1] === this.message) return this.message
+    return parts.join('; ')
   }
+}
+
+function humanizeFieldName(field: string): string {
+  return field
+    .split('.')
+    .map((segment) =>
+      segment
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase()),
+    )
+    .join(' — ')
+}
+
+export interface FormErrorState {
+  banner: string
+  fields: Record<string, string>
+}
+
+/** Maps an API error to a banner message and per-field errors for mutation forms. */
+export function formError(caught: unknown, fallback: string): FormErrorState {
+  if (caught instanceof ApiClientError) {
+    return { banner: caught.displayMessage(), fields: caught.fieldErrors() }
+  }
+  return { banner: fallback, fields: {} }
 }
 
 interface Parsed {

@@ -15,7 +15,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { toast } from 'sonner'
-import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
 import { hasMenu, useSession } from '@/lib/session'
 
 function bankLabel(row: BankAccountListItem) {
@@ -58,6 +58,7 @@ export default function NewInterTransferPage() {
   const [reference, setReference] = useState('')
   const [remark, setRemark] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function NewInterTransferPage() {
   const handleSubmit = async () => {
     if (!accessToken || submitting) return
     setError(null)
+    setFieldErrors({})
     setSubmitting(true)
     try {
       await apiRequest('/api/v1/inter-transfers', {
@@ -122,7 +124,9 @@ export default function NewInterTransferPage() {
       toast.success('Transfer created')
       router.push('/inter-transfers')
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Could not create transfer')
+      const next = formError(caught, 'Could not create transfer')
+      setError(next.banner)
+      setFieldErrors(next.fields)
     } finally {
       setSubmitting(false)
     }
@@ -155,7 +159,7 @@ export default function NewInterTransferPage() {
               </FormField>
             </div>
 
-            <FormField label="Source account" required>
+            <FormField label="Source account" required error={fieldErrors.source_bank_account_id}>
               <Select required value={sourceId} onChange={(event) => handleSourceChange(event.target.value)} aria-label="Source account">
                 <option value="">Select</option>
                 {sourceOptions.map((row) => (
@@ -166,7 +170,7 @@ export default function NewInterTransferPage() {
               </Select>
             </FormField>
 
-            <FormField label="Destination account" required>
+            <FormField label="Destination account" required error={fieldErrors.destination_bank_account_id}>
               <Select required value={destId} onChange={(event) => setDestId(event.target.value)} aria-label="Destination account">
                 <option value="">Select</option>
                 {destOptions.map((row) => (
@@ -177,7 +181,7 @@ export default function NewInterTransferPage() {
               </Select>
             </FormField>
 
-            <FormField label="Amount" required>
+            <FormField label="Amount" required error={fieldErrors.amount_minor}>
               <MoneyInput id="amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
             </FormField>
           </FormGrid>

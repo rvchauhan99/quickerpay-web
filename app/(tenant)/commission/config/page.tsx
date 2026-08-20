@@ -7,7 +7,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { RateInput } from '@/components/forms/RateInput'
 import { EmptyState } from '@/components/ui/FilterBar'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
-import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu, useSession } from '@/lib/session'
 
@@ -85,7 +85,11 @@ export default function CommissionConfigPage() {
       })
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Save failed')
+      setError(
+        caught instanceof ApiClientError
+          ? `${formError(caught, 'Save failed').banner}${caught.requestId ? ` (${caught.requestId})` : ''}`
+          : 'Save failed',
+      )
     }
   }
 
@@ -99,7 +103,7 @@ export default function CommissionConfigPage() {
       })
       await load()
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Save failed')
+      setError(formError(caught, 'Save failed').banner)
     }
   }
 

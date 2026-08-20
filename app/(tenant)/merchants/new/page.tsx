@@ -11,7 +11,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { RateInput } from '@/components/forms/RateInput'
 import { toast } from 'sonner'
-import { apiRequest, ApiClientError } from '@/lib/api'
+import { apiRequest, formError } from '@/lib/api'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function NewMerchantPage() {
@@ -27,6 +27,7 @@ export default function NewMerchantPage() {
   const [supagoUsername, setSupagoUsername] = useState('')
   const [supagoPassword, setSupagoPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
@@ -35,6 +36,7 @@ export default function NewMerchantPage() {
   const handleSubmit = async () => {
     if (!accessToken || submitting) return
     setError(null)
+    setFieldErrors({})
     setSubmitting(true)
     try {
       const created = await apiRequest<{ id: string }>('/api/v1/merchants', {
@@ -62,7 +64,9 @@ export default function NewMerchantPage() {
       toast.success('Merchant created')
       router.replace('/merchants')
     } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Could not create')
+      const next = formError(caught, 'Could not create')
+      setError(next.banner)
+      setFieldErrors(next.fields)
     } finally {
       setSubmitting(false)
     }
@@ -77,19 +81,19 @@ export default function NewMerchantPage() {
       <FormShell submitLabel={submitting ? 'Creating…' : 'Create'} onSubmit={() => void handleSubmit()}>
         <FormSection title="Merchant Information" description="Legal and contact details.">
           <FormGrid>
-            <FormField label="Legal Name" required>
+            <FormField label="Legal Name" required error={fieldErrors.legal_name}>
               <Input value={legalName} onChange={(event) => setLegalName(event.target.value)} />
             </FormField>
-            <FormField label="Display Name">
+            <FormField label="Display Name" error={fieldErrors.display_name}>
               <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
             </FormField>
-            <FormField label="Merchant Code" required>
+            <FormField label="Merchant Code" required error={fieldErrors.merchant_code}>
               <Input value={code} onChange={(event) => setCode(event.target.value)} />
             </FormField>
-            <FormField label="Contact Email">
+            <FormField label="Contact Email" error={fieldErrors.contact_email}>
               <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
             </FormField>
-            <FormField label="Contact Mobile">
+            <FormField label="Contact Mobile" error={fieldErrors.contact_mobile}>
               <Input type="tel" value={mobile} onChange={(event) => setMobile(event.target.value)} />
             </FormField>
           </FormGrid>

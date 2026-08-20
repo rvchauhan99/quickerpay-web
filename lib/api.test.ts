@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LoginResponse } from '@quickerpay/shared-types'
-import { ApiClientError, apiRequest, bindApiSession, refreshSession } from './api'
+import { ApiClientError, apiRequest, bindApiSession, formError, refreshSession } from './api'
 
 const loginPayload = (accessToken: string): LoginResponse => ({
   access_token: accessToken,
@@ -145,5 +145,32 @@ describe('apiRequest 401 refresh', () => {
 
     await expect(refreshSession()).rejects.toBeInstanceOf(ApiClientError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('ApiClientError displayMessage and formError', () => {
+  it('humanizes field names and returns field messages', () => {
+    const error = new ApiClientError(400, {
+      code: 'VALIDATION_FAILED',
+      message: 'Password must be at least 6 characters',
+      details: {
+        fields: {
+          new_password: 'Password must be at least 6 characters',
+        },
+      },
+    })
+
+    expect(error.displayMessage()).toBe('Password must be at least 6 characters')
+    expect(formError(error, 'fallback')).toEqual({
+      banner: 'Password must be at least 6 characters',
+      fields: { new_password: 'Password must be at least 6 characters' },
+    })
+  })
+
+  it('returns the fallback for non-API errors', () => {
+    expect(formError(new Error('nope'), 'Could not save')).toEqual({
+      banner: 'Could not save',
+      fields: {},
+    })
   })
 })
