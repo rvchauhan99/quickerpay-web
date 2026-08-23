@@ -13,6 +13,7 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { isLabConsole } from '@/lib/lab'
 import { hasMenu, useSession } from '@/lib/session'
 import { useRouter } from 'next/navigation'
 
@@ -86,11 +87,16 @@ export default function ExtensionDevicesPage() {
     <AppShell title="Extension devices" role={user.role} menus={menus}>
       <p className="mb-2 text-xs text-zinc-600">
         Enrol a device from the Chrome extension popup. The device token is shown once there and is never stored in this screen.
-        For local testing without the live Google Pay dashboard, open{' '}
-        <a className="underline" href="/mock/gpay">
-          /mock/gpay
-        </a>{' '}
-        in this Chrome profile.
+        {isLabConsole() ? (
+          <>
+            {' '}
+            For local testing without the live Google Pay dashboard, open{' '}
+            <a className="underline" href="/mock/gpay">
+              /mock/gpay
+            </a>{' '}
+            in this Chrome profile.
+          </>
+        ) : null}
       </p>
       <FilterBar
         onApply={() => undefined}
