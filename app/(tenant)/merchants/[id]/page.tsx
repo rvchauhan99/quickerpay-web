@@ -12,11 +12,13 @@ import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { Select } from '@/components/forms/Select'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from 'sonner'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 interface SupagoStatus {
@@ -28,9 +30,12 @@ interface SupagoStatus {
   last_error?: string
 }
 
+type WithdrawRoutingMode = 'queue' | 'direct'
+
 export default function MerchantDetailPage() {
   const params = useParams<{ id: string }>()
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('MERCHANTS')
+  const { isSuperAdmin, admins } = useSuperAdminDirectory(accessToken, user?.role)
   const [merchant, setMerchant] = useState<MerchantDetail | null>(null)
   const [history, setHistory] = useState<MerchantRate[]>([])
   const [payinBp, setPayinBp] = useState(0)
@@ -38,6 +43,9 @@ export default function MerchantDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingRate, setSavingRate] = useState<'PAYIN' | 'PAYOUT' | null>(null)
+  const [routingMode, setRoutingMode] = useState<WithdrawRoutingMode>('queue')
+  const [routingAdminId, setRoutingAdminId] = useState('')
+  const [savingRouting, setSavingRouting] = useState(false)
 
   // Supago state
   const [supagoStatus, setSupagoStatus] = useState<SupagoStatus | null>(null)
@@ -59,6 +67,16 @@ export default function MerchantDetailPage() {
     }
   }, [])
 
+  const applyRoutingFromDetail = (detail: MerchantDetail) => {
+    if (detail.default_payout_admin_user_id) {
+      setRoutingMode('direct')
+      setRoutingAdminId(detail.default_payout_admin_user_id)
+      return
+    }
+    setRoutingMode('queue')
+    setRoutingAdminId('')
+  }
+
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
     setLoading(true)
@@ -67,6 +85,7 @@ export default function MerchantDetailPage() {
       const detail = await apiRequest<MerchantDetail>(`/api/v1/merchants/${params.id}`, { token: accessToken })
       const rates = await apiRequest<MerchantRate[]>(`/api/v1/merchants/${params.id}/rates`, { token: accessToken })
       setMerchant(detail)
+      applyRoutingFromDetail(detail)
       setHistory(rates)
       setPayinBp(detail.rates.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
       setPayoutBp(detail.rates.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
@@ -152,7 +171,34 @@ export default function MerchantDetailPage() {
     }
   }
 
+  const handleSaveRouting = async () => {
+    if (!accessToken || !params.id || savingRouting) return
+    if (routingMode === 'direct' && !routingAdminId) {
+      toast.error('Select an Admin for direct assign')
+      return
+    }
+    setSavingRouting(true)
+    try {
+      const detail = await apiRequest<MerchantDetail>(`/api/v1/merchants/${params.id}/payout-routing`, {
+        method: 'PATCH',
+        token: accessToken,
+        body: {
+          default_payout_admin_user_id: routingMode === 'direct' ? routingAdminId : null,
+        },
+      })
+      setMerchant(detail)
+      applyRoutingFromDetail(detail)
+      toast.success('Withdraw routing updated')
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.message : 'Could not save routing')
+    } finally {
+      setSavingRouting(false)
+    }
+  }
+
   const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
+  const canEditRouting = Boolean(isSuperAdmin && canEdit)
+  const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
 
   return (
     <AppShell title="Merchant Detail" role={user.role} menus={menus}>
@@ -204,6 +250,70 @@ export default function MerchantDetailPage() {
                     </div>
                   </FormField>
                 </FormGrid>
+              </FormSection>
+            ) : null}
+
+            {canEditRouting ? (
+              <FormSection
+                title="Withdraw routing"
+                description="Where Supago Manual Withdraw requests land for this merchant. Changes apply to new polls only."
+              >
+                <FormGrid>
+                  <FormField label="Routing" required>
+                    <Select
+                      id="withdraw-routing-mode"
+                      value={routingMode}
+                      onChange={(event) => {
+                        const next = event.target.value as WithdrawRoutingMode
+                        setRoutingMode(next)
+                        if (next === 'queue') setRoutingAdminId('')
+                      }}
+                      aria-label="Withdraw routing mode"
+                    >
+                      <option value="queue">Super Admin queue (assign later)</option>
+                      <option value="direct">Direct to Admin</option>
+                    </Select>
+                  </FormField>
+                  {routingMode === 'direct' ? (
+                    <FormField label="Admin" required>
+                      <Select
+                        id="withdraw-routing-admin"
+                        value={routingAdminId}
+                        onChange={(event) => setRoutingAdminId(event.target.value)}
+                        aria-label="Default payout Admin"
+                      >
+                        <option value="">Select Admin</option>
+                        {activeAdmins.map((admin) => (
+                          <option key={admin.id} value={admin.id}>
+                            {admin.username}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormField>
+                  ) : (
+                    <FormField label="Current">
+                      <Input value="Unassigned until Super Admin bulk-assigns" readOnly />
+                    </FormField>
+                  )}
+                </FormGrid>
+                <div className="mt-3 flex justify-end">
+                  <PrimaryButton
+                    type="button"
+                    disabled={savingRouting || (routingMode === 'direct' && !routingAdminId)}
+                    onClick={() => void handleSaveRouting()}
+                  >
+                    {savingRouting ? 'Saving…' : 'Save routing'}
+                  </PrimaryButton>
+                </div>
+              </FormSection>
+            ) : merchant?.default_payout_admin_user_id ? (
+              <FormSection title="Withdraw routing" description="Configured by Super Admin.">
+                <FormField label="Direct Admin">
+                  <Input
+                    value={merchant.default_payout_admin_username ?? merchant.default_payout_admin_user_id}
+                    readOnly
+                  />
+                </FormField>
               </FormSection>
             ) : null}
           </FormShell>
