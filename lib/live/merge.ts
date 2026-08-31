@@ -11,6 +11,11 @@ function rowSortKey(row: MergeableRow): string {
   return row.created_at ?? row.entry_time ?? row.id
 }
 
+function statusMatchesFilter(rowStatus: string, statusFilter: string): boolean {
+  if (!statusFilter) return true
+  return rowStatus === statusFilter
+}
+
 export function applyLiveEnvelope<T extends MergeableRow>(params: {
   rows: T[]
   event: LiveEventEnvelope
@@ -29,7 +34,7 @@ export function applyLiveEnvelope<T extends MergeableRow>(params: {
     params.event.admin_user_id !== null &&
     params.event.admin_user_id !== ''
 
-  if (params.event.status !== params.statusFilter || leftUnassigned) {
+  if (!statusMatchesFilter(params.event.status, params.statusFilter) || leftUnassigned) {
     if (!onPage) {
       return { rows: params.rows, pagination: params.pagination, shouldPullChanges: false }
     }
@@ -57,7 +62,7 @@ export function mergeQueueRows<T extends MergeableRow>(params: {
 
   for (const row of params.incoming) {
     const exists = byId.has(row.id)
-    if (row.status !== params.statusFilter) {
+    if (!statusMatchesFilter(row.status, params.statusFilter)) {
       if (exists) byId.delete(row.id)
       continue
     }

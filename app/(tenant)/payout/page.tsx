@@ -68,19 +68,22 @@ export default function PayoutPage() {
   const [assigning, setAssigning] = useState(false)
   const didDefaultSaUnassigned = useRef(false)
 
+  // Super Admin: empty URL param means unassigned queue (never All). Explicit `all` browses everything.
+  const saUnassignedOnly = user?.role === 'SUPER_ADMIN' && filters.unassigned !== 'all'
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     const query = new URLSearchParams()
     query.set('page', String(filters.page))
     query.set('page_size', String(filters.page_size))
-    query.set('status', filters.status || 'INITIATE')
+    if (filters.status) query.set('status', filters.status)
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
-    if (filters.unassigned === 'true') query.set('unassigned', 'true')
+    if (saUnassignedOnly) query.set('unassigned', 'true')
     try {
       const result = await apiListRequest<PayoutListItem>(`/api/v1/payout?${query}`)
       setRows(result.items)
@@ -90,7 +93,7 @@ export default function PayoutPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.admin_user_id, filters.unassigned])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.admin_user_id, saUnassignedOnly])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -99,14 +102,15 @@ export default function PayoutPage() {
   useEffect(() => {
     if (!ready || !user || user.role !== 'SUPER_ADMIN' || didDefaultSaUnassigned.current) return
     didDefaultSaUnassigned.current = true
-    void setFilters({ unassigned: 'true', status: 'INITIATE', page: 1 })
-  }, [ready, user, setFilters])
+    if (filters.unassigned === 'all') return
+    void setFilters({ unassigned: 'true', status: filters.status || 'INITIATE', page: 1 })
+  }, [ready, user, setFilters, filters.unassigned, filters.status])
 
   const { pendingOnPage1 } = useQueueSync({
     entity: 'payout',
     enabled: ready && allowed,
     accessToken,
-    statusFilter: filters.status || 'INITIATE',
+    statusFilter: filters.status,
     page: filters.page,
     pageSize: filters.page_size,
     query: {
@@ -115,13 +119,13 @@ export default function PayoutPage() {
       q: filters.q || undefined,
       merchant_id: filters.merchant_id || undefined,
       admin_user_id: filters.admin_user_id || undefined,
-      unassigned: filters.unassigned === 'true' ? 'true' : undefined,
+      unassigned: saUnassignedOnly ? 'true' : undefined,
     },
     rows,
     setRows,
     pagination,
     setPagination,
-    unassignedFilter: filters.unassigned === 'true',
+    unassignedFilter: saUnassignedOnly,
   })
 
   useEffect(() => {
@@ -151,6 +155,20 @@ export default function PayoutPage() {
 
   const createMerchants = merchants.length > 0 ? merchants : directoryMerchants.filter((row) => row.status === 'ACTIVE')
   const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
+  const adminUsernameById = new Map(admins.map((admin) => [admin.id, admin.username]))
+
+  const handleClearFilters = () => {
+    void setFilters({
+      date_from: '',
+      date_to: '',
+      status: 'INITIATE',
+      q: '',
+      merchant_id: '',
+      admin_user_id: '',
+      unassigned: isSuperAdmin ? 'true' : '',
+      page: 1,
+    })
+  }
 
   const handleBulkAssign = async () => {
     if (!accessToken || !assignAdminId || assignAmountMinor <= 0 || assigning) return
@@ -250,7 +268,7 @@ export default function PayoutPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'INITIATE', q: '', merchant_id: '', admin_user_id: '', unassigned: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={handleClearFilters} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -271,7 +289,7 @@ export default function PayoutPage() {
         {isSuperAdmin ? (
           <FormField label="Queue">
             <Select
-              value={filters.unassigned}
+              value={filters.unassigned === 'all' ? 'all' : 'true'}
               onChange={(event) =>
                 void setFilters({
                   unassigned: event.target.value,
@@ -281,8 +299,8 @@ export default function PayoutPage() {
               }
               aria-label="Assignment queue"
             >
-              <option value="">All</option>
-              <option value="true">Unassigned (Supago)</option>
+              <option value="true">Unassigned only</option>
+              <option value="all">All records</option>
             </Select>
           </FormField>
         ) : null}
@@ -302,7 +320,7 @@ export default function PayoutPage() {
             canExport={hasMenu(menus, 'PAYOUT', 'can_export')}
             onExport={() => {
               const query = new URLSearchParams()
-              query.set('status', filters.status || 'INITIATE')
+              if (filters.status) query.set('status', filters.status)
               if (filters.date_from) query.set('date_from', filters.date_from)
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.q) query.set('q', filters.q)
@@ -313,7 +331,7 @@ export default function PayoutPage() {
           />
         </div>
       </FilterBar>
-      {isSuperAdmin && hasMenu(menus, 'PAYOUT', 'can_approve') ? (
+      {isSuperAdmin && saUnassignedOnly && hasMenu(menus, 'PAYOUT', 'can_approve') ? (
         <div className="mb-4 rounded border border-zinc-200 bg-white p-3">
           <FormShell
             title="Bulk assign unassigned pay-outs"
@@ -384,6 +402,7 @@ export default function PayoutPage() {
           columns={[
             { key: 'created', heading: 'CREATED' },
             { key: 'username', heading: 'USERNAME' },
+            ...(isSuperAdmin ? [{ key: 'admin', heading: 'ADMIN' }] : []),
             { key: 'bank', heading: 'BANK DETAILS' },
             { key: 'amount', heading: 'AMOUNT' },
             { key: 'utr', heading: 'UTR' },
@@ -393,6 +412,13 @@ export default function PayoutPage() {
           rows={rows.map((row) => ({
             created: new Date(row.created_at).toLocaleString(),
             username: row.supago_username ?? '—',
+            ...(isSuperAdmin
+              ? {
+                  admin: row.admin_user_id
+                    ? (adminUsernameById.get(row.admin_user_id) ?? '—')
+                    : '—',
+                }
+              : {}),
             bank: <PayoutBankDetailsCell row={row} />,
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,
             utr: row.utr ?? '—',

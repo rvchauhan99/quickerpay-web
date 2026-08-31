@@ -57,7 +57,7 @@ export function useQueueSync<T extends { id: string; status: string }>({
   const pullChanges = useCallback(async () => {
     if (!accessToken || !enabled) return
     const params = new URLSearchParams()
-    params.set('status', statusFilter)
+    if (statusFilter) params.set('status', statusFilter)
     params.set('limit', String(CHANGES_LIMIT))
     if (cursorRef.current) params.set('cursor', cursorRef.current)
     for (const [key, value] of Object.entries(query)) {

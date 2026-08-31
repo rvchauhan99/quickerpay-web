@@ -8,6 +8,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { PayoutWithdrawSummary } from '@/components/forms/PayoutWithdrawSummary'
 import { Select } from '@/components/forms/Select'
+import { Modal } from '@/components/ui/Modal'
 import { apiRequest, ApiClientError } from '@/lib/api'
 
 /* ─── PayoutActionDialogs ────────────────────────────────────────────────────
@@ -136,46 +137,11 @@ export function PayoutActionDialogs({
   return (
     <>
       {rejectFor ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
-          role="dialog"
-          aria-label="Reject pay-out"
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border p-6"
-            style={{
-              backgroundColor: 'var(--qp-card)',
-              borderColor: 'var(--qp-border)',
-              boxShadow: 'var(--qp-shadow-lg)',
-            }}
-          >
-            <h3 className="mb-4 text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>
-              Reject pay-out
-            </h3>
-            <PayoutWithdrawSummary row={rejectFor} />
-            <FormField label="Reason" required>
-              <textarea
-                id="payout-reject-reason"
-                className="min-h-[80px] w-full rounded-lg border px-3 py-2 text-sm"
-                style={{
-                  borderColor: 'var(--qp-border)',
-                  backgroundColor: '#ffffff',
-                  color: 'var(--qp-text-primary)',
-                }}
-                value={rejectReason}
-                onChange={(event) => setRejectReason(event.target.value)}
-                aria-label="Reject reason"
-              />
-            </FormField>
-            <FormField label="Attachment" hint="Optional reject proof">
-              <DocumentUpload
-                value={rejectFile}
-                onChange={setRejectFile}
-                aria-label="Reject proof attachment"
-              />
-            </FormField>
-            <div className="mt-5 flex justify-end gap-2">
+        <Modal
+          title="Reject pay-out"
+          ariaLabel="Reject pay-out"
+          footer={
+            <>
               <button
                 type="button"
                 className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium"
@@ -193,64 +159,39 @@ export function PayoutActionDialogs({
               >
                 {submitting ? 'Saving…' : 'Confirm Reject'}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <PayoutWithdrawSummary row={rejectFor} />
+          <FormField label="Reason" required>
+            <textarea
+              id="payout-reject-reason"
+              className="min-h-[80px] w-full rounded-lg border px-3 py-2 text-sm"
+              style={{
+                borderColor: 'var(--qp-border)',
+                backgroundColor: '#ffffff',
+                color: 'var(--qp-text-primary)',
+              }}
+              value={rejectReason}
+              onChange={(event) => setRejectReason(event.target.value)}
+              aria-label="Reject reason"
+            />
+          </FormField>
+          <FormField label="Attachment" hint="Optional reject proof">
+            <DocumentUpload
+              value={rejectFile}
+              onChange={setRejectFile}
+              aria-label="Reject proof attachment"
+            />
+          </FormField>
+        </Modal>
       ) : null}
       {acceptFor ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
-          role="dialog"
-          aria-label="Accept pay-out"
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border p-6"
-            style={{
-              backgroundColor: 'var(--qp-card)',
-              borderColor: 'var(--qp-border)',
-              boxShadow: 'var(--qp-shadow-lg)',
-            }}
-          >
-            <h3 className="mb-4 text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>
-              Accept pay-out
-            </h3>
-            <PayoutWithdrawSummary row={acceptFor} />
-            <div className="flex flex-col gap-3">
-              <FormField label="Source bank" required>
-                <Select
-                  id="payout-accept-bank"
-                  value={acceptBankId}
-                  onChange={(event) => setAcceptBankId(event.target.value)}
-                  aria-label="Source bank account"
-                >
-                  <option value="">Select bank</option>
-                  {banks
-                    .filter((bank) => bank.status === 'ACTIVE')
-                    .map((bank) => (
-                      <option key={bank.id} value={bank.id}>
-                        {bank.label} ({bank.account_number_masked ?? '—'})
-                      </option>
-                    ))}
-                </Select>
-              </FormField>
-              <FormField label="UTR" required>
-                <Input
-                  id="payout-utr"
-                  value={utr}
-                  onChange={(event) => setUtr(event.target.value)}
-                  aria-label="UTR"
-                />
-              </FormField>
-              <FormField label="Attachment" hint="Optional payment proof">
-                <DocumentUpload
-                  value={acceptFile}
-                  onChange={setAcceptFile}
-                  aria-label="Payment proof attachment"
-                />
-              </FormField>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
+        <Modal
+          title="Accept pay-out"
+          ariaLabel="Accept pay-out"
+          footer={
+            <>
               <button
                 type="button"
                 className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium"
@@ -268,9 +209,45 @@ export function PayoutActionDialogs({
               >
                 {submitting ? 'Saving…' : 'Confirm Accept'}
               </button>
-            </div>
+            </>
+          }
+        >
+          <PayoutWithdrawSummary row={acceptFor} />
+          <div className="flex flex-col gap-3">
+            <FormField label="Source bank" required>
+              <Select
+                id="payout-accept-bank"
+                value={acceptBankId}
+                onChange={(event) => setAcceptBankId(event.target.value)}
+                aria-label="Source bank account"
+              >
+                <option value="">Select bank</option>
+                {banks
+                  .filter((bank) => bank.status === 'ACTIVE')
+                  .map((bank) => (
+                    <option key={bank.id} value={bank.id}>
+                      {bank.label} ({bank.account_number_masked ?? '—'})
+                    </option>
+                  ))}
+              </Select>
+            </FormField>
+            <FormField label="UTR" required>
+              <Input
+                id="payout-utr"
+                value={utr}
+                onChange={(event) => setUtr(event.target.value)}
+                aria-label="UTR"
+              />
+            </FormField>
+            <FormField label="Attachment" hint="Optional payment proof">
+              <DocumentUpload
+                value={acceptFile}
+                onChange={setAcceptFile}
+                aria-label="Payment proof attachment"
+              />
+            </FormField>
           </div>
-        </div>
+        </Modal>
       ) : null}
     </>
   )

@@ -85,4 +85,16 @@ describe('applyLiveEnvelope', () => {
     })
     expect(result.shouldPullChanges).toBe(true)
   })
+
+  it('keeps rows of any status when the filter is empty (All statuses)', () => {
+    const result = applyLiveEnvelope({
+      rows: [{ id: 'payin-1', status: 'COMPLETED' }],
+      event: envelope({ status: 'COMPLETED' }),
+      statusFilter: '',
+      pagination: { page: 1, page_size: 10, total: 1, total_is_estimate: false, has_next: false },
+    })
+
+    expect(result.rows).toHaveLength(1)
+    expect(result.shouldPullChanges).toBe(true)
+  })
 })

@@ -70,7 +70,7 @@ export default function PayinPage() {
     const query = new URLSearchParams()
     query.set('page', String(filters.page))
     query.set('page_size', String(filters.page_size))
-    query.set('status', filters.status || 'IN_PROCESS')
+    if (filters.status) query.set('status', filters.status)
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
@@ -95,7 +95,7 @@ export default function PayinPage() {
     entity: 'payin',
     enabled: ready && allowed,
     accessToken,
-    statusFilter: filters.status || 'IN_PROCESS',
+    statusFilter: filters.status,
     page: filters.page,
     pageSize: filters.page_size,
     query: {
@@ -280,7 +280,7 @@ export default function PayinPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -314,7 +314,7 @@ export default function PayinPage() {
             canExport={hasMenu(menus, 'PAYIN', 'can_export')}
             onExport={() => {
               const query = new URLSearchParams()
-              query.set('status', filters.status || 'IN_PROCESS')
+              if (filters.status) query.set('status', filters.status)
               if (filters.date_from) query.set('date_from', filters.date_from)
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.q) query.set('q', filters.q)
