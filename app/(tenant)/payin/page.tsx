@@ -404,6 +404,7 @@ export default function PayinPage() {
           columns={[
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
+            { key: 'username', heading: 'USERNAME' },
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
             { key: 'actionTime', heading: 'ACTION TIME' },
             { key: 'amount', heading: 'AMOUNT' },
@@ -414,6 +415,7 @@ export default function PayinPage() {
           rows={rows.map((row) => ({
             ref: row.reference,
             utr: row.utr ?? '—',
+            username: row.customer_ref?.trim() || '—',
             inprog: row.in_progress_at ? new Date(row.in_progress_at).toLocaleString() : '—',
             actionTime: row.action_at ? new Date(row.action_at).toLocaleString() : '—',
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,

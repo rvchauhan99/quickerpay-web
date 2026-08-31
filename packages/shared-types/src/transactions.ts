@@ -18,6 +18,11 @@ export interface TransactionListItem {
   amount_minor: number
   status: string
   utr: string | null
+  /**
+   * Supago party username: pay-in depositor (`payin_requests.customer_ref`) or
+   * pay-out withdrawer (`transactions.gateway_reference`). Null for other types / lab rows.
+   */
+  customer_ref: string | null
 }
 
 export interface TransactionEventItem {
