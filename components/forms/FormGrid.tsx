@@ -23,7 +23,7 @@ export function FormGrid({
     'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
 
   return (
-    <div className={`grid gap-4 ${colClass} ${className}`}>
+    <div className={`grid gap-x-5 gap-y-5 ${colClass} ${className}`}>
       {children}
     </div>
   )

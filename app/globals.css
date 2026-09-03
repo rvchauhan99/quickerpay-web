@@ -3,21 +3,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── QuickerPay Design Tokens ─────────────────────────────────────────────── */
+/* ─── QuickerPay Design Tokens — Light Blue + White ────────────────────────── */
 :root {
   /* Brand */
-  --qp-primary: #059669;
-  --qp-primary-dark: #047857;
-  --qp-primary-light: #ecfdf5;
-  --qp-primary-ring: rgba(5, 150, 105, 0.25);
+  --qp-primary: #2563eb;
+  --qp-primary-dark: #1d4ed8;
+  --qp-primary-light: #eff6ff;
+  --qp-primary-ring: rgba(37, 99, 235, 0.25);
 
   /* Sidebar */
-  --qp-sidebar-bg: #022c22;
-  --qp-sidebar-hover: #064e3b;
-  --qp-sidebar-active: #065f46;
-  --qp-sidebar-text: #a7f3d0;
-  --qp-sidebar-muted: #6ee7b7;
-  --qp-sidebar-border: rgba(167, 243, 208, 0.1);
+  --qp-sidebar-bg: #0f172a;
+  --qp-sidebar-hover: #1e293b;
+  --qp-sidebar-active: #1e40af;
+  --qp-sidebar-text: #bfdbfe;
+  --qp-sidebar-muted: #93c5fd;
+  --qp-sidebar-border: rgba(191, 219, 254, 0.1);
   --qp-sidebar-width: 240px;
 
   /* Content */
@@ -46,14 +46,14 @@
   --qp-info-border: #a5f3fc;
 
   /* Accent */
-  --qp-accent: #0d9488;
-  --qp-accent-bg: #f0fdfa;
+  --qp-accent: #3b82f6;
+  --qp-accent-bg: #eff6ff;
 
   /* Shadows */
   --qp-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --qp-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --qp-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --qp-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --qp-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --qp-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
 }
 
 /* ─── Base Reset ─────────────────────────────────────────────────────────────── */
@@ -86,7 +86,7 @@ body {
 /* ─── Compact ERP Scrollbars ─────────────────────────────────────────────────── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #94a3b8 #f1f5f9;
+  scrollbar-color: #93c5fd #f1f5f9;
 }
 
 *::-webkit-scrollbar {
@@ -100,12 +100,12 @@ body {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: #94a3b8;
+  background: #93c5fd;
   border-radius: 3px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #60a5fa;
 }
 
 /* Sidebar uses darker scrollbar */
@@ -113,7 +113,7 @@ nav *::-webkit-scrollbar-track {
   background: var(--qp-sidebar-hover);
 }
 nav *::-webkit-scrollbar-thumb {
-  background: #065f46;
+  background: #334155;
 }
 
 /* ─── Autofill Overrides ─────────────────────────────────────────────────────── */
@@ -201,7 +201,7 @@ input[type='checkbox']:checked {
 }
 
 .qp-table tbody tr:hover td {
-  background-color: #f0fdf4;
+  background-color: #eff6ff;
 }
 
 .qp-table tbody tr:last-child td {

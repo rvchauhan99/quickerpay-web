@@ -28,8 +28,6 @@ export interface UserListItem {
   email: string | null
   mobile: string | null
   user_code: string | null
-  /** Bound merchant for an Admin. Null for every other role. */
-  merchant_id: string | null
   /** Admin daily deposit ceiling in paise. Null for non-Admin roles. */
   daily_deposit_limit_minor: number | null
   status: UserStatus

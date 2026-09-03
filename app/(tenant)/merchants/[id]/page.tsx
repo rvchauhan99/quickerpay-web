@@ -228,10 +228,10 @@ export default function MerchantDetailPage() {
           admin_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
       })
-      toast.success('Bank Admins saved')
+      toast.success('Deposit managers saved')
       await load()
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save Bank Admins')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save deposit managers')
     } finally {
       setSavingBankAdmins(false)
     }
@@ -244,287 +244,243 @@ export default function MerchantDetailPage() {
 
   return (
     <AppShell title="Merchant Detail" role={user.role} menus={menus}>
-      <PageHeader title="Merchant Detail" />
+      <PageHeader
+        title={merchant?.display_name ?? 'Merchant Detail'}
+        {...(merchant ? { subtitle: `${merchant.merchant_code} · ${merchant.legal_name}` } : {})}
+        backHref="/merchants"
+        backLabel="Merchants"
+      />
       <div className="mb-4">
         <ErrorAlert message={error} />
       </div>
       {loading || !merchant ? (
         <TableSkeleton />
       ) : (
-        <div className="flex flex-col gap-6">
-          <FormShell>
-            <FormSection title="Merchant Information" description="Legal name and status of the merchant.">
+        <FormShell wide compact>
+          <FormSection title="Merchant">
+            <FormGrid>
+              <FormField label="Legal Name">
+                <Input value={merchant.legal_name} readOnly />
+              </FormField>
+              <FormField label="Merchant Code">
+                <Input value={merchant.merchant_code} readOnly />
+              </FormField>
+              <FormField label="Contact Email">
+                <Input value={merchant.contact_email ?? '—'} readOnly />
+              </FormField>
+              {merchant.contact_mobile ? (
+                <FormField label="Contact Mobile">
+                  <Input value={merchant.contact_mobile} readOnly />
+                </FormField>
+              ) : null}
+            </FormGrid>
+            <div
+              className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
+              style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
+              aria-label="Merchant status"
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>
+                Status
+              </span>
+              <StatusBadge status={merchant.status} />
+              {supagoStatus?.connected ? (
+                <span
+                  className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
+                  style={{ backgroundColor: 'var(--qp-success-bg)', color: 'var(--qp-success)', border: '1px solid var(--qp-success-border)' }}
+                >
+                  Supago connected
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
+                  style={{ backgroundColor: '#fff', color: 'var(--qp-text-muted)', border: '1px solid var(--qp-border)' }}
+                >
+                  Supago off
+                </span>
+              )}
+            </div>
+          </FormSection>
+
+          {canEdit ? (
+            <FormSection title="Rates">
               <FormGrid>
-                <FormField label="Legal Name">
-                  <Input value={merchant.legal_name} readOnly />
-                </FormField>
-                <FormField label="Merchant Code">
-                  <Input value={merchant.merchant_code} readOnly />
-                </FormField>
-                <FormField label="Status">
-                  <div className="flex h-10 items-center px-3">
-                    <StatusBadge status={merchant.status} />
+                <FormField label="PAY-IN">
+                  <div className="flex items-center gap-2">
+                    <RateInput id="edit-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
+                    <PrimaryButton disabled={savingRate === 'PAYIN'} onClick={() => void handleSaveKind('PAYIN')}>
+                      {savingRate === 'PAYIN' ? 'Saving…' : 'Update'}
+                    </PrimaryButton>
                   </div>
                 </FormField>
-                <FormField label="Contact Email">
-                  <Input value={merchant.contact_email ?? 'N/A'} readOnly />
+                <FormField label="PAY-OUT">
+                  <div className="flex items-center gap-2">
+                    <RateInput id="edit-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
+                    <PrimaryButton disabled={savingRate === 'PAYOUT'} onClick={() => void handleSaveKind('PAYOUT')}>
+                      {savingRate === 'PAYOUT' ? 'Saving…' : 'Update'}
+                    </PrimaryButton>
+                  </div>
                 </FormField>
               </FormGrid>
             </FormSection>
+          ) : null}
 
-            {canEdit ? (
-              <FormSection title="Manage Rates" description="Update PAY-IN and PAY-OUT commission rates.">
-                <FormGrid>
-                  <FormField label="PAY-IN Rate">
-                    <div className="flex items-center gap-2">
-                      <RateInput id="edit-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
-                      <PrimaryButton disabled={savingRate === 'PAYIN'} onClick={() => void handleSaveKind('PAYIN')}>
-                        {savingRate === 'PAYIN' ? 'Saving…' : 'Update'}
-                      </PrimaryButton>
-                    </div>
-                  </FormField>
-                  <FormField label="PAY-OUT Rate">
-                    <div className="flex items-center gap-2">
-                      <RateInput id="edit-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
-                      <PrimaryButton disabled={savingRate === 'PAYOUT'} onClick={() => void handleSaveKind('PAYOUT')}>
-                        {savingRate === 'PAYOUT' ? 'Saving…' : 'Update'}
-                      </PrimaryButton>
-                    </div>
-                  </FormField>
-                </FormGrid>
-              </FormSection>
-            ) : null}
-
-            {canEditRouting ? (
-              <FormSection
-                title="Withdraw routing"
-                description="Where Supago Manual Withdraw requests land for this merchant. Changes apply to new polls only."
-              >
-                <FormGrid>
-                  <FormField label="Routing" required>
+          {canEditRouting ? (
+            <FormSection title="Withdraw routing" description="Applies to new Supago withdraw polls only.">
+              <FormGrid>
+                <FormField label="Routing" required>
+                  <Select
+                    id="withdraw-routing-mode"
+                    value={routingMode}
+                    onChange={(event) => {
+                      const next = event.target.value as WithdrawRoutingMode
+                      setRoutingMode(next)
+                      if (next === 'queue') setRoutingAdminId('')
+                    }}
+                    aria-label="Withdraw routing mode"
+                  >
+                    <option value="queue">Super Admin queue (assign later)</option>
+                    <option value="direct">Direct to Admin</option>
+                  </Select>
+                </FormField>
+                {routingMode === 'direct' ? (
+                  <FormField label="Admin" required>
                     <Select
-                      id="withdraw-routing-mode"
-                      value={routingMode}
-                      onChange={(event) => {
-                        const next = event.target.value as WithdrawRoutingMode
-                        setRoutingMode(next)
-                        if (next === 'queue') setRoutingAdminId('')
-                      }}
-                      aria-label="Withdraw routing mode"
+                      id="withdraw-routing-admin"
+                      value={routingAdminId}
+                      onChange={(event) => setRoutingAdminId(event.target.value)}
+                      aria-label="Default payout Admin"
                     >
-                      <option value="queue">Super Admin queue (assign later)</option>
-                      <option value="direct">Direct to Admin</option>
+                      <option value="">Select Admin</option>
+                      {activeAdmins.map((admin) => (
+                        <option key={admin.id} value={admin.id}>
+                          {admin.username}
+                        </option>
+                      ))}
                     </Select>
                   </FormField>
-                  {routingMode === 'direct' ? (
-                    <FormField label="Admin" required>
-                      <Select
-                        id="withdraw-routing-admin"
-                        value={routingAdminId}
-                        onChange={(event) => setRoutingAdminId(event.target.value)}
-                        aria-label="Default payout Admin"
-                      >
-                        <option value="">Select Admin</option>
-                        {activeAdmins.map((admin) => (
-                          <option key={admin.id} value={admin.id}>
-                            {admin.username}
-                          </option>
-                        ))}
-                      </Select>
-                    </FormField>
-                  ) : (
-                    <FormField label="Current">
-                      <Input value="Unassigned until Super Admin bulk-assigns" readOnly />
-                    </FormField>
-                  )}
-                </FormGrid>
-                <div className="mt-3 flex justify-end">
-                  <PrimaryButton
-                    type="button"
-                    disabled={savingRouting || (routingMode === 'direct' && !routingAdminId)}
-                    onClick={() => void handleSaveRouting()}
-                  >
-                    {savingRouting ? 'Saving…' : 'Save routing'}
-                  </PrimaryButton>
-                </div>
-              </FormSection>
-            ) : merchant?.default_payout_admin_user_id ? (
-              <FormSection title="Withdraw routing" description="Configured by Super Admin.">
-                <FormField label="Direct Admin">
-                  <Input
-                    value={merchant.default_payout_admin_username ?? merchant.default_payout_admin_user_id}
-                    readOnly
-                  />
-                </FormField>
-              </FormSection>
-            ) : null}
-
-            {canEditBankAdmins ? (
-              <>
-                <BankAdminsFormSection
-                  mode={bankAdminMode}
-                  selectedIds={bankAdminIds}
-                  admins={activeAdmins}
-                  onModeChange={setBankAdminMode}
-                  onToggleAdmin={handleToggleBankAdmin}
-                  disabled={savingBankAdmins}
-                />
-                <div className="mt-3 flex justify-end">
-                  <PrimaryButton
-                    type="button"
-                    disabled={savingBankAdmins || (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0)}
-                    onClick={() => void handleSaveBankAdmins()}
-                  >
-                    {savingBankAdmins ? 'Saving…' : 'Save Bank Admins'}
-                  </PrimaryButton>
-                </div>
-              </>
-            ) : null}
-          </FormShell>
-
-          <FormShell>
-            <FormSection title="Rate History" description="Historical log of rate changes.">
-              <DataTable
-                columns={[
-                  { key: 'kind', heading: 'KIND' },
-                  { key: 'rate', heading: 'RATE' },
-                  { key: 'from', heading: 'EFFECTIVE FROM' },
-                ]}
-                rows={history.map((row) => ({
-                  kind: row.rate_kind,
-                  rate: <RateDisplay rateBp={row.rate_bp} />,
-                  from: new Date(row.effective_from).toLocaleString(),
-                }))}
-                empty={<EmptyState message="No rate history" />}
-              />
+                ) : (
+                  <FormField label="Current">
+                    <Input value="Unassigned until Super Admin bulk-assigns" readOnly />
+                  </FormField>
+                )}
+              </FormGrid>
+              <div className="mt-3 flex justify-end">
+                <PrimaryButton
+                  type="button"
+                  disabled={savingRouting || (routingMode === 'direct' && !routingAdminId)}
+                  onClick={() => void handleSaveRouting()}
+                >
+                  {savingRouting ? 'Saving…' : 'Save routing'}
+                </PrimaryButton>
+              </div>
             </FormSection>
-          </FormShell>
+          ) : merchant.default_payout_admin_user_id ? (
+            <FormSection title="Withdraw routing">
+              <FormField label="Direct Admin">
+                <Input
+                  value={merchant.default_payout_admin_username ?? merchant.default_payout_admin_user_id}
+                  readOnly
+                />
+              </FormField>
+            </FormSection>
+          ) : null}
 
-          <FormShell>
-            <FormSection title="Supago Integration" description="Connect this merchant to the Supago platform for automated deposits.">
-              {supagoError ? (
-                <div className="mb-3">
-                  <ErrorAlert message={supagoError} />
-                </div>
-              ) : null}
+          {canEditBankAdmins ? (
+            <>
+              <BankAdminsFormSection
+                compact
+                mode={bankAdminMode}
+                selectedIds={bankAdminIds}
+                admins={activeAdmins}
+                onModeChange={setBankAdminMode}
+                onToggleAdmin={handleToggleBankAdmin}
+                disabled={savingBankAdmins}
+              />
+              <div className="-mt-1 flex justify-end">
+                <PrimaryButton
+                  type="button"
+                  disabled={savingBankAdmins || (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0)}
+                  onClick={() => void handleSaveBankAdmins()}
+                >
+                  {savingBankAdmins ? 'Saving…' : 'Save'}
+                </PrimaryButton>
+              </div>
+            </>
+          ) : null}
 
-              {supagoStatus?.connected ? (
-                <>
-                  <FormGrid>
-                    <FormField label="Supago Username">
-                      <Input value={supagoStatus.uname ?? ''} readOnly />
-                    </FormField>
-                    <FormField label="Branch Code">
-                      <Input value={supagoStatus.bcode ?? ''} readOnly />
-                    </FormField>
-                    <FormField label="Token Expires">
-                      <Input
-                        value={supagoStatus.expires_at ? new Date(supagoStatus.expires_at).toLocaleString() : ''}
-                        readOnly
-                      />
-                    </FormField>
-                    <FormField label="Transaction Code">
-                      <Input value={supagoStatus.transaction_code ?? ''} readOnly />
-                    </FormField>
-                    <FormField label="Status">
-                      <div className="flex h-10 items-center px-3">
-                        <StatusBadge status="ACTIVE" />
-                      </div>
-                    </FormField>
-                  </FormGrid>
+          <FormSection title="Supago">
+            {supagoError ? (
+              <div className="mb-3">
+                <ErrorAlert message={supagoError} />
+              </div>
+            ) : null}
 
-                  {canEdit ? (
-                    <div className="mt-4 flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setUpdateCredsOpen((open) => !open)
-                          setSupagoUsername('')
-                          setSupagoPassword('')
-                          setSupagoTransactionCode(supagoStatus.transaction_code ?? '')
-                          setSupagoError(null)
-                        }}
-                        disabled={supagoLoading}
-                        className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
-                        style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
-                      >
-                        {updateCredsOpen ? 'Cancel' : 'Change'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDisconnect(true)}
-                        disabled={supagoLoading}
-                        className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
-                        style={{ borderColor: 'var(--qp-danger)', color: 'var(--qp-danger)', backgroundColor: 'var(--qp-danger-bg)' }}
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  ) : null}
+            {supagoStatus?.connected ? (
+              <>
+                <FormGrid>
+                  <FormField label="Username">
+                    <Input value={supagoStatus.uname ?? ''} readOnly />
+                  </FormField>
+                  <FormField label="Branch Code">
+                    <Input value={supagoStatus.bcode ?? ''} readOnly />
+                  </FormField>
+                  <FormField label="Token Expires">
+                    <Input
+                      value={supagoStatus.expires_at ? new Date(supagoStatus.expires_at).toLocaleString() : ''}
+                      readOnly
+                    />
+                  </FormField>
+                  <FormField label="Transaction Code">
+                    <Input value={supagoStatus.transaction_code ?? ''} readOnly />
+                  </FormField>
+                </FormGrid>
 
-                  {canEdit && updateCredsOpen ? (
-                    <div className="mt-3 rounded-lg border p-4" style={{ borderColor: 'var(--qp-border)', backgroundColor: 'var(--qp-bg-card)' }}>
-                      <FormGrid>
-                        <FormField label="Username" required>
-                          <Input
-                            value={supagoUsername}
-                            onChange={(e) => setSupagoUsername(e.target.value)}
-                            placeholder="New Supago username"
-                            aria-label="Supago username"
-                          />
-                        </FormField>
-                        <FormField label="Password" required>
-                          <Input
-                            type="password"
-                            value={supagoPassword}
-                            onChange={(e) => setSupagoPassword(e.target.value)}
-                            placeholder="New Supago password"
-                            aria-label="Supago password"
-                          />
-                        </FormField>
-                        <FormField label="Transaction Code" required>
-                          <Input
-                            value={supagoTransactionCode}
-                            onChange={(e) => setSupagoTransactionCode(e.target.value)}
-                            placeholder="e.g. 643795"
-                            aria-label="Supago transaction code"
-                          />
-                        </FormField>
-                      </FormGrid>
-                      <div className="mt-3 flex justify-end">
-                        <PrimaryButton
-                          onClick={() => void handleSupagoConnect()}
-                          disabled={
-                            supagoLoading ||
-                            !supagoUsername.trim() ||
-                            !supagoPassword.trim() ||
-                            !supagoTransactionCode.trim()
-                          }
-                        >
-                          {supagoLoading ? 'Saving…' : 'Save'}
-                        </PrimaryButton>
-                      </div>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                canEdit ? (
-                  <>
+                {canEdit ? (
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUpdateCredsOpen((open) => !open)
+                        setSupagoUsername('')
+                        setSupagoPassword('')
+                        setSupagoTransactionCode(supagoStatus.transaction_code ?? '')
+                        setSupagoError(null)
+                      }}
+                      disabled={supagoLoading}
+                      className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                      style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+                    >
+                      {updateCredsOpen ? 'Cancel' : 'Change'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDisconnect(true)}
+                      disabled={supagoLoading}
+                      className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                      style={{ borderColor: 'var(--qp-danger)', color: 'var(--qp-danger)', backgroundColor: 'var(--qp-danger-bg)' }}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                ) : null}
+
+                {canEdit && updateCredsOpen ? (
+                  <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}>
                     <FormGrid>
-                      <FormField label="Supago Username" required>
+                      <FormField label="Username" required>
                         <Input
                           value={supagoUsername}
                           onChange={(e) => setSupagoUsername(e.target.value)}
-                          placeholder="Enter Supago username"
+                          placeholder="New Supago username"
                           aria-label="Supago username"
                         />
                       </FormField>
-                      <FormField label="Supago Password" required>
+                      <FormField label="Password" required>
                         <Input
                           type="password"
                           value={supagoPassword}
                           onChange={(e) => setSupagoPassword(e.target.value)}
-                          placeholder="Enter Supago password"
+                          placeholder="New Supago password"
                           aria-label="Supago password"
                         />
                       </FormField>
@@ -537,7 +493,7 @@ export default function MerchantDetailPage() {
                         />
                       </FormField>
                     </FormGrid>
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-3 flex justify-end">
                       <PrimaryButton
                         onClick={() => void handleSupagoConnect()}
                         disabled={
@@ -547,17 +503,76 @@ export default function MerchantDetailPage() {
                           !supagoTransactionCode.trim()
                         }
                       >
-                        {supagoLoading ? 'Connecting…' : 'Connect'}
+                        {supagoLoading ? 'Saving…' : 'Save'}
                       </PrimaryButton>
                     </div>
-                  </>
-                ) : (
-                  <p className="text-xs py-2" style={{ color: 'var(--qp-text-muted)' }}>Not connected</p>
-                )
-              )}
-            </FormSection>
-          </FormShell>
-        </div>
+                  </div>
+                ) : null}
+              </>
+            ) : canEdit ? (
+              <>
+                <FormGrid>
+                  <FormField label="Supago Username" required>
+                    <Input
+                      value={supagoUsername}
+                      onChange={(e) => setSupagoUsername(e.target.value)}
+                      placeholder="Enter Supago username"
+                      aria-label="Supago username"
+                    />
+                  </FormField>
+                  <FormField label="Supago Password" required>
+                    <Input
+                      type="password"
+                      value={supagoPassword}
+                      onChange={(e) => setSupagoPassword(e.target.value)}
+                      placeholder="Enter Supago password"
+                      aria-label="Supago password"
+                    />
+                  </FormField>
+                  <FormField label="Transaction Code" required>
+                    <Input
+                      value={supagoTransactionCode}
+                      onChange={(e) => setSupagoTransactionCode(e.target.value)}
+                      placeholder="e.g. 643795"
+                      aria-label="Supago transaction code"
+                    />
+                  </FormField>
+                </FormGrid>
+                <div className="mt-3 flex justify-end">
+                  <PrimaryButton
+                    onClick={() => void handleSupagoConnect()}
+                    disabled={
+                      supagoLoading ||
+                      !supagoUsername.trim() ||
+                      !supagoPassword.trim() ||
+                      !supagoTransactionCode.trim()
+                    }
+                  >
+                    {supagoLoading ? 'Connecting…' : 'Connect'}
+                  </PrimaryButton>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs py-1" style={{ color: 'var(--qp-text-muted)' }}>Not connected</p>
+            )}
+          </FormSection>
+
+          <FormSection title="Rate history">
+            <DataTable
+              columns={[
+                { key: 'kind', heading: 'KIND' },
+                { key: 'rate', heading: 'RATE' },
+                { key: 'from', heading: 'EFFECTIVE FROM' },
+              ]}
+              rows={history.map((row) => ({
+                kind: row.rate_kind,
+                rate: <RateDisplay rateBp={row.rate_bp} />,
+                from: new Date(row.effective_from).toLocaleString(),
+              }))}
+              empty={<EmptyState message="No rate history" />}
+            />
+          </FormSection>
+        </FormShell>
       )}
 
       {confirmDisconnect ? (

@@ -120,12 +120,17 @@ export default function NewMerchantPage() {
 
   return (
     <AppShell title="Create merchant" role={user.role} menus={menus}>
-      <PageHeader title="Create Merchant" />
+      <PageHeader title="Create Merchant" backHref="/merchants" backLabel="Merchants" />
       <div className="mb-4">
         <ErrorAlert message={error} />
       </div>
-      <FormShell submitLabel={submitting ? 'Creating…' : 'Create'} onSubmit={() => void handleSubmit()}>
-        <FormSection title="Merchant Information" description="Legal and contact details.">
+      <FormShell
+        wide
+        compact
+        submitLabel={submitting ? 'Creating…' : 'Create'}
+        onSubmit={() => void handleSubmit()}
+      >
+        <FormSection title="Merchant">
           <FormGrid>
             <FormField label="Legal Name" required error={fieldErrors.legal_name}>
               <Input value={legalName} onChange={(event) => setLegalName(event.target.value)} />
@@ -142,11 +147,6 @@ export default function NewMerchantPage() {
             <FormField label="Contact Mobile" error={fieldErrors.contact_mobile}>
               <Input type="tel" value={mobile} onChange={(event) => setMobile(event.target.value)} />
             </FormField>
-          </FormGrid>
-        </FormSection>
-
-        <FormSection title="Initial Rates" description="Set the default commission rates for this merchant.">
-          <FormGrid>
             <FormField label="PAY-IN Rate">
               <RateInput id="m-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
             </FormField>
@@ -158,6 +158,7 @@ export default function NewMerchantPage() {
 
         {isSuperAdmin ? (
           <BankAdminsFormSection
+            compact
             mode={bankAdminMode}
             selectedIds={bankAdminIds}
             admins={activeAdmins}
@@ -167,7 +168,7 @@ export default function NewMerchantPage() {
           />
         ) : null}
 
-        <FormSection title="Supago Integration" description="Optional. Connect to the Supago platform at creation time. Leave blank to skip and connect later from the merchant detail page. If connecting, username, password, and transaction code are all required.">
+        <FormSection title="Supago" description="Optional. All three fields required if connecting now.">
           <FormGrid>
             <FormField label="Supago Username" error={fieldErrors.supago_username}>
               <Input

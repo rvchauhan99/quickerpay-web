@@ -55,7 +55,7 @@ export default function LoginPage() {
       <div
         className="hidden lg:flex lg:w-[44%] flex-col justify-between p-10"
         style={{
-          background: 'linear-gradient(145deg, #022c22 0%, #065f46 50%, #047857 100%)',
+          background: 'linear-gradient(145deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)',
         }}
       >
         {/* Logo */}
@@ -70,7 +70,7 @@ export default function LoginPage() {
           </div>
           <div>
             <p className="text-lg font-bold leading-none text-white">QuickerPay</p>
-            <p className="text-[11px] uppercase tracking-widest" style={{ color: '#6ee7b7' }}>Console</p>
+            <p className="text-[11px] uppercase tracking-widest" style={{ color: '#93c5fd' }}>Console</p>
           </div>
         </div>
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold leading-tight text-white">
             Secure Payment<br />Operations Platform
           </h1>
-          <p className="mt-4 text-base leading-relaxed" style={{ color: '#a7f3d0' }}>
+          <p className="mt-4 text-base leading-relaxed" style={{ color: '#bfdbfe' }}>
             Multi-tenant payment gateway management with real-time UTR verification and commission tracking.
           </p>
 
@@ -93,13 +93,13 @@ export default function LoginPage() {
               <li key={feature} className="flex items-center gap-3">
                 <div
                   className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                  style={{ backgroundColor: 'rgba(147,197,253,0.2)' }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                 </div>
-                <span className="text-sm" style={{ color: '#d1fae5' }}>{feature}</span>
+                <span className="text-sm" style={{ color: '#dbeafe' }}>{feature}</span>
               </li>
             ))}
           </ul>
@@ -107,10 +107,10 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#6ee7b7' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#93c5fd' }}>
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
-          <span className="text-xs" style={{ color: '#6ee7b7' }}>Enterprise-grade security & compliance</span>
+          <span className="text-xs" style={{ color: '#93c5fd' }}>Enterprise-grade security & compliance</span>
         </div>
       </div>
 

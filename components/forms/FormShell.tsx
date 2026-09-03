@@ -18,6 +18,8 @@ export function FormShell({
   submitLabel,
   loading = false,
   actions,
+  wide = false,
+  compact = false,
   children,
 }: {
   title?: string | undefined
@@ -28,6 +30,10 @@ export function FormShell({
   loading?: boolean | undefined
   /** Custom footer actions (e.g. Accept / Reject). Replaces default Cancel/Submit when set. */
   actions?: React.ReactNode | undefined
+  /** Wider card for dense multi-column user forms. Default 920px. */
+  wide?: boolean | undefined
+  /** Tighter section spacing (space-y-4 instead of space-y-6). */
+  compact?: boolean | undefined
   children: React.ReactNode
 }) {
   const showDefaultActions = !actions && (onCancel || onSubmit)
@@ -39,21 +45,24 @@ export function FormShell({
       style={{
         backgroundColor: 'var(--qp-card)',
         borderColor: 'var(--qp-border)',
-        boxShadow: 'var(--qp-shadow-md)',
-        maxWidth: '860px',
+        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.05)',
+        maxWidth: wide ? '1100px' : '920px',
       }}
     >
       {/* Card header */}
       {title ? (
         <div
           className="flex items-center gap-3 px-5 py-3.5"
-          style={{ borderBottom: '1px solid var(--qp-border)' }}
+          style={{
+            borderBottom: '1px solid var(--qp-border)',
+            background: 'linear-gradient(135deg, var(--qp-primary-light) 0%, var(--qp-card) 60%)',
+          }}
         >
           <div
             className="flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ backgroundColor: 'var(--qp-primary-light)' }}
+            style={{ backgroundColor: 'var(--qp-primary)', boxShadow: '0 1px 3px 0 rgba(37, 99, 235, 0.3)' }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--qp-primary)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
           </div>
@@ -63,7 +72,7 @@ export function FormShell({
 
       {/* Form body */}
       <form
-        className="space-y-6 p-5"
+        className={`${compact ? 'space-y-4' : 'space-y-6'} p-5`}
         onSubmit={(event) => {
           event.preventDefault()
           if (onSubmit) {
@@ -75,21 +84,25 @@ export function FormShell({
 
         {showFooter ? (
           <div
-            className="flex flex-wrap items-center justify-between gap-3 pt-4"
-            style={{ borderTop: '1px solid var(--qp-border)' }}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3.5 -mx-1"
+            style={{
+              borderTop: '1px solid var(--qp-border)',
+              backgroundColor: '#f8fafc',
+              marginTop: compact ? '16px' : '24px',
+            }}
           >
             <ErrorAlert message={error ?? null} />
             {actions ? (
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{actions}</div>
             ) : null}
             {showDefaultActions ? (
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex items-center gap-2.5">
                 {onCancel ? (
                   <button
                     type="button"
                     onClick={onCancel}
                     disabled={loading}
-                    className="inline-flex h-9 items-center rounded-lg border px-5 text-sm font-medium transition-colors"
+                    className="inline-flex h-9 items-center rounded-lg border px-5 text-sm font-medium transition-all duration-150 hover:bg-slate-50"
                     style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
                   >
                     Cancel
@@ -99,8 +112,10 @@ export function FormShell({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg px-5 text-sm font-semibold text-white transition-all disabled:opacity-60"
-                    style={{ backgroundColor: 'var(--qp-primary)' }}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg px-5 text-sm font-semibold text-white transition-all duration-150 disabled:opacity-60"
+                    style={{ backgroundColor: 'var(--qp-primary)', boxShadow: '0 1px 3px 0 rgba(37, 99, 235, 0.25)' }}
+                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = 'var(--qp-primary-dark)' }}
+                    onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = 'var(--qp-primary)' }}
                   >
                     {loading ? (
                       <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
