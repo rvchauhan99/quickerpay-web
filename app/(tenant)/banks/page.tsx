@@ -805,7 +805,7 @@ export default function BanksPage() {
           }
         >
           <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-            Enter the code sent to {otpChallenge.maskedMobile} (+{otpChallenge.countryCode}). Valid about{' '}
+            Enter the code sent to {otpChallenge.maskedMobile}. Valid about{' '}
             {otpChallenge.timeoutSeconds}s.
           </p>
           <FormField label="OTP" required>
