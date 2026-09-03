@@ -19,8 +19,8 @@ export function FormField({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-secondary)' }}>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[11.5px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-secondary)' }}>
         {label}
         {required ? <span className="ml-0.5" style={{ color: 'var(--qp-danger)' }}>*</span> : null}
       </label>

@@ -22,6 +22,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { FormShell } from '@/components/forms/FormShell'
+import { Modal } from '@/components/ui/Modal'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { useBankListSync } from '@/lib/live/useBankListSync'
 import { hasMenu } from '@/lib/session'
@@ -46,6 +47,14 @@ type BankFormState = {
   minval: string
   maxval: string
   regexPattern: string
+}
+
+type OtpChallenge = {
+  purpose: 'CREATE' | 'UPDATE'
+  verificationId: string
+  maskedMobile: string
+  countryCode: string
+  timeoutSeconds: number
 }
 
 const emptyCreateForm = (): BankFormState => ({
@@ -86,6 +95,9 @@ export default function BanksPage() {
   const [form, setForm] = useState<BankFormState>(emptyCreateForm)
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [closeTarget, setCloseTarget] = useState<BankAccountListItem | null>(null)
+  const [otpChallenge, setOtpChallenge] = useState<OtpChallenge | null>(null)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpSending, setOtpSending] = useState(false)
   const [historyFor, setHistoryFor] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryRow[]>([])
   const [merchantLinksFor, setMerchantLinksFor] = useState<string | null>(null)
@@ -163,6 +175,8 @@ export default function BanksPage() {
     setCreating(false)
     setEditing(null)
     setForm(emptyCreateForm())
+    setOtpChallenge(null)
+    setOtpCode('')
   }
 
   const handleOpenCreate = () => {
@@ -192,51 +206,136 @@ export default function BanksPage() {
     }
   }
 
-  const handleCreate = async () => {
-    if (!accessToken || submitting) return
-    setSubmitting('create')
-    try {
+  const mutateBank = async (otp?: { verificationId: string; code: string }) => {
+    if (!accessToken) return
+    const base = buildSupagoBody()
+    const otpFields = otp
+      ? { otp_verification_id: otp.verificationId, otp_code: otp.code }
+      : {}
+
+    if (editing) {
+      await apiRequest(`/api/v1/bank-accounts/${editing.id}`, {
+        method: 'PATCH',
+        token: accessToken,
+        body: {
+          display_name: base.display_name,
+          bank_name: base.bank_name,
+          upi_address: base.upi_address,
+          description: base.description,
+          remark: base.remark,
+          minval: base.minval,
+          maxval: base.maxval,
+          regex_pattern: base.regex_pattern,
+          ...otpFields,
+        },
+      })
+      toast.success('Bank updated on Supago and CRM')
+    } else {
       await apiRequest('/api/v1/bank-accounts', {
         method: 'POST',
         token: accessToken,
-        body: buildSupagoBody(),
+        body: { ...base, ...otpFields },
       })
-      handleCloseForm()
       toast.success('Bank account added (disabled). Enable when ready.')
-      await load()
+    }
+    setOtpChallenge(null)
+    setOtpCode('')
+    handleCloseForm()
+    await load()
+  }
+
+  const requestBankOtp = async (purpose: 'CREATE' | 'UPDATE') => {
+    if (!accessToken) return null
+    const body: Record<string, string> = { purpose }
+    if (purpose === 'UPDATE' && editing) {
+      body.bank_account_id = editing.id
+    }
+    return apiRequest<{
+      verification_id: string
+      masked_mobile: string
+      timeout_seconds: number
+      country_code: string
+    }>('/api/v1/otp/bank-mutation/send', {
+      method: 'POST',
+      token: accessToken,
+      body,
+    })
+  }
+
+  const handleSaveWithOtp = async () => {
+    if (!accessToken || submitting || otpSending) return
+    const purpose: 'CREATE' | 'UPDATE' = editing ? 'UPDATE' : 'CREATE'
+    setSubmitting(purpose === 'CREATE' ? 'create' : `edit-${editing?.id ?? ''}`)
+    setOtpSending(true)
+    try {
+      const sent = await requestBankOtp(purpose)
+      if (!sent) return
+      setOtpChallenge({
+        purpose,
+        verificationId: sent.verification_id,
+        maskedMobile: sent.masked_mobile,
+        countryCode: sent.country_code,
+        timeoutSeconds: sent.timeout_seconds,
+      })
+      setOtpCode('')
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not create')
+      const message = caught instanceof ApiClientError ? caught.displayMessage() : ''
+      // Local/dev when QP_SMS_OTP_ENABLED=false — save without OTP.
+      if (
+        caught instanceof ApiClientError &&
+        caught.code === 'VALIDATION_FAILED' &&
+        /SMS OTP is disabled/i.test(message)
+      ) {
+        try {
+          await mutateBank()
+        } catch (inner) {
+          toast.error(inner instanceof ApiClientError ? inner.displayMessage() : 'Could not save bank')
+        }
+      } else {
+        toast.error(message || 'Could not send OTP')
+      }
+    } finally {
+      setOtpSending(false)
+      setSubmitting(null)
+    }
+  }
+
+  const handleConfirmOtp = async () => {
+    if (!accessToken || !otpChallenge || submitting) return
+    const code = otpCode.trim()
+    if (!/^\d{4,8}$/.test(code)) {
+      toast.error('Enter the OTP from the SMS')
+      return
+    }
+    setSubmitting('otp-confirm')
+    try {
+      await mutateBank({ verificationId: otpChallenge.verificationId, code })
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save bank')
     } finally {
       setSubmitting(null)
     }
   }
 
-  const handleEdit = async () => {
-    if (!accessToken || !editing || submitting) return
-    setSubmitting(`edit-${editing.id}`)
+  const handleResendOtp = async () => {
+    if (!accessToken || !otpChallenge || otpSending) return
+    setOtpSending(true)
     try {
-      const body = buildSupagoBody()
-      await apiRequest(`/api/v1/bank-accounts/${editing.id}`, {
-        method: 'PATCH',
-        token: accessToken,
-        body: {
-          display_name: body.display_name,
-          bank_name: body.bank_name,
-          upi_address: body.upi_address,
-          description: body.description,
-          remark: body.remark,
-          minval: body.minval,
-          maxval: body.maxval,
-          regex_pattern: body.regex_pattern,
-        },
+      const sent = await requestBankOtp(otpChallenge.purpose)
+      if (!sent) return
+      setOtpChallenge({
+        purpose: otpChallenge.purpose,
+        verificationId: sent.verification_id,
+        maskedMobile: sent.masked_mobile,
+        countryCode: sent.country_code,
+        timeoutSeconds: sent.timeout_seconds,
       })
-      handleCloseForm()
-      toast.success('Bank updated on Supago and CRM')
-      await load()
+      setOtpCode('')
+      toast.success('OTP resent')
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not resend OTP')
     } finally {
-      setSubmitting(null)
+      setOtpSending(false)
     }
   }
 
@@ -414,14 +513,14 @@ export default function BanksPage() {
           <FormShell
             submitLabel={editing ? 'Save' : 'Add'}
             onCancel={handleCloseForm}
-            onSubmit={() => void (editing ? handleEdit() : handleCreate())}
+            onSubmit={() => void handleSaveWithOtp()}
           >
             <FormSection
               title={editing ? 'Edit Bank' : 'Add Bank'}
               description={
                 editing
                   ? 'Updates this UPI on every Supago-connected merchant (same UPI slot, or any inactive slot), then saves CRM.'
-                  : 'Creates the same UPI on every Supago-connected merchant that allows this Admin under Merchant → Bank Admins (same UPI slot, or any inactive slot), then adds one disabled bank in CRM. Enable it from the list when ready.'
+                  : 'Creates the same UPI on every Supago-connected merchant that allows this Admin under Merchant → Deposit Managed By (same UPI slot, or any inactive slot), then adds one disabled bank in CRM. Enable it from the list when ready.'
               }
             >
               <FormGrid>
@@ -625,7 +724,7 @@ export default function BanksPage() {
                 allowed: link.allowed ? 'Yes' : 'No',
                 action: !link.allowed ? (
                   <span className="text-[11px] text-zinc-500">
-                    Not linked — Super Admin must add this Admin on the merchant&apos;s Bank Admins.
+                    Not linked — Super Admin must add this Admin on the merchant&apos;s Deposit Managed By.
                   </span>
                 ) : canEdit ? (
                   <button
@@ -666,6 +765,62 @@ export default function BanksPage() {
           onCancel={() => setCloseTarget(null)}
           onConfirm={() => void handleClose()}
         />
+      ) : null}
+      {otpChallenge ? (
+        <Modal
+          title="Verify SMS OTP"
+          ariaLabel="Verify SMS OTP"
+          footer={
+            <>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium"
+                style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+                onClick={() => {
+                  setOtpChallenge(null)
+                  setOtpCode('')
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium disabled:opacity-60"
+                style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
+                disabled={otpSending || submitting === 'otp-confirm'}
+                onClick={() => void handleResendOtp()}
+              >
+                {otpSending ? 'Sending…' : 'Resend'}
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: 'var(--qp-primary)' }}
+                disabled={submitting === 'otp-confirm' || otpSending}
+                onClick={() => void handleConfirmOtp()}
+              >
+                {submitting === 'otp-confirm' ? 'Saving…' : 'Confirm'}
+              </button>
+            </>
+          }
+        >
+          <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+            Enter the code sent to {otpChallenge.maskedMobile} (+{otpChallenge.countryCode}). Valid about{' '}
+            {otpChallenge.timeoutSeconds}s.
+          </p>
+          <FormField label="OTP" required>
+            <Input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={8}
+              value={otpCode}
+              aria-label="SMS OTP"
+              placeholder="6-digit code"
+              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ''))}
+            />
+          </FormField>
+        </Modal>
       ) : null}
     </AppShell>
   )

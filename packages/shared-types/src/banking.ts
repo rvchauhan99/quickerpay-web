@@ -84,7 +84,7 @@ export interface BankMerchantLink {
   merchant_id: string
   merchant_display_name: string
   status: 'ACTIVE' | 'DISABLED'
-  /** False when the bank owner Admin is not on this merchant's Bank Admins allowlist. */
+  /** False when the bank owner Admin is not on this merchant's Deposit Managed By allowlist. */
   allowed: boolean
   supago_linked: boolean
   supago_payment_method_id: number | null

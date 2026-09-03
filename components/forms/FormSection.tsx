@@ -18,18 +18,23 @@ export function FormSection({
   return (
     <div>
       <div
-        className="mb-4 rounded-t-lg px-4 py-2"
+        className="mb-4 flex items-center gap-2.5 border-b pb-2.5"
         style={{
-          backgroundColor: 'var(--qp-primary-light)',
-          borderLeft: '3px solid var(--qp-primary)',
+          borderColor: 'var(--qp-border)',
         }}
       >
-        <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--qp-primary-dark)' }}>
-          {title}
-        </p>
-        {description ? <p className="mt-0.5 text-[11px] text-zinc-500">{description}</p> : null}
+        <div
+          className="h-2 w-2 rounded-full shrink-0"
+          style={{ backgroundColor: 'var(--qp-primary)' }}
+        />
+        <div>
+          <p className="text-[11.5px] font-bold uppercase tracking-widest" style={{ color: 'var(--qp-primary-dark)' }}>
+            {title}
+          </p>
+          {description ? <p className="mt-0.5 text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>{description}</p> : null}
+        </div>
       </div>
-      <div className="px-1">
+      <div className="px-1 pb-1">
         {children}
       </div>
     </div>

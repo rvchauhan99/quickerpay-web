@@ -6,7 +6,10 @@ import { Select } from '@/components/forms/Select'
 import type { BankAdminMode } from '@quickerpay/shared-types'
 
 export const BANK_ADMINS_HELPER =
-  "Who may sync and enable banks on this merchant's Supago. All Admins — every Admin can provision and enable banks for this merchant. Selected Admins — only the Admins you pick can. Others cannot link or enable banks here. Changing from All to Selected (or removing an Admin) disables that Admin's banks on this merchant only."
+  "Who may manage deposits (sync/enable banks) on this merchant's Supago. All Admins — every Admin can provision and enable banks for this merchant. Selected Admins — only the Admins you pick can. Others cannot link or enable banks here. Changing from All to Selected (or removing an Admin) disables that Admin's banks on this merchant only."
+
+export const BANK_ADMINS_HELPER_SHORT =
+  'Who may manage deposits (sync/enable banks) on this merchant. Narrowing selection disables that Admin’s banks here only.'
 
 export interface BankAdminOption {
   id: string
@@ -21,6 +24,8 @@ interface BankAdminsFormSectionProps {
   onModeChange: (mode: BankAdminMode) => void
   onToggleAdmin: (adminId: string) => void
   disabled?: boolean
+  /** Shorter section description for dense merchant forms. */
+  compact?: boolean
 }
 
 export function BankAdminsFormSection({
@@ -30,15 +35,16 @@ export function BankAdminsFormSection({
   onModeChange,
   onToggleAdmin,
   disabled = false,
+  compact = false,
 }: BankAdminsFormSectionProps) {
   return (
-    <FormSection title="Bank Admins" description={BANK_ADMINS_HELPER}>
-      <FormField label="Who can sync banks">
+    <FormSection title="Deposit Managed By" description={compact ? BANK_ADMINS_HELPER_SHORT : BANK_ADMINS_HELPER}>
+      <FormField label="Managed by">
         <Select
           value={mode}
           onChange={(event) => onModeChange(event.target.value as BankAdminMode)}
           disabled={disabled}
-          aria-label="Bank Admins mode"
+          aria-label="Deposit Managed By mode"
         >
           <option value="ALL">All Admins</option>
           <option value="SELECTED">Selected Admins</option>
@@ -46,16 +52,16 @@ export function BankAdminsFormSection({
       </FormField>
       {mode === 'SELECTED' ? (
         <div className="mt-3 space-y-2">
-          <p className="text-xs text-zinc-600">Select at least one Admin, or choose All Admins.</p>
-          <ul className="max-h-48 space-y-1 overflow-y-auto rounded border border-zinc-200 bg-white p-2">
+          <p className="text-xs" style={{ color: 'var(--qp-text-secondary)' }}>Select at least one Admin, or choose All Admins.</p>
+          <ul className="max-h-48 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'var(--qp-border)', backgroundColor: '#fff' }}>
             {admins.length === 0 ? (
-              <li className="text-xs text-zinc-500">No ACTIVE Admins available</li>
+              <li className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>No ACTIVE Admins available</li>
             ) : (
               admins.map((admin) => {
                 const checked = selectedIds.includes(admin.id)
                 return (
                   <li key={admin.id}>
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm" style={{ color: 'var(--qp-text-primary)' }}>
                       <input
                         type="checkbox"
                         checked={checked}
