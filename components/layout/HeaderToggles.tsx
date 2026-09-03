@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ApiClientError, apiRequest } from '@/lib/api'
 import { useSession } from '@/lib/session'
@@ -115,6 +116,9 @@ export function HeaderToggles() {
       })
       await refreshUser()
       setOfflineConfirmOpen(false)
+      if (next === 'OFFLINE') {
+        toast.success('You are offline. Your banks and merchant links are disabled.')
+      }
     } catch (caught) {
       setError(
         caught instanceof ApiClientError
@@ -140,7 +144,7 @@ export function HeaderToggles() {
       {offlineConfirmOpen ? (
         <ConfirmDialog
           title="Go offline?"
-          subtitle="All ACTIVE banks you own will be disabled, including their UPIs. Linked Supago banks will sync to inactive. Other Admins' banks are not affected. Going Online again will not re-enable them — turn banks back on from Bank Details."
+          subtitle="All ACTIVE banks you own will be disabled, including their UPIs and every merchant link. Linked Supago banks will sync to inactive. Other Admins' banks are not affected. Going Online again will not re-enable them — turn banks (and merchants) back on from Bank Details."
           confirmLabel="Go offline"
           loading={onlineSubmitting}
           onCancel={() => setOfflineConfirmOpen(false)}

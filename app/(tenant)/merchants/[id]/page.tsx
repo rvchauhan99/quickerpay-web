@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import type { MerchantDetail, MerchantRate } from '@quickerpay/shared-types'
+import type { BankAdminMode, MerchantDetail, MerchantRate } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { RateInput } from '@/components/forms/RateInput'
@@ -13,6 +13,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
+import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from 'sonner'
 import { apiRequest, ApiClientError } from '@/lib/api'
@@ -46,6 +47,9 @@ export default function MerchantDetailPage() {
   const [routingMode, setRoutingMode] = useState<WithdrawRoutingMode>('queue')
   const [routingAdminId, setRoutingAdminId] = useState('')
   const [savingRouting, setSavingRouting] = useState(false)
+  const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
+  const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
+  const [savingBankAdmins, setSavingBankAdmins] = useState(false)
 
   // Supago state
   const [supagoStatus, setSupagoStatus] = useState<SupagoStatus | null>(null)
@@ -77,6 +81,11 @@ export default function MerchantDetailPage() {
     setRoutingAdminId('')
   }
 
+  const applyBankAdminsFromDetail = (detail: MerchantDetail) => {
+    setBankAdminMode(detail.bank_admin_mode ?? 'ALL')
+    setBankAdminIds(detail.bank_admin_user_ids ?? [])
+  }
+
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
     setLoading(true)
@@ -86,6 +95,7 @@ export default function MerchantDetailPage() {
       const rates = await apiRequest<MerchantRate[]>(`/api/v1/merchants/${params.id}/rates`, { token: accessToken })
       setMerchant(detail)
       applyRoutingFromDetail(detail)
+      applyBankAdminsFromDetail(detail)
       setHistory(rates)
       setPayinBp(detail.rates.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
       setPayoutBp(detail.rates.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
@@ -196,8 +206,40 @@ export default function MerchantDetailPage() {
     }
   }
 
+  const handleToggleBankAdmin = (adminId: string) => {
+    setBankAdminIds((prev) =>
+      prev.includes(adminId) ? prev.filter((id) => id !== adminId) : [...prev, adminId],
+    )
+  }
+
+  const handleSaveBankAdmins = async () => {
+    if (!accessToken || !params.id || savingBankAdmins) return
+    if (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
+      toast.error('Select at least one Admin, or choose All Admins.')
+      return
+    }
+    setSavingBankAdmins(true)
+    try {
+      await apiRequest(`/api/v1/merchants/${params.id}/bank-admins`, {
+        method: 'PATCH',
+        token: accessToken,
+        body: {
+          bank_admin_mode: bankAdminMode,
+          admin_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
+        },
+      })
+      toast.success('Bank Admins saved')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save Bank Admins')
+    } finally {
+      setSavingBankAdmins(false)
+    }
+  }
+
   const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
   const canEditRouting = Boolean(isSuperAdmin && canEdit)
+  const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
   const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
 
   return (
@@ -315,6 +357,28 @@ export default function MerchantDetailPage() {
                   />
                 </FormField>
               </FormSection>
+            ) : null}
+
+            {canEditBankAdmins ? (
+              <>
+                <BankAdminsFormSection
+                  mode={bankAdminMode}
+                  selectedIds={bankAdminIds}
+                  admins={activeAdmins}
+                  onModeChange={setBankAdminMode}
+                  onToggleAdmin={handleToggleBankAdmin}
+                  disabled={savingBankAdmins}
+                />
+                <div className="mt-3 flex justify-end">
+                  <PrimaryButton
+                    type="button"
+                    disabled={savingBankAdmins || (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0)}
+                    onClick={() => void handleSaveBankAdmins()}
+                  >
+                    {savingBankAdmins ? 'Saving…' : 'Save Bank Admins'}
+                  </PrimaryButton>
+                </div>
+              </>
             ) : null}
           </FormShell>
 

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import type { BankAdminMode } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
 import { FormShell } from '@/components/forms/FormShell'
@@ -10,13 +11,16 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { RateInput } from '@/components/forms/RateInput'
+import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
 import { toast } from 'sonner'
 import { apiRequest, formError } from '@/lib/api'
+import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function NewMerchantPage() {
   const router = useRouter()
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('MERCHANTS')
+  const { isSuperAdmin, admins } = useSuperAdminDirectory(accessToken, user?.role)
   const [legalName, setLegalName] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [code, setCode] = useState('')
@@ -27,6 +31,8 @@ export default function NewMerchantPage() {
   const [supagoUsername, setSupagoUsername] = useState('')
   const [supagoPassword, setSupagoPassword] = useState('')
   const [supagoTransactionCode, setSupagoTransactionCode] = useState('')
+  const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
+  const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -34,10 +40,24 @@ export default function NewMerchantPage() {
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
+  const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
+
+  const handleToggleAdmin = (adminId: string) => {
+    setBankAdminIds((prev) =>
+      prev.includes(adminId) ? prev.filter((id) => id !== adminId) : [...prev, adminId],
+    )
+  }
+
   const handleSubmit = async () => {
     if (!accessToken || submitting) return
     setError(null)
     setFieldErrors({})
+
+    if (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
+      setFieldErrors({ admin_user_ids: 'Select at least one Admin, or choose All Admins.' })
+      setError('Select at least one Admin, or choose All Admins.')
+      return
+    }
 
     const trimmedUsername = supagoUsername.trim()
     const trimmedPassword = supagoPassword.trim()
@@ -72,6 +92,8 @@ export default function NewMerchantPage() {
             { rate_kind: 'PAYIN', rate_bp: payinBp },
             { rate_kind: 'PAYOUT', rate_bp: payoutBp },
           ],
+          bank_admin_mode: bankAdminMode,
+          admin_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
       })
       if (wantsSupagoConnect) {
@@ -133,6 +155,17 @@ export default function NewMerchantPage() {
             </FormField>
           </FormGrid>
         </FormSection>
+
+        {isSuperAdmin ? (
+          <BankAdminsFormSection
+            mode={bankAdminMode}
+            selectedIds={bankAdminIds}
+            admins={activeAdmins}
+            onModeChange={setBankAdminMode}
+            onToggleAdmin={handleToggleAdmin}
+            disabled={submitting}
+          />
+        ) : null}
 
         <FormSection title="Supago Integration" description="Optional. Connect to the Supago platform at creation time. Leave blank to skip and connect later from the merchant detail page. If connecting, username, password, and transaction code are all required.">
           <FormGrid>

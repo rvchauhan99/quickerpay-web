@@ -31,6 +31,14 @@ export interface BankAccountListItem {
   /** True when bank_accounts.supago_payment_method_id is set. */
   supago_linked: boolean
   supago_payment_method_id: number | null
+  /** Supago Update form fields (deposit min/max are whole rupees, not paise). */
+  supago_description: string | null
+  supago_remark: string | null
+  /** Whole rupees on Supago, not QuickerPay `_minor` paise. */
+  supago_minval: number | null
+  /** Whole rupees on Supago, not QuickerPay `_minor` paise. */
+  supago_maxval: number | null
+  supago_regex_pattern: string | null
 }
 
 export interface BankAccountDetail extends BankAccountListItem {
@@ -69,4 +77,15 @@ export interface UpiStatusHistoryItem {
 export interface RevealedAccountNumber {
   account_number: string
   ifsc: string | null
+}
+
+/** Per-merchant link status for one CRM bank (Bank Details merchant panel). */
+export interface BankMerchantLink {
+  merchant_id: string
+  merchant_display_name: string
+  status: 'ACTIVE' | 'DISABLED'
+  /** False when the bank owner Admin is not on this merchant's Bank Admins allowlist. */
+  allowed: boolean
+  supago_linked: boolean
+  supago_payment_method_id: number | null
 }
