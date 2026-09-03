@@ -759,7 +759,7 @@ export default function BanksPage() {
       {closeTarget ? (
         <ConfirmDialog
           title={`Close ${closeTarget.label}?`}
-          subtitle="This is a soft close. The row stays in the list as CLOSED and cannot be reopened."
+          subtitle="Soft close to CLOSED. The row stays for history. Create the same UPI again to reopen it in place (starts DISABLED)."
           confirmLabel="Close"
           loading={submitting === closeTarget.id}
           onCancel={() => setCloseTarget(null)}

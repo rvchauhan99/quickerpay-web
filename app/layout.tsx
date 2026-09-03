@@ -10,12 +10,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // Extensions (e.g. QuillBot `data-qb-installed`) mutate <html>/<body> before hydrate.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="min-h-screen bg-qp-surface font-inter text-slate-900 antialiased">
+      <body
+        className="min-h-screen bg-qp-surface font-inter text-slate-900 antialiased"
+        suppressHydrationWarning
+      >
         {children}
         <Toaster position="top-right" richColors closeButton duration={4000} />
       </body>

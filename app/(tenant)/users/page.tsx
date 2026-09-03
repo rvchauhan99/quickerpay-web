@@ -19,7 +19,6 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { hasMenu } from '@/lib/session'
-import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function UsersPage() {
@@ -28,7 +27,6 @@ export default function UsersPage() {
     role: parseAsString.withDefault(''),
     status: parseAsString.withDefault(''),
     q: parseAsString.withDefault(''),
-    merchant_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -59,7 +57,6 @@ export default function UsersPage() {
     if (filters.role) query.set('role', filters.role)
     if (filters.status) query.set('status', filters.status)
     if (filters.q) query.set('q', filters.q)
-    if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     try {
       const result = await apiListRequest<UserListItem>(`/api/v1/users?${query}`)
       setRows(result.items)
@@ -69,13 +66,11 @@ export default function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.role, filters.status, filters.q, filters.merchant_id])
+  }, [filters.page, filters.page_size, filters.role, filters.status, filters.q])
 
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
-
-  const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -203,7 +198,7 @@ export default function UsersPage() {
           ) : null
         }
       />
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ role: '', status: '', q: '', merchant_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ role: '', status: '', q: '', page: 1 })} onReload={() => void load()}>
         {isAdmin ? null : (
           <FormField label="Role">
             <Select value={filters.role} onChange={(event) => void setFilters({ role: event.target.value })} aria-label="Role">
@@ -225,15 +220,6 @@ export default function UsersPage() {
         <FormField label="Search">
           <Input placeholder="Search" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
-        {isSuperAdmin ? (
-          <SuperAdminDirectoryFilters
-            admins={admins}
-            merchants={merchants}
-            merchantId={filters.merchant_id}
-            onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
-            showAdmin={false}
-          />
-        ) : null}
         <div>
           <ExportButton disabled={rows.length === 0} />
         </div>

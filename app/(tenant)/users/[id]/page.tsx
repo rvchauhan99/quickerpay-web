@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import type { MerchantListItem, UserDetail } from '@quickerpay/shared-types'
+import type { UserDetail } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
@@ -13,10 +13,9 @@ import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
-import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
-import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
+import { apiRequest, ApiClientError, formError } from '@/lib/api'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -27,8 +26,6 @@ export default function UserDetailPage() {
   const [detail, setDetail] = useState<UserDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [merchants, setMerchants] = useState<MerchantListItem[]>([])
-  const [merchantId, setMerchantId] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [mobile, setMobile] = useState('')
@@ -45,7 +42,6 @@ export default function UserDetailPage() {
     try {
       const next = await apiRequest<UserDetail>(`/api/v1/users/${params.id}`, { token: accessToken })
       setDetail(next)
-      setMerchantId(next.merchant_id ?? '')
       setDisplayName(next.display_name)
       setEmail(next.email ?? '')
       setMobile(next.mobile ?? '')
@@ -60,13 +56,6 @@ export default function UserDetailPage() {
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
-
-  useEffect(() => {
-    if (!accessToken || user?.role !== 'SUPER_ADMIN') return
-    void apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken })
-      .then((result) => setMerchants(result.items.filter((row) => row.status === 'ACTIVE')))
-      .catch(() => undefined)
-  }, [accessToken, user?.role])
 
   const handleSaveIdentity = async () => {
     if (!accessToken || !params.id || !canEdit || savingIdentity) return
@@ -103,22 +92,6 @@ export default function UserDetailPage() {
       setFieldErrors(next.fields)
     } finally {
       setSavingIdentity(false)
-    }
-  }
-
-  const handleSaveMerchantBind = async () => {
-    if (!accessToken || !params.id) return
-    try {
-      setDetail(await apiRequest<UserDetail>(`/api/v1/users/${params.id}`, {
-        method: 'PATCH',
-        token: accessToken,
-        body: { merchant_id: merchantId || null },
-      }))
-      toast.success(merchantId ? 'Merchant bind saved' : 'Merchant bind cleared')
-    } catch (caught) {
-      const next = formError(caught, 'Could not update merchant bind')
-      setError(next.banner)
-      setFieldErrors(next.fields)
     }
   }
 
@@ -246,32 +219,6 @@ export default function UserDetailPage() {
                       )}
                     </div>
                   )}
-                </FormField>
-              ) : null}
-              {user.role === 'SUPER_ADMIN' && detail.role === 'ADMIN' ? (
-                <FormField
-                  label="Legacy merchant bind"
-                  error={fieldErrors.merchant_id}
-                  hint="Optional; Pay-In/Out pick merchant per request."
-                >
-                  <div className="flex gap-2">
-                    <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Legacy merchant bind">
-                      <option value="">None</option>
-                      {merchants.map((merchant) => (
-                        <option key={merchant.id} value={merchant.id}>
-                          {merchant.merchant_code} — {merchant.display_name}
-                        </option>
-                      ))}
-                    </Select>
-                    <button
-                      type="button"
-                      className="inline-flex h-9 shrink-0 items-center rounded-lg px-4 text-sm font-semibold text-white transition-all duration-150"
-                      style={{ backgroundColor: 'var(--qp-primary)' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary-dark)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--qp-primary)' }}
-                      onClick={() => void handleSaveMerchantBind()}
-                    >Save</button>
-                  </div>
                 </FormField>
               ) : null}
             </FormGrid>
