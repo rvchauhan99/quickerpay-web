@@ -28,6 +28,8 @@ export interface PayoutListItem {
   /** Decrypted IFSC when stored; needed to pay. */
   beneficiary_ifsc: string | null
   beneficiary_bank_name: string | null
+  /** Player UPI payee when withdrawal has no bank account (Crici payment_detail.upi_id). */
+  beneficiary_upi: string | null
   failure_reason: string | null
   merchant_order_id: string | null
   has_attachment: boolean

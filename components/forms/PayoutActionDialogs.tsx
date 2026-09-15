@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { DocumentUpload } from '@/components/forms/DocumentUpload'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { PayoutUpiQr } from '@/components/forms/PayoutUpiQr'
 import { PayoutWithdrawSummary } from '@/components/forms/PayoutWithdrawSummary'
 import { Select } from '@/components/forms/Select'
 import { Modal } from '@/components/ui/Modal'
@@ -213,6 +214,7 @@ export function PayoutActionDialogs({
           }
         >
           <PayoutWithdrawSummary row={acceptFor} />
+          {acceptFor.beneficiary_upi?.trim() ? <PayoutUpiQr row={acceptFor} /> : null}
           <div className="flex flex-col gap-3">
             <FormField label="Source bank" required>
               <Select

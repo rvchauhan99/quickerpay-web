@@ -31,7 +31,15 @@ interface SupagoStatus {
   last_error?: string
 }
 
+interface CriciStatus {
+  connected: boolean
+  username?: string
+  expires_at?: string
+  last_error?: string
+}
+
 type WithdrawRoutingMode = 'queue' | 'direct'
+type PanelIntegrationType = 'none' | 'supago' | 'crici'
 
 export default function MerchantDetailPage() {
   const params = useParams<{ id: string }>()
@@ -61,6 +69,16 @@ export default function MerchantDetailPage() {
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const [updateCredsOpen, setUpdateCredsOpen] = useState(false)
 
+  // Crici state — password is write-only; never shown after connect
+  const [criciStatus, setCriciStatus] = useState<CriciStatus | null>(null)
+  const [criciUsername, setCriciUsername] = useState('')
+  const [criciPassword, setCriciPassword] = useState('')
+  const [criciLoading, setCriciLoading] = useState(false)
+  const [criciError, setCriciError] = useState<string | null>(null)
+  const [confirmCriciDisconnect, setConfirmCriciDisconnect] = useState(false)
+  const [criciUpdateOpen, setCriciUpdateOpen] = useState(false)
+  const [panelChoice, setPanelChoice] = useState<PanelIntegrationType>('none')
+
   const loadSupagoStatus = useCallback(async (token: string, id: string) => {
     try {
       const status = await apiRequest<SupagoStatus>(`/api/v1/merchants/${id}/supago/status`, { token })
@@ -68,6 +86,15 @@ export default function MerchantDetailPage() {
       setSupagoTransactionCode(status.transaction_code ?? '')
     } catch {
       setSupagoStatus({ connected: false })
+    }
+  }, [])
+
+  const loadCriciStatus = useCallback(async (token: string, id: string) => {
+    try {
+      const status = await apiRequest<CriciStatus>(`/api/v1/merchants/${id}/crici/status`, { token })
+      setCriciStatus(status)
+    } catch {
+      setCriciStatus({ connected: false })
     }
   }, [])
 
@@ -100,12 +127,13 @@ export default function MerchantDetailPage() {
       setPayinBp(detail.rates.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
       setPayoutBp(detail.rates.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
       void loadSupagoStatus(accessToken, params.id)
+      void loadCriciStatus(accessToken, params.id)
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not load')
     } finally {
       setLoading(false)
     }
-  }, [accessToken, params.id, loadSupagoStatus])
+  }, [accessToken, params.id, loadSupagoStatus, loadCriciStatus])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -174,10 +202,59 @@ export default function MerchantDetailPage() {
       })
       setSupagoStatus(status)
       toast.success('Supago disconnected')
+      setPanelChoice('none')
     } catch (caught) {
       setSupagoError(caught instanceof ApiClientError ? caught.message : 'Disconnect failed')
     } finally {
       setSupagoLoading(false)
+    }
+  }
+
+  const handleCriciConnect = async () => {
+    const trimmedUsername = criciUsername.trim()
+    const trimmedPassword = criciPassword.trim()
+    if (!accessToken || !params.id || !trimmedUsername || !trimmedPassword) return
+    setCriciLoading(true)
+    setCriciError(null)
+    try {
+      const status = await apiRequest<CriciStatus>(`/api/v1/merchants/${params.id}/crici`, {
+        method: 'PATCH',
+        token: accessToken,
+        body: {
+          crici_username: trimmedUsername,
+          crici_password: trimmedPassword,
+        },
+      })
+      setCriciStatus(status)
+      setCriciUsername('')
+      setCriciPassword('')
+      setCriciUpdateOpen(false)
+      toast.success(criciUpdateOpen ? 'Crici credentials updated' : 'Crici connected')
+      await loadCriciStatus(accessToken, params.id)
+    } catch (caught) {
+      setCriciError(caught instanceof ApiClientError ? caught.message : 'Connection failed')
+    } finally {
+      setCriciLoading(false)
+    }
+  }
+
+  const handleCriciDisconnect = async () => {
+    if (!accessToken || !params.id) return
+    setCriciLoading(true)
+    setCriciError(null)
+    setConfirmCriciDisconnect(false)
+    try {
+      const status = await apiRequest<CriciStatus>(`/api/v1/merchants/${params.id}/crici`, {
+        method: 'DELETE',
+        token: accessToken,
+      })
+      setCriciStatus(status)
+      toast.success('Crici disconnected')
+      setPanelChoice('none')
+    } catch (caught) {
+      setCriciError(caught instanceof ApiClientError ? caught.message : 'Disconnect failed')
+    } finally {
+      setCriciLoading(false)
     }
   }
 
@@ -241,6 +318,33 @@ export default function MerchantDetailPage() {
   const canEditRouting = Boolean(isSuperAdmin && canEdit)
   const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
   const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
+  const connectedPanel: PanelIntegrationType = supagoStatus?.connected
+    ? 'supago'
+    : criciStatus?.connected
+      ? 'crici'
+      : 'none'
+  const panelSelectValue = connectedPanel !== 'none' ? connectedPanel : panelChoice
+  const panelBusy = supagoLoading || criciLoading
+  const panelError =
+    panelSelectValue === 'supago' ? supagoError : panelSelectValue === 'crici' ? criciError : null
+
+  const handlePanelChoiceChange = (next: PanelIntegrationType) => {
+    if (connectedPanel !== 'none') return
+    setPanelChoice(next)
+    setSupagoError(null)
+    setCriciError(null)
+    setUpdateCredsOpen(false)
+    setCriciUpdateOpen(false)
+    if (next !== 'supago') {
+      setSupagoUsername('')
+      setSupagoPassword('')
+      setSupagoTransactionCode('')
+    }
+    if (next !== 'crici') {
+      setCriciUsername('')
+      setCriciPassword('')
+    }
+  }
 
   return (
     <AppShell title="Merchant Detail" role={user.role} menus={menus}>
@@ -290,12 +394,19 @@ export default function MerchantDetailPage() {
                 >
                   Supago connected
                 </span>
+              ) : criciStatus?.connected ? (
+                <span
+                  className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
+                  style={{ backgroundColor: 'var(--qp-success-bg)', color: 'var(--qp-success)', border: '1px solid var(--qp-success-border)' }}
+                >
+                  Crici connected
+                </span>
               ) : (
                 <span
                   className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
                   style={{ backgroundColor: '#fff', color: 'var(--qp-text-muted)', border: '1px solid var(--qp-border)' }}
                 >
-                  Supago off
+                  Panel off
                 </span>
               )}
             </div>
@@ -325,7 +436,7 @@ export default function MerchantDetailPage() {
           ) : null}
 
           {canEditRouting ? (
-            <FormSection title="Withdraw routing" description="Applies to new Supago withdraw polls only.">
+            <FormSection title="Withdraw routing" description="Applies to new panel withdraw polls only.">
               <FormGrid>
                 <FormField label="Routing" required>
                   <Select
@@ -408,79 +519,163 @@ export default function MerchantDetailPage() {
             </>
           ) : null}
 
-          <FormSection title="Supago">
-            {supagoError ? (
+          <FormSection
+            title="Panel integration"
+            description="One external panel per merchant. Choose Supago or Crici, then connect."
+          >
+            {panelError ? (
               <div className="mb-3">
-                <ErrorAlert message={supagoError} />
+                <ErrorAlert message={panelError} />
               </div>
             ) : null}
 
-            {supagoStatus?.connected ? (
-              <>
-                <FormGrid>
-                  <FormField label="Username">
-                    <Input value={supagoStatus.uname ?? ''} readOnly />
-                  </FormField>
-                  <FormField label="Branch Code">
-                    <Input value={supagoStatus.bcode ?? ''} readOnly />
-                  </FormField>
-                  <FormField label="Token Expires">
-                    <Input
-                      value={supagoStatus.expires_at ? new Date(supagoStatus.expires_at).toLocaleString() : ''}
-                      readOnly
-                    />
-                  </FormField>
-                  <FormField label="Transaction Code">
-                    <Input value={supagoStatus.transaction_code ?? ''} readOnly />
-                  </FormField>
-                </FormGrid>
+            <FormGrid>
+              <FormField label="Integration">
+                <Select
+                  id="panel-integration-type"
+                  value={panelSelectValue}
+                  disabled={!canEdit || connectedPanel !== 'none' || panelBusy}
+                  onChange={(event) => handlePanelChoiceChange(event.target.value as PanelIntegrationType)}
+                  aria-label="Panel integration type"
+                >
+                  <option value="none">None</option>
+                  <option value="supago">Supago</option>
+                  <option value="crici">Crici</option>
+                </Select>
+              </FormField>
+            </FormGrid>
+            {connectedPanel !== 'none' ? (
+              <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                Disconnect to change integration.
+              </p>
+            ) : null}
 
-                {canEdit ? (
-                  <div className="mt-3 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUpdateCredsOpen((open) => !open)
-                        setSupagoUsername('')
-                        setSupagoPassword('')
-                        setSupagoTransactionCode(supagoStatus.transaction_code ?? '')
-                        setSupagoError(null)
-                      }}
-                      disabled={supagoLoading}
-                      className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
-                      style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
-                    >
-                      {updateCredsOpen ? 'Cancel' : 'Change'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDisconnect(true)}
-                      disabled={supagoLoading}
-                      className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
-                      style={{ borderColor: 'var(--qp-danger)', color: 'var(--qp-danger)', backgroundColor: 'var(--qp-danger-bg)' }}
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                ) : null}
-
-                {canEdit && updateCredsOpen ? (
-                  <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}>
+            {connectedPanel === 'supago' || (connectedPanel === 'none' && panelChoice === 'supago') ? (
+              <div className="mt-4">
+                {supagoStatus?.connected ? (
+                  <>
                     <FormGrid>
-                      <FormField label="Username" required>
+                      <FormField label="Username">
+                        <Input value={supagoStatus.uname ?? ''} readOnly />
+                      </FormField>
+                      <FormField label="Branch Code">
+                        <Input value={supagoStatus.bcode ?? ''} readOnly />
+                      </FormField>
+                      <FormField label="Token Expires">
+                        <Input
+                          value={
+                            supagoStatus.expires_at ? new Date(supagoStatus.expires_at).toLocaleString() : ''
+                          }
+                          readOnly
+                        />
+                      </FormField>
+                      <FormField label="Transaction Code">
+                        <Input value={supagoStatus.transaction_code ?? ''} readOnly />
+                      </FormField>
+                    </FormGrid>
+
+                    {canEdit ? (
+                      <div className="mt-3 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUpdateCredsOpen((open) => !open)
+                            setSupagoUsername('')
+                            setSupagoPassword('')
+                            setSupagoTransactionCode(supagoStatus.transaction_code ?? '')
+                            setSupagoError(null)
+                          }}
+                          disabled={panelBusy}
+                          className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                          style={{
+                            borderColor: 'var(--qp-border)',
+                            color: 'var(--qp-text-secondary)',
+                            backgroundColor: '#fff',
+                          }}
+                        >
+                          {updateCredsOpen ? 'Cancel' : 'Change credentials'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDisconnect(true)}
+                          disabled={panelBusy}
+                          className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                          style={{
+                            borderColor: 'var(--qp-danger)',
+                            color: 'var(--qp-danger)',
+                            backgroundColor: 'var(--qp-danger-bg)',
+                          }}
+                        >
+                          Disconnect
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {canEdit && updateCredsOpen ? (
+                      <div
+                        className="mt-3 rounded-lg border p-3"
+                        style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
+                      >
+                        <FormGrid>
+                          <FormField label="Username" required>
+                            <Input
+                              value={supagoUsername}
+                              onChange={(e) => setSupagoUsername(e.target.value)}
+                              placeholder="New Supago username"
+                              aria-label="Supago username"
+                            />
+                          </FormField>
+                          <FormField label="Password" required>
+                            <Input
+                              type="password"
+                              value={supagoPassword}
+                              onChange={(e) => setSupagoPassword(e.target.value)}
+                              placeholder="New Supago password"
+                              aria-label="Supago password"
+                            />
+                          </FormField>
+                          <FormField label="Transaction Code" required>
+                            <Input
+                              value={supagoTransactionCode}
+                              onChange={(e) => setSupagoTransactionCode(e.target.value)}
+                              placeholder="e.g. 643795"
+                              aria-label="Supago transaction code"
+                            />
+                          </FormField>
+                        </FormGrid>
+                        <div className="mt-3 flex justify-end">
+                          <PrimaryButton
+                            onClick={() => void handleSupagoConnect()}
+                            disabled={
+                              panelBusy ||
+                              !supagoUsername.trim() ||
+                              !supagoPassword.trim() ||
+                              !supagoTransactionCode.trim()
+                            }
+                          >
+                            {supagoLoading ? 'Saving…' : 'Save'}
+                          </PrimaryButton>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : canEdit ? (
+                  <>
+                    <FormGrid>
+                      <FormField label="Supago Username" required>
                         <Input
                           value={supagoUsername}
                           onChange={(e) => setSupagoUsername(e.target.value)}
-                          placeholder="New Supago username"
+                          placeholder="Enter Supago username"
                           aria-label="Supago username"
                         />
                       </FormField>
-                      <FormField label="Password" required>
+                      <FormField label="Supago Password" required>
                         <Input
                           type="password"
                           value={supagoPassword}
                           onChange={(e) => setSupagoPassword(e.target.value)}
-                          placeholder="New Supago password"
+                          placeholder="Enter Supago password"
                           aria-label="Supago password"
                         />
                       </FormField>
@@ -497,64 +692,171 @@ export default function MerchantDetailPage() {
                       <PrimaryButton
                         onClick={() => void handleSupagoConnect()}
                         disabled={
-                          supagoLoading ||
+                          panelBusy ||
                           !supagoUsername.trim() ||
                           !supagoPassword.trim() ||
                           !supagoTransactionCode.trim()
                         }
                       >
-                        {supagoLoading ? 'Saving…' : 'Save'}
+                        {supagoLoading ? 'Connecting…' : 'Connect'}
                       </PrimaryButton>
                     </div>
-                  </div>
-                ) : null}
-              </>
-            ) : canEdit ? (
-              <>
-                <FormGrid>
-                  <FormField label="Supago Username" required>
-                    <Input
-                      value={supagoUsername}
-                      onChange={(e) => setSupagoUsername(e.target.value)}
-                      placeholder="Enter Supago username"
-                      aria-label="Supago username"
-                    />
-                  </FormField>
-                  <FormField label="Supago Password" required>
-                    <Input
-                      type="password"
-                      value={supagoPassword}
-                      onChange={(e) => setSupagoPassword(e.target.value)}
-                      placeholder="Enter Supago password"
-                      aria-label="Supago password"
-                    />
-                  </FormField>
-                  <FormField label="Transaction Code" required>
-                    <Input
-                      value={supagoTransactionCode}
-                      onChange={(e) => setSupagoTransactionCode(e.target.value)}
-                      placeholder="e.g. 643795"
-                      aria-label="Supago transaction code"
-                    />
-                  </FormField>
-                </FormGrid>
-                <div className="mt-3 flex justify-end">
-                  <PrimaryButton
-                    onClick={() => void handleSupagoConnect()}
-                    disabled={
-                      supagoLoading ||
-                      !supagoUsername.trim() ||
-                      !supagoPassword.trim() ||
-                      !supagoTransactionCode.trim()
-                    }
-                  >
-                    {supagoLoading ? 'Connecting…' : 'Connect'}
-                  </PrimaryButton>
-                </div>
-              </>
-            ) : (
-              <p className="text-xs py-1" style={{ color: 'var(--qp-text-muted)' }}>Not connected</p>
-            )}
+                  </>
+                ) : (
+                  <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                    Not connected
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {connectedPanel === 'crici' || (connectedPanel === 'none' && panelChoice === 'crici') ? (
+              <div className="mt-4">
+                {criciStatus?.connected ? (
+                  <>
+                    <FormGrid>
+                      <FormField label="Username">
+                        <Input value={criciStatus.username ?? ''} readOnly />
+                      </FormField>
+                      <FormField label="Session Expires">
+                        <Input
+                          value={
+                            criciStatus.expires_at ? new Date(criciStatus.expires_at).toLocaleString() : ''
+                          }
+                          readOnly
+                        />
+                      </FormField>
+                    </FormGrid>
+                    {criciStatus.last_error ? (
+                      <p className="mt-2 text-xs" style={{ color: 'var(--qp-danger)' }}>
+                        {criciStatus.last_error}
+                      </p>
+                    ) : null}
+
+                    {canEdit ? (
+                      <div className="mt-3 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCriciUpdateOpen((open) => !open)
+                            setCriciUsername('')
+                            setCriciPassword('')
+                            setCriciError(null)
+                          }}
+                          disabled={panelBusy}
+                          className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                          style={{
+                            borderColor: 'var(--qp-border)',
+                            color: 'var(--qp-text-secondary)',
+                            backgroundColor: '#fff',
+                          }}
+                        >
+                          {criciUpdateOpen ? 'Cancel' : 'Change credentials'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmCriciDisconnect(true)}
+                          disabled={panelBusy}
+                          className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                          style={{
+                            borderColor: 'var(--qp-danger)',
+                            color: 'var(--qp-danger)',
+                            backgroundColor: 'var(--qp-danger-bg)',
+                          }}
+                        >
+                          Disconnect
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {canEdit && criciUpdateOpen ? (
+                      <div
+                        className="mt-3 rounded-lg border p-3"
+                        style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
+                      >
+                        <FormGrid>
+                          <FormField label="Username" required>
+                            <Input
+                              value={criciUsername}
+                              onChange={(e) => setCriciUsername(e.target.value)}
+                              placeholder="New Crici username"
+                              aria-label="Crici username"
+                              autoComplete="off"
+                            />
+                          </FormField>
+                          <FormField label="Password" required>
+                            <Input
+                              type="password"
+                              value={criciPassword}
+                              onChange={(e) => setCriciPassword(e.target.value)}
+                              placeholder="New Crici password"
+                              aria-label="Crici password"
+                              autoComplete="new-password"
+                            />
+                          </FormField>
+                        </FormGrid>
+                        <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                          Password is write-only. It is never shown after connect.
+                        </p>
+                        <div className="mt-3 flex justify-end">
+                          <PrimaryButton
+                            onClick={() => void handleCriciConnect()}
+                            disabled={panelBusy || !criciUsername.trim() || !criciPassword.trim()}
+                          >
+                            {criciLoading ? 'Saving…' : 'Save'}
+                          </PrimaryButton>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : canEdit ? (
+                  <>
+                    <FormGrid>
+                      <FormField label="Crici Username" required>
+                        <Input
+                          value={criciUsername}
+                          onChange={(e) => setCriciUsername(e.target.value)}
+                          placeholder="Enter Crici username"
+                          aria-label="Crici username"
+                          autoComplete="off"
+                        />
+                      </FormField>
+                      <FormField label="Crici Password" required>
+                        <Input
+                          type="password"
+                          value={criciPassword}
+                          onChange={(e) => setCriciPassword(e.target.value)}
+                          placeholder="Enter Crici password"
+                          aria-label="Crici password"
+                          autoComplete="new-password"
+                        />
+                      </FormField>
+                    </FormGrid>
+                    <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                      Password is write-only after connect.
+                    </p>
+                    <div className="mt-3 flex justify-end">
+                      <PrimaryButton
+                        onClick={() => void handleCriciConnect()}
+                        disabled={panelBusy || !criciUsername.trim() || !criciPassword.trim()}
+                      >
+                        {criciLoading ? 'Connecting…' : 'Connect'}
+                      </PrimaryButton>
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                    Not connected
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {connectedPanel === 'none' && panelChoice === 'none' ? (
+              <p className="mt-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                No panel selected. Choose Supago or Crici to connect credentials.
+              </p>
+            ) : null}
           </FormSection>
 
           <FormSection title="Rate history">
@@ -584,6 +886,18 @@ export default function MerchantDetailPage() {
           loading={supagoLoading}
           onConfirm={() => void handleSupagoDisconnect()}
           onCancel={() => setConfirmDisconnect(false)}
+        />
+      ) : null}
+
+      {confirmCriciDisconnect ? (
+        <ConfirmDialog
+          title="Disconnect Crici?"
+          subtitle="The cached session will be cleared and credentials removed. You can reconnect at any time."
+          confirmLabel="Disconnect"
+          variant="danger"
+          loading={criciLoading}
+          onConfirm={() => void handleCriciDisconnect()}
+          onCancel={() => setConfirmCriciDisconnect(false)}
         />
       ) : null}
     </AppShell>

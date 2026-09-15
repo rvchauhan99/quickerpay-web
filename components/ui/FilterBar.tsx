@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 /* ─── FilterBar ─────────────────────────────────────────────────────────────── */
 export function FilterBar({
@@ -191,13 +191,19 @@ export function DataTable({
   pagination,
   onPage,
   onPageSize,
+  onRowClick,
+  expandedRowKey,
+  renderExpandedRow,
 }: {
   columns: Array<{ key: string; heading: string }>
-  rows: Array<Record<string, React.ReactNode> & { _rowClass?: string }>
+  rows: Array<Record<string, React.ReactNode> & { _rowClass?: string; _rowKey?: string }>
   empty: React.ReactNode
   pagination?: { page: number; page_size: number; total: number } | undefined
   onPage?: ((page: number) => void) | undefined
   onPageSize?: ((size: number) => void) | undefined
+  onRowClick?: ((index: number) => void) | undefined
+  expandedRowKey?: string | null | undefined
+  renderExpandedRow?: ((index: number) => React.ReactNode) | undefined
 }) {
   if (rows.length === 0) return <>{empty}</>
 
@@ -220,13 +226,57 @@ export function DataTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
-              <tr key={index} className={row._rowClass ?? ''}>
-                {columns.map((col) => (
-                  <td key={col.key} className="qp-tabular">{row[col.key]}</td>
-                ))}
-              </tr>
-            ))}
+            {rows.map((row, index) => {
+              const isExpanded =
+                Boolean(renderExpandedRow) &&
+                expandedRowKey != null &&
+                row._rowKey != null &&
+                row._rowKey === expandedRowKey
+
+              return (
+                <Fragment key={row._rowKey ?? index}>
+                  <tr
+                    className={`${row._rowClass ?? ''}${onRowClick ? ' cursor-pointer' : ''}`}
+                    onClick={onRowClick ? () => onRowClick(index) : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              onRowClick(index)
+                            }
+                          }
+                        : undefined
+                    }
+                    tabIndex={onRowClick ? 0 : undefined}
+                    role={onRowClick ? 'button' : undefined}
+                    aria-expanded={renderExpandedRow ? isExpanded : undefined}
+                  >
+                    {columns.map((col) => (
+                      <td key={col.key} className="qp-tabular">{row[col.key]}</td>
+                    ))}
+                  </tr>
+                  {isExpanded ? (
+                    <tr
+                      className="qp-expanded-row"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <td
+                        colSpan={columns.length}
+                        className="!p-3"
+                        style={{
+                          backgroundColor: 'var(--qp-surface)',
+                          borderTop: 'none',
+                        }}
+                      >
+                        {renderExpandedRow?.(index)}
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              )
+            })}
           </tbody>
         </table>
       </div>

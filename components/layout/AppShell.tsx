@@ -28,6 +28,7 @@ const LABELS: Record<MenuCode, string> = {
   SETTINGS: 'Settings',
   SUPPORT: 'Support',
   SUPAGO_BANKS: 'Supago Banks',
+  CRICI_BANKS: 'Crici Banks',
 }
 
 const HREF: Partial<Record<MenuCode, string>> = {
@@ -35,6 +36,7 @@ const HREF: Partial<Record<MenuCode, string>> = {
   USERS: '/users',
   MERCHANTS: '/merchants',
   SUPAGO_BANKS: '/supago-banks',
+  CRICI_BANKS: '/crici-banks',
   BANKS: '/banks',
   UPI: '/upi',
   PAYIN: '/payin',
@@ -67,6 +69,11 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
     </svg>
   ),
   SUPAGO_BANKS: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="10" width="18" height="10" rx="1"/><path d="M3 10l9-7 9 7"/><line x1="12" y1="10" x2="12" y2="20"/>
+    </svg>
+  ),
+  CRICI_BANKS: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="10" width="18" height="10" rx="1"/><path d="M3 10l9-7 9 7"/><line x1="12" y1="10" x2="12" y2="20"/>
     </svg>
@@ -135,7 +142,7 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
 
 /* ─── Nav section groupings ───────────────────────────────────────────────── */
 const SECTION_GROUPS: { label: string; codes: MenuCode[] }[] = [
-  { label: 'Operations', codes: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'INTER_TRANSFER', 'MERCHANTS', 'SUPAGO_BANKS'] },
+  { label: 'Operations', codes: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'INTER_TRANSFER', 'MERCHANTS', 'SUPAGO_BANKS', 'CRICI_BANKS'] },
   { label: 'Finance', codes: ['TRANSACTIONS', 'LEDGER', 'COMMISSION', 'REPORTS'] },
   { label: 'Admin', codes: ['USERS', 'BANKS', 'UPI', 'AUDIT', 'SETTINGS'] },
 ]

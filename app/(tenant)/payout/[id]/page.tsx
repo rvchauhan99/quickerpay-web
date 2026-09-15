@@ -21,6 +21,8 @@ import { PayoutActionDialogs } from '@/components/forms/PayoutActionDialogs'
 import {
   copyPayoutBankDetails,
   payoutAccountNumber,
+  payoutBeneficiaryUpi,
+  payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { MoneyDisplay } from '@/lib/money'
@@ -102,6 +104,8 @@ export default function PayoutDetailPage() {
   const ifscDisplay = row?.beneficiary_ifsc?.trim() || '—'
   const beneficiaryDisplay = row?.beneficiary_name?.trim() || '—'
   const bankDisplay = row?.beneficiary_bank_name?.trim() || '—'
+  const upiDisplay = row ? payoutBeneficiaryUpi(row) : ''
+  const upiPayee = row ? payoutIsUpiPayee(row) : false
 
   return (
     <AppShell title="Pay-Out Detail" role={user.role} menus={menus}>
@@ -193,9 +197,18 @@ export default function PayoutDetailPage() {
             >
               <FormGrid>
                 <FieldWithCopy label="Beneficiary name" value={beneficiaryDisplay} copyLabel="Copy Beneficiary" />
-                <FieldWithCopy label="Account number" value={accountDisplay} copyLabel="Copy Account" />
-                <FieldWithCopy label="IFSC" value={ifscDisplay} copyLabel="Copy IFSC" />
-                <FieldWithCopy label="Bank name" value={bankDisplay} copyLabel="Copy Bank" />
+                {upiDisplay ? (
+                  <FieldWithCopy label="UPI" value={upiDisplay} copyLabel="Copy UPI" />
+                ) : null}
+                {!upiPayee ? (
+                  <FieldWithCopy label="Account number" value={accountDisplay} copyLabel="Copy Account" />
+                ) : null}
+                {!upiPayee ? (
+                  <FieldWithCopy label="IFSC" value={ifscDisplay} copyLabel="Copy IFSC" />
+                ) : null}
+                {!upiPayee ? (
+                  <FieldWithCopy label="Bank name" value={bankDisplay} copyLabel="Copy Bank" />
+                ) : null}
               </FormGrid>
               <div className="mt-3 flex justify-end">
                 <OutlineButton type="button" onClick={() => void copyPayoutBankDetails(row)}>

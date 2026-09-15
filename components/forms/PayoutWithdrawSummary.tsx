@@ -6,6 +6,8 @@ import { StatusBadge } from '@/components/ui/FilterBar'
 import {
   copyPayoutBankDetails,
   payoutAccountNumber,
+  payoutBeneficiaryUpi,
+  payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyDisplay } from '@/lib/money'
 
@@ -42,6 +44,8 @@ function SummaryItem({
 ──────────────────────────────────────────────────────────────────────────── */
 export function PayoutWithdrawSummary({ row }: { row: PayoutListItem }) {
   const beneficiary = row.beneficiary_name?.trim() || '—'
+  const upi = payoutBeneficiaryUpi(row)
+  const upiPayee = payoutIsUpiPayee(row)
   const account = payoutAccountNumber(row) || '—'
   const ifsc = row.beneficiary_ifsc?.trim() || '—'
   const bank = row.beneficiary_bank_name?.trim() || '—'
@@ -76,15 +80,26 @@ export function PayoutWithdrawSummary({ row }: { row: PayoutListItem }) {
         <SummaryItem label="Beneficiary" copyValue={beneficiary}>
           {beneficiary}
         </SummaryItem>
-        <SummaryItem label="Account" copyValue={account}>
-          {account}
-        </SummaryItem>
-        <SummaryItem label="IFSC" copyValue={ifsc}>
-          {ifsc}
-        </SummaryItem>
-        <SummaryItem label="Bank" copyValue={bank}>
-          {bank}
-        </SummaryItem>
+        {upi ? (
+          <SummaryItem label="UPI" copyValue={upi}>
+            {upi}
+          </SummaryItem>
+        ) : null}
+        {!upiPayee ? (
+          <SummaryItem label="Account" copyValue={account}>
+            {account}
+          </SummaryItem>
+        ) : null}
+        {!upiPayee ? (
+          <SummaryItem label="IFSC" copyValue={ifsc}>
+            {ifsc}
+          </SummaryItem>
+        ) : null}
+        {!upiPayee ? (
+          <SummaryItem label="Bank" copyValue={bank}>
+            {bank}
+          </SummaryItem>
+        ) : null}
         <SummaryItem label="Order id">{row.merchant_order_id?.trim() || '—'}</SummaryItem>
         <SummaryItem label="Gateway ref">{row.reference?.trim() || '—'}</SummaryItem>
       </div>
