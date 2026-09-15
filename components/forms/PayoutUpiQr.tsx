@@ -9,7 +9,13 @@ import { buildPayoutUpiIntent } from '@/lib/payoutUpi'
 /* ─── PayoutUpiQr ────────────────────────────────────────────────────────────
    Accept-modal QR generated from beneficiary_upi via upi://pay intent.
 ──────────────────────────────────────────────────────────────────────────── */
-export function PayoutUpiQr({ row }: { row: PayoutListItem }) {
+export function PayoutUpiQr({
+  row,
+  className,
+}: {
+  row: PayoutListItem
+  className?: string
+}) {
   const upi = row.beneficiary_upi?.trim() || ''
   const intent = buildPayoutUpiIntent(row)
   const [dataUrl, setDataUrl] = useState<string | null>(null)
@@ -37,7 +43,9 @@ export function PayoutUpiQr({ row }: { row: PayoutListItem }) {
 
   return (
     <div
-      className="mb-4 flex flex-col items-center gap-2 rounded-xl border p-3"
+      className={['flex flex-col items-center gap-2 rounded-xl border p-3', className ?? 'mb-4']
+        .filter(Boolean)
+        .join(' ')}
       style={{
         borderColor: 'var(--qp-border)',
         backgroundColor: '#fff',

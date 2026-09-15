@@ -171,6 +171,9 @@ export default function PayoutDetailPage() {
               <FormField label="Username">
                 <Input value={row.supago_username ?? '—'} readOnly />
               </FormField>
+              <FormField label="Merchant">
+                <Input value={row.merchant_display_name?.trim() || '—'} readOnly />
+              </FormField>
               <FormField label="Order id">
                 <Input value={row.merchant_order_id ?? '—'} readOnly />
               </FormField>

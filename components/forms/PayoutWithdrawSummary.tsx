@@ -42,17 +42,24 @@ function SummaryItem({
    Read-only row snapshot for Accept / Reject dialogs so the operator can
    confirm they have the correct withdrawal before acting.
 ──────────────────────────────────────────────────────────────────────────── */
-export function PayoutWithdrawSummary({ row }: { row: PayoutListItem }) {
+export function PayoutWithdrawSummary({
+  row,
+  className,
+}: {
+  row: PayoutListItem
+  className?: string
+}) {
   const beneficiary = row.beneficiary_name?.trim() || '—'
   const upi = payoutBeneficiaryUpi(row)
   const upiPayee = payoutIsUpiPayee(row)
   const account = payoutAccountNumber(row) || '—'
   const ifsc = row.beneficiary_ifsc?.trim() || '—'
   const bank = row.beneficiary_bank_name?.trim() || '—'
+  const merchant = row.merchant_display_name?.trim() || '—'
 
   return (
     <div
-      className="mb-4 rounded-xl border p-3"
+      className={['rounded-xl border p-3', className ?? 'mb-4'].filter(Boolean).join(' ')}
       style={{
         borderColor: 'var(--qp-border)',
         backgroundColor: 'var(--qp-primary-light)',
@@ -69,6 +76,7 @@ export function PayoutWithdrawSummary({ row }: { row: PayoutListItem }) {
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         <SummaryItem label="Created">{new Date(row.created_at).toLocaleString()}</SummaryItem>
         <SummaryItem label="Username">{row.supago_username?.trim() || '—'}</SummaryItem>
+        <SummaryItem label="Merchant">{merchant}</SummaryItem>
         <SummaryItem label="Amount">
           <span className="font-semibold">
             <MoneyDisplay amountMinor={row.amount_minor} />

@@ -148,7 +148,7 @@ export default function PayoutPage() {
     }
   }, [accessToken, allowed, menus])
 
-  const { isSuperAdmin, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
+  const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -304,13 +304,14 @@ export default function PayoutPage() {
             </Select>
           </FormField>
         ) : null}
-        {isSuperAdmin ? (
+        {isSuperAdmin || canFilterMerchants ? (
           <SuperAdminDirectoryFilters
             admins={admins}
-            merchants={directoryMerchants}
+            merchants={directoryMerchants.length > 0 ? directoryMerchants : merchants}
             adminId={filters.admin_user_id}
             merchantId={filters.merchant_id}
-            onAdminChange={(value) => void setFilters({ admin_user_id: value, page: 1 })}
+            showAdmin={isSuperAdmin}
+            onAdminChange={isSuperAdmin ? (value) => void setFilters({ admin_user_id: value, page: 1 }) : undefined}
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
@@ -402,6 +403,7 @@ export default function PayoutPage() {
           columns={[
             { key: 'created', heading: 'CREATED' },
             { key: 'username', heading: 'USERNAME' },
+            { key: 'merchant', heading: 'MERCHANT' },
             ...(isSuperAdmin ? [{ key: 'admin', heading: 'ADMIN' }] : []),
             { key: 'bank', heading: 'BANK DETAILS' },
             { key: 'amount', heading: 'AMOUNT' },
@@ -412,6 +414,7 @@ export default function PayoutPage() {
           rows={rows.map((row) => ({
             created: new Date(row.created_at).toLocaleString(),
             username: row.supago_username ?? '—',
+            merchant: row.merchant_display_name?.trim() || '—',
             ...(isSuperAdmin
               ? {
                   admin: row.admin_user_id

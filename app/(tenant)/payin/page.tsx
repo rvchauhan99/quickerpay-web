@@ -136,7 +136,7 @@ export default function PayinPage() {
       })
   }, [accessToken, allowed, menus])
 
-  const { isSuperAdmin, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
+  const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -298,13 +298,14 @@ export default function PayinPage() {
         <FormField label="Search">
           <Input placeholder="Search UTR / ID" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
-        {isSuperAdmin ? (
+        {isSuperAdmin || canFilterMerchants ? (
           <SuperAdminDirectoryFilters
             admins={admins}
-            merchants={directoryMerchants}
+            merchants={directoryMerchants.length > 0 ? directoryMerchants : merchants}
             adminId={filters.admin_user_id}
             merchantId={filters.merchant_id}
-            onAdminChange={(value) => void setFilters({ admin_user_id: value, page: 1 })}
+            showAdmin={isSuperAdmin}
+            onAdminChange={isSuperAdmin ? (value) => void setFilters({ admin_user_id: value, page: 1 }) : undefined}
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
@@ -405,6 +406,7 @@ export default function PayinPage() {
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
             { key: 'username', heading: 'USERNAME' },
+            { key: 'merchant', heading: 'MERCHANT' },
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
             { key: 'actionTime', heading: 'ACTION TIME' },
             { key: 'amount', heading: 'AMOUNT' },
@@ -416,6 +418,7 @@ export default function PayinPage() {
             ref: row.reference,
             utr: row.utr ?? '—',
             username: row.customer_ref?.trim() || '—',
+            merchant: row.merchant_display_name?.trim() || '—',
             inprog: row.in_progress_at ? new Date(row.in_progress_at).toLocaleString() : '—',
             actionTime: row.action_at ? new Date(row.action_at).toLocaleString() : '—',
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,
