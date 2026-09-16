@@ -1,0 +1,24 @@
+---
+description: Require pnpm run build before marking QuickerPay-Web work done — matches Vercel
+alwaysApply: true
+---
+
+# Web build testing
+
+After changes under this repo (App Router pages, components, eslint, package scripts), **before** declaring done:
+
+1. Run `pnpm run build` (Next lint + typecheck + compile — same as Vercel).
+2. Mid-loop `pnpm lint` is fine; finish with a full `pnpm run build`.
+3. Report **Build verification**: command, pass/fail, non-blocking warnings only if present.
+4. Never claim build-ok without running the command.
+
+## Hard checks
+
+- Do not `eslint-disable` rules that are not in [eslint.config.js](eslint.config.js) (no `@next/next/*` unless `eslint-config-next` is installed). Undefined-rule disables fail the build.
+- Fix `eqeqeq` with `===` / `!==` (`!== null`, `!== undefined`); do not disable.
+- Browser or unit tests do not replace `pnpm run build`.
+
+## Skip only when
+
+- Docs-only / no build surface
+- User explicitly waives the production build

@@ -60,7 +60,6 @@ export function PayoutUpiQr({
         Pay via UPI
       </p>
       {dataUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img src={dataUrl} alt={`UPI QR for ${upi}`} className="h-[180px] w-[180px]" />
       ) : (
         <div
