@@ -6,7 +6,7 @@ import { SessionProvider } from '@/lib/session'
 import { RedirectLoopbackToLocalhost } from './redirect-loopback'
 
 export const metadata: Metadata = {
-  title: 'Mock Google Pay — QuickerPay',
+  title: 'Mock Google Pay — SafePay247',
   robots: { index: false, follow: false },
 }
 

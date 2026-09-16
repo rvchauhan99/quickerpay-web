@@ -183,6 +183,7 @@ export default function MerchantDetailPage() {
       setSupagoTransactionCode(status.transaction_code ?? trimmedTransactionCode)
       setUpdateCredsOpen(false)
       toast.success(updateCredsOpen ? 'Supago credentials updated' : 'Supago connected')
+      await load()
     } catch (caught) {
       setSupagoError(caught instanceof ApiClientError ? caught.message : 'Connection failed')
     } finally {
@@ -201,8 +202,8 @@ export default function MerchantDetailPage() {
         token: accessToken,
       })
       setSupagoStatus(status)
-      toast.success('Supago disconnected')
-      setPanelChoice('none')
+      toast.success('Supago credentials cleared. Panel stays locked to Supago.')
+      await load()
     } catch (caught) {
       setSupagoError(caught instanceof ApiClientError ? caught.message : 'Disconnect failed')
     } finally {
@@ -230,7 +231,7 @@ export default function MerchantDetailPage() {
       setCriciPassword('')
       setCriciUpdateOpen(false)
       toast.success(criciUpdateOpen ? 'Crici credentials updated' : 'Crici connected')
-      await loadCriciStatus(accessToken, params.id)
+      await load()
     } catch (caught) {
       setCriciError(caught instanceof ApiClientError ? caught.message : 'Connection failed')
     } finally {
@@ -249,8 +250,8 @@ export default function MerchantDetailPage() {
         token: accessToken,
       })
       setCriciStatus(status)
-      toast.success('Crici disconnected')
-      setPanelChoice('none')
+      toast.success('Crici credentials cleared. Panel stays locked to Crici.')
+      await load()
     } catch (caught) {
       setCriciError(caught instanceof ApiClientError ? caught.message : 'Disconnect failed')
     } finally {
@@ -318,18 +319,27 @@ export default function MerchantDetailPage() {
   const canEditRouting = Boolean(isSuperAdmin && canEdit)
   const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
   const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
-  const connectedPanel: PanelIntegrationType = supagoStatus?.connected
-    ? 'supago'
-    : criciStatus?.connected
-      ? 'crici'
-      : 'none'
+  const lockedPanel: PanelIntegrationType =
+    merchant?.integration_type === 'SUPAGO'
+      ? 'supago'
+      : merchant?.integration_type === 'CRICI'
+        ? 'crici'
+        : 'none'
+  const connectedPanel: PanelIntegrationType =
+    lockedPanel !== 'none'
+      ? lockedPanel
+      : supagoStatus?.connected
+        ? 'supago'
+        : criciStatus?.connected
+          ? 'crici'
+          : 'none'
   const panelSelectValue = connectedPanel !== 'none' ? connectedPanel : panelChoice
   const panelBusy = supagoLoading || criciLoading
   const panelError =
     panelSelectValue === 'supago' ? supagoError : panelSelectValue === 'crici' ? criciError : null
 
   const handlePanelChoiceChange = (next: PanelIntegrationType) => {
-    if (connectedPanel !== 'none') return
+    if (lockedPanel !== 'none') return
     setPanelChoice(next)
     setSupagoError(null)
     setCriciError(null)
@@ -521,7 +531,7 @@ export default function MerchantDetailPage() {
 
           <FormSection
             title="Panel integration"
-            description="One external panel per merchant. Choose Supago or Crici, then connect."
+            description="One external panel per merchant. The first connect locks the panel permanently; credentials can be changed or cleared later."
           >
             {panelError ? (
               <div className="mb-3">
@@ -534,7 +544,7 @@ export default function MerchantDetailPage() {
                 <Select
                   id="panel-integration-type"
                   value={panelSelectValue}
-                  disabled={!canEdit || connectedPanel !== 'none' || panelBusy}
+                  disabled={!canEdit || lockedPanel !== 'none' || panelBusy}
                   onChange={(event) => handlePanelChoiceChange(event.target.value as PanelIntegrationType)}
                   aria-label="Panel integration type"
                 >
@@ -544,9 +554,10 @@ export default function MerchantDetailPage() {
                 </Select>
               </FormField>
             </FormGrid>
-            {connectedPanel !== 'none' ? (
+            {lockedPanel !== 'none' ? (
               <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                Disconnect to change integration.
+                Panel is locked to {lockedPanel === 'supago' ? 'Supago' : 'Crici'}. You can change or clear
+                credentials for this panel only — switching panels is not allowed.
               </p>
             ) : null}
 
@@ -606,7 +617,7 @@ export default function MerchantDetailPage() {
                             backgroundColor: 'var(--qp-danger-bg)',
                           }}
                         >
-                          Disconnect
+                          Clear credentials
                         </button>
                       </div>
                     ) : null}
@@ -661,6 +672,11 @@ export default function MerchantDetailPage() {
                   </>
                 ) : canEdit ? (
                   <>
+                    {lockedPanel === 'supago' ? (
+                      <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                        Credentials cleared. Reconnect Supago to resume panel sync.
+                      </p>
+                    ) : null}
                     <FormGrid>
                       <FormField label="Supago Username" required>
                         <Input
@@ -698,7 +714,7 @@ export default function MerchantDetailPage() {
                           !supagoTransactionCode.trim()
                         }
                       >
-                        {supagoLoading ? 'Connecting…' : 'Connect'}
+                        {supagoLoading ? 'Connecting…' : lockedPanel === 'supago' ? 'Reconnect' : 'Connect'}
                       </PrimaryButton>
                     </div>
                   </>
@@ -764,7 +780,7 @@ export default function MerchantDetailPage() {
                             backgroundColor: 'var(--qp-danger-bg)',
                           }}
                         >
-                          Disconnect
+                          Clear credentials
                         </button>
                       </div>
                     ) : null}
@@ -811,6 +827,11 @@ export default function MerchantDetailPage() {
                   </>
                 ) : canEdit ? (
                   <>
+                    {lockedPanel === 'crici' ? (
+                      <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                        Credentials cleared. Reconnect Crici to resume panel sync.
+                      </p>
+                    ) : null}
                     <FormGrid>
                       <FormField label="Crici Username" required>
                         <Input
@@ -840,7 +861,7 @@ export default function MerchantDetailPage() {
                         onClick={() => void handleCriciConnect()}
                         disabled={panelBusy || !criciUsername.trim() || !criciPassword.trim()}
                       >
-                        {criciLoading ? 'Connecting…' : 'Connect'}
+                        {criciLoading ? 'Connecting…' : lockedPanel === 'crici' ? 'Reconnect' : 'Connect'}
                       </PrimaryButton>
                     </div>
                   </>
@@ -879,9 +900,9 @@ export default function MerchantDetailPage() {
 
       {confirmDisconnect ? (
         <ConfirmDialog
-          title="Disconnect Supago?"
-          subtitle="The cached token will be evicted and credentials removed. You can reconnect at any time."
-          confirmLabel="Disconnect"
+          title="Clear Supago credentials?"
+          subtitle="The cached token will be evicted and credentials removed. This merchant stays locked to Supago — you can reconnect the same panel, but cannot switch to Crici."
+          confirmLabel="Clear credentials"
           variant="danger"
           loading={supagoLoading}
           onConfirm={() => void handleSupagoDisconnect()}
@@ -891,9 +912,9 @@ export default function MerchantDetailPage() {
 
       {confirmCriciDisconnect ? (
         <ConfirmDialog
-          title="Disconnect Crici?"
-          subtitle="The cached session will be cleared and credentials removed. You can reconnect at any time."
-          confirmLabel="Disconnect"
+          title="Clear Crici credentials?"
+          subtitle="The cached session will be cleared and credentials removed. This merchant stays locked to Crici — you can reconnect the same panel, but cannot switch to Supago."
+          confirmLabel="Clear credentials"
           variant="danger"
           loading={criciLoading}
           onConfirm={() => void handleCriciDisconnect()}

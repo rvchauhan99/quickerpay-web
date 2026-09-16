@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { BrandLockup } from '@/components/brand/BrandLockup'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { FormShell } from '@/components/forms/FormShell'
@@ -29,6 +30,9 @@ export default function PlatformLoginPage() {
 
   return (
     <main className="mx-auto mt-20 max-w-sm p-6">
+      <div className="mb-8">
+        <BrandLockup size="lg" tone="light" subtitle="Platform" />
+      </div>
       <FormShell submitLabel="Sign in" onSubmit={() => void handleSubmit()}>
         <FormField label="Email" required>
           <Input value={email} onChange={(event) => setEmail(event.target.value)} />

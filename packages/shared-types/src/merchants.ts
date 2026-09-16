@@ -37,4 +37,9 @@ export interface MerchantDetail extends MerchantListItem {
   bank_admin_mode: BankAdminMode
   /** Populated when bank_admin_mode is SELECTED; empty when ALL. */
   bank_admin_user_ids: string[]
+  /**
+   * Permanent panel lock after first connect. Credential clear does not reset to NONE.
+   * Cross-panel switch is rejected by the API.
+   */
+  integration_type: 'NONE' | 'SUPAGO' | 'CRICI'
 }

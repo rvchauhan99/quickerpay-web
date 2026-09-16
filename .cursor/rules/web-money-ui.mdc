@@ -1,6 +1,6 @@
 ---
 description: Money and rates on screen are _minor and _bp. Masking is server-side. Never divide by 100 in a page.
-globs: apps/web/**
+globs: app/**,components/**,lib/**
 alwaysApply: false
 ---
 

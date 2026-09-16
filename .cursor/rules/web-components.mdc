@@ -1,6 +1,6 @@
 ---
 description: Screens compose the named shared components. Extend them; never fork a table into a page.
-globs: apps/web/**
+globs: app/**,components/**,lib/**
 alwaysApply: false
 ---
 
