@@ -229,8 +229,10 @@ export function DataTable({
             {rows.map((row, index) => {
               const isExpanded =
                 Boolean(renderExpandedRow) &&
-                expandedRowKey != null &&
-                row._rowKey != null &&
+                expandedRowKey !== null &&
+                expandedRowKey !== undefined &&
+                row._rowKey !== null &&
+                row._rowKey !== undefined &&
                 row._rowKey === expandedRowKey
 
               return (

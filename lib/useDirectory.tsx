@@ -45,12 +45,12 @@ export function useSuperAdminDirectory(accessToken: string | null, role: string 
 export function SuperAdminDirectoryFilters(props: {
   admins: { id: string; username: string }[]
   merchants: MerchantListItem[]
-  adminId?: string
-  merchantId?: string
-  onAdminChange?: (value: string) => void
-  onMerchantChange?: (value: string) => void
-  showAdmin?: boolean
-  showMerchant?: boolean
+  adminId?: string | undefined
+  merchantId?: string | undefined
+  onAdminChange?: ((value: string) => void) | undefined
+  onMerchantChange?: ((value: string) => void) | undefined
+  showAdmin?: boolean | undefined
+  showMerchant?: boolean | undefined
 }) {
   const showAdmin = props.showAdmin !== false && Boolean(props.onAdminChange)
   const showMerchant = props.showMerchant !== false && Boolean(props.onMerchantChange)
