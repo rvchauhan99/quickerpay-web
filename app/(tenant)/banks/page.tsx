@@ -208,12 +208,34 @@ export default function BanksPage() {
     void loadEligibleMerchants()
   }
 
-  const handleOpenEdit = (row: BankAccountListItem) => {
+  const handleOpenEdit = async (row: BankAccountListItem) => {
     setCreating(false)
     setEditing(row)
     setForm(formFromRow(row))
-    setEligibleMerchants([])
-    setSelectedMerchantIds([])
+    if (!accessToken) return
+    try {
+      const [list, links] = await Promise.all([
+        apiRequest<EligibleBankMerchant[]>('/api/v1/bank-accounts/eligible-merchants', {
+          token: accessToken,
+        }),
+        apiRequest<BankMerchantLink[]>(`/api/v1/bank-accounts/${row.id}/merchant-links`, {
+          token: accessToken,
+        }),
+      ])
+      setEligibleMerchants(list)
+      // Prefer linked merchants that are still eligible, then include remaining eligible
+      // so Edit can add Crici/Supago links the same way Create defaults to all.
+      const linkedIds = new Set(links.map((link) => link.merchant_id))
+      const linkedEligible = list.filter((m) => linkedIds.has(m.id)).map((m) => m.id)
+      const remainingEligible = list.filter((m) => !linkedIds.has(m.id)).map((m) => m.id)
+      setSelectedMerchantIds([...linkedEligible, ...remainingEligible])
+    } catch (caught) {
+      setEligibleMerchants([])
+      setSelectedMerchantIds([])
+      toast.error(
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load eligible merchants',
+      )
+    }
   }
 
   const handleToggleMerchant = (merchantId: string) => {
@@ -245,6 +267,10 @@ export default function BanksPage() {
       : {}
 
     if (editing) {
+      if (selectedMerchantIds.length === 0) {
+        toast.error('Select at least one merchant')
+        return
+      }
       await apiRequest(`/api/v1/bank-accounts/${editing.id}`, {
         method: 'PATCH',
         token: accessToken,
@@ -257,10 +283,11 @@ export default function BanksPage() {
           minval: base.minval,
           maxval: base.maxval,
           regex_pattern: base.regex_pattern,
+          merchant_ids: selectedMerchantIds,
           ...otpFields,
         },
       })
-      toast.success('Bank updated on Supago and CRM')
+      toast.success('Bank updated on panel merchants and CRM')
     } else {
       if (selectedMerchantIds.length === 0) {
         toast.error('Select at least one merchant')
@@ -382,14 +409,21 @@ export default function BanksPage() {
     if (!accessToken || submitting) return
     setSubmitting(`resync-${id}`)
     try {
-      await apiRequest(`/api/v1/bank-accounts/${id}/resync-supago`, {
+      const result = await apiRequest<{
+        supago_linked?: boolean
+        crici_linked?: number
+      }>(`/api/v1/bank-accounts/${id}/resync-supago`, {
         method: 'POST',
         token: accessToken,
+        body: {},
       })
-      toast.success('Linked to Supago')
+      const parts: string[] = []
+      if (result.supago_linked) parts.push('Supago')
+      if ((result.crici_linked ?? 0) > 0) parts.push(`Crici (${result.crici_linked})`)
+      toast.success(parts.length > 0 ? `Linked: ${parts.join(', ')}` : 'Resync complete')
       await load()
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not resync Supago')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not resync merchants')
     } finally {
       setSubmitting(null)
     }
@@ -563,7 +597,7 @@ export default function BanksPage() {
               title={editing ? 'Edit Bank' : 'Add Bank'}
               description={
                 editing
-                  ? 'Updates this UPI on every connected-panel merchant (same UPI slot, or any inactive slot), then saves CRM.'
+                  ? 'Updates this UPI on the merchants you select (Supago and/or Crici), writes merchant links, then saves CRM.'
                   : 'Creates the UPI on the merchants you select (Deposit Managed By). Defaults to all eligible. Crici selections go live immediately (ACTIVE). Supago still starts disabled until Enable. Bank row is Active when any merchant link is enabled.'
               }
             >
@@ -622,10 +656,9 @@ export default function BanksPage() {
                   />
                 </FormField>
               </FormGrid>
-              {!editing ? (
-                <div className="mt-4">
+              <div className="mt-4">
                   <p className="mb-2 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
-                    Merchants (default: all)
+                    Merchants {editing ? '(linked + eligible)' : '(default: all)'}
                   </p>
                   {eligibleMerchants.length === 0 ? (
                     <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
@@ -656,7 +689,6 @@ export default function BanksPage() {
                     </ul>
                   )}
                 </div>
-              ) : null}
             </FormSection>
           </FormShell>
         </div>
@@ -777,7 +809,7 @@ export default function BanksPage() {
                 {canEdit && row.status !== 'CLOSED' && row.status !== 'REJECTED' ? (
                   <IconButton
                     icon={<RefreshCw size={15} strokeWidth={1.75} />}
-                    tooltip="Resync & link Supago"
+                    tooltip="Resync & link merchants"
                     onClick={() => void handleResyncSupago(row.id)}
                   />
                 ) : null}
