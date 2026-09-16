@@ -6,25 +6,40 @@ import { FormField } from '@/components/forms/FormField'
 import { Select } from '@/components/forms/Select'
 import { apiListRequest } from '@/lib/api'
 
+/** Roles that may filter Pay-In / Pay-Out / Dashboard by merchant. */
+const MERCHANT_FILTER_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'AUDITOR'])
+
 export function useSuperAdminDirectory(accessToken: string | null, role: string | undefined) {
   const isSuperAdmin = role === 'SUPER_ADMIN'
+  const canFilterMerchants = Boolean(role && MERCHANT_FILTER_ROLES.has(role))
   const [admins, setAdmins] = useState<UserListItem[]>([])
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
 
   useEffect(() => {
-    if (!accessToken || !isSuperAdmin) return
-    void Promise.all([
-      apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
-      apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
-        items: [] as MerchantListItem[],
-      })),
-    ]).then(([adminRows, merchantRows]) => {
-      setAdmins(adminRows.items)
-      setMerchants(merchantRows.items)
-    })
-  }, [accessToken, isSuperAdmin])
+    if (!accessToken) return
 
-  return { isSuperAdmin, admins, merchants }
+    if (isSuperAdmin) {
+      void Promise.all([
+        apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
+        apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
+          items: [] as MerchantListItem[],
+        })),
+      ]).then(([adminRows, merchantRows]) => {
+        setAdmins(adminRows.items)
+        setMerchants(merchantRows.items)
+      })
+      return
+    }
+
+    if (!canFilterMerchants) return
+    void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', {
+      token: accessToken,
+    })
+      .then((result) => setMerchants(result.items))
+      .catch(() => setMerchants([]))
+  }, [accessToken, isSuperAdmin, canFilterMerchants])
+
+  return { isSuperAdmin, canFilterMerchants, admins, merchants }
 }
 
 export function SuperAdminDirectoryFilters(props: {

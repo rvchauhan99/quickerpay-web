@@ -81,20 +81,31 @@ export default function DashboardPage() {
   }, [ready, allowed, load])
 
   useEffect(() => {
-    if (!accessToken || !allowed || user?.role !== 'SUPER_ADMIN') return
-    void Promise.all([
-      apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
-      apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({ items: [] as MerchantListItem[] })),
-      apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }),
-      apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
-        items: [] as UpiAccountListItem[],
-      })),
-    ]).then(([adminRows, merchantRows, bankRows, upiRows]) => {
-      setAdmins(adminRows.items)
-      setMerchants(merchantRows.items)
-      setBanks(bankRows.items)
-      setUpis(upiRows.items)
-    })
+    if (!accessToken || !allowed) return
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+    const canFilterMerchants = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
+    if (!isSuperAdmin && !canFilterMerchants) return
+
+    if (isSuperAdmin) {
+      void Promise.all([
+        apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
+        apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({ items: [] as MerchantListItem[] })),
+        apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }),
+        apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
+          items: [] as UpiAccountListItem[],
+        })),
+      ]).then(([adminRows, merchantRows, bankRows, upiRows]) => {
+        setAdmins(adminRows.items)
+        setMerchants(merchantRows.items)
+        setBanks(bankRows.items)
+        setUpis(upiRows.items)
+      })
+      return
+    }
+
+    void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', { token: accessToken })
+      .then((result) => setMerchants(result.items))
+      .catch(() => setMerchants([]))
   }, [accessToken, allowed, user?.role])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
@@ -185,6 +196,19 @@ export default function DashboardPage() {
               </Select>
             </FormField>
           </>
+        ) : user.role === 'ADMIN' || user.role === 'AUDITOR' ? (
+          <FormField label="Merchant">
+            <Select
+              aria-label="Merchant"
+              value={filters.merchant_id}
+              onChange={(event) => void setFilters({ merchant_id: event.target.value })}
+            >
+              <option value="">All Merchants</option>
+              {merchants.map((row) => (
+                <option key={row.id} value={row.id}>{row.display_name}</option>
+              ))}
+            </Select>
+          </FormField>
         ) : null}
       </FilterBar>
       <div className="mb-4">

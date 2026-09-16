@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { MenuCode, MenuGrant, UserRole } from '@quickerpay/shared-types'
+import { BrandLockup } from '@/components/brand/BrandLockup'
 import { HeaderToggles } from './HeaderToggles'
 import { isLabConsole } from '@/lib/lab'
 import { useSession } from '@/lib/session'
@@ -28,6 +29,7 @@ const LABELS: Record<MenuCode, string> = {
   SETTINGS: 'Settings',
   SUPPORT: 'Support',
   SUPAGO_BANKS: 'Supago Banks',
+  CRICI_BANKS: 'Crici Banks',
 }
 
 const HREF: Partial<Record<MenuCode, string>> = {
@@ -35,6 +37,7 @@ const HREF: Partial<Record<MenuCode, string>> = {
   USERS: '/users',
   MERCHANTS: '/merchants',
   SUPAGO_BANKS: '/supago-banks',
+  CRICI_BANKS: '/crici-banks',
   BANKS: '/banks',
   UPI: '/upi',
   PAYIN: '/payin',
@@ -67,6 +70,11 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
     </svg>
   ),
   SUPAGO_BANKS: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="10" width="18" height="10" rx="1"/><path d="M3 10l9-7 9 7"/><line x1="12" y1="10" x2="12" y2="20"/>
+    </svg>
+  ),
+  CRICI_BANKS: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="10" width="18" height="10" rx="1"/><path d="M3 10l9-7 9 7"/><line x1="12" y1="10" x2="12" y2="20"/>
     </svg>
@@ -135,7 +143,7 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
 
 /* ─── Nav section groupings ───────────────────────────────────────────────── */
 const SECTION_GROUPS: { label: string; codes: MenuCode[] }[] = [
-  { label: 'Operations', codes: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'INTER_TRANSFER', 'MERCHANTS', 'SUPAGO_BANKS'] },
+  { label: 'Operations', codes: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'INTER_TRANSFER', 'MERCHANTS', 'SUPAGO_BANKS', 'CRICI_BANKS'] },
   { label: 'Finance', codes: ['TRANSACTIONS', 'LEDGER', 'COMMISSION', 'REPORTS'] },
   { label: 'Admin', codes: ['USERS', 'BANKS', 'UPI', 'AUDIT', 'SETTINGS'] },
 ]
@@ -202,16 +210,13 @@ export function AppShell({
         style={{ backgroundColor: 'var(--qp-sidebar-bg)', borderRight: '1px solid var(--qp-sidebar-border)' }}
       >
         {/* Logo */}
-        <div className="flex h-14 shrink-0 items-center gap-2.5 px-4 overflow-hidden" style={{ borderBottom: '1px solid var(--qp-sidebar-border)' }}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: 'var(--qp-primary)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-            </svg>
-          </div>
-          <div className="flex flex-col whitespace-nowrap transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">
-            <p className="text-sm font-bold leading-none" style={{ color: '#ffffff' }}>QuickerPay</p>
-            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-widest" style={{ color: 'var(--qp-sidebar-muted)' }}>Console</p>
-          </div>
+        <div className="flex h-14 shrink-0 items-center px-4 overflow-hidden" style={{ borderBottom: '1px solid var(--qp-sidebar-border)' }}>
+          <BrandLockup
+            size="sm"
+            tone="dark"
+            subtitle="Console"
+            copyClassName="transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100"
+          />
         </div>
 
         {/* Nav */}

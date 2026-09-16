@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── QuickerPay Design Tokens — Light Blue + White ────────────────────────── */
+/* ─── SafePay247 Design Tokens — Light Blue + White ────────────────────────── */
 :root {
   /* Brand */
   --qp-primary: #2563eb;

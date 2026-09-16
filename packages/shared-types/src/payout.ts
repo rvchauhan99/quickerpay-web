@@ -15,6 +15,8 @@ export interface PayoutListItem {
   amount_minor: number
   status: PayoutStatus
   merchant_id: string
+  /** Merchant display name when joined; null if merchant row missing. */
+  merchant_display_name: string | null
   admin_user_id: string | null
   source_bank_account_id: string | null
   assigned_operator_id: string | null
@@ -28,6 +30,8 @@ export interface PayoutListItem {
   /** Decrypted IFSC when stored; needed to pay. */
   beneficiary_ifsc: string | null
   beneficiary_bank_name: string | null
+  /** Player UPI payee when withdrawal has no bank account (Crici payment_detail.upi_id). */
+  beneficiary_upi: string | null
   failure_reason: string | null
   merchant_order_id: string | null
   has_attachment: boolean

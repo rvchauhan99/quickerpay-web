@@ -4,7 +4,7 @@ import { Toaster } from 'sonner'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'QuickerPay',
+  title: 'SafePay247',
   description: 'Secure multi-tenant payment operations platform',
 }
 

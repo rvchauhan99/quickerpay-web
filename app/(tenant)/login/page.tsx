@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { BrandLockup } from '@/components/brand/BrandLockup'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { useEffect, useState } from 'react'
@@ -59,20 +60,7 @@ export default function LoginPage() {
         }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ backgroundColor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-lg font-bold leading-none text-white">QuickerPay</p>
-            <p className="text-[11px] uppercase tracking-widest" style={{ color: '#93c5fd' }}>Console</p>
-          </div>
-        </div>
+        <BrandLockup size="lg" tone="dark" subtitle="Console" />
 
         {/* Hero text */}
         <div>
@@ -118,13 +106,8 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-6 py-12" style={{ backgroundColor: '#f8fafc' }}>
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--qp-primary)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-              </svg>
-            </div>
-            <span className="text-lg font-bold" style={{ color: 'var(--qp-text-primary)' }}>QuickerPay</span>
+          <div className="mb-8 lg:hidden">
+            <BrandLockup size="lg" tone="light" />
           </div>
 
           {/* Heading */}
@@ -236,7 +219,7 @@ export default function LoginPage() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
             <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-              Secured by QuickerPay · All sessions are encrypted
+              Secured by SafePay247 · All sessions are encrypted
             </span>
           </div>
         </div>

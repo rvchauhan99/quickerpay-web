@@ -50,8 +50,13 @@ export const MENU_CODES = [
   'SETTINGS',
   'SUPPORT',
   'SUPAGO_BANKS',
+  'CRICI_BANKS',
 ] as const
 export type MenuCode = (typeof MENU_CODES)[number]
+
+/** Merchant external panel — one panel per merchant. */
+export const MERCHANT_INTEGRATION_TYPES = ['NONE', 'SUPAGO', 'CRICI'] as const
+export type MerchantIntegrationType = (typeof MERCHANT_INTEGRATION_TYPES)[number]
 
 export interface MenuActions {
   can_view: boolean

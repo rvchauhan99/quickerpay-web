@@ -12,12 +12,45 @@ export function payoutAccountNumber(row: PayoutListItem): string {
   return row.beneficiary_account_masked?.trim() || ''
 }
 
+export function payoutBeneficiaryUpi(row: PayoutListItem): string {
+  return row.beneficiary_upi?.trim() || ''
+}
+
+function isPlaceholder(value: string | null | undefined): boolean {
+  const trimmed = (value ?? '').trim()
+  return !trimmed || trimmed === '—' || trimmed.toUpperCase() === 'UNKNOWN'
+}
+
+/** True when payee is UPI-first (hide UNKNOWN bank placeholders). */
+export function payoutIsUpiPayee(row: PayoutListItem): boolean {
+  const upi = payoutBeneficiaryUpi(row)
+  if (!upi) return false
+  const account = payoutAccountNumber(row)
+  return isPlaceholder(account) || account.toLowerCase() === upi.toLowerCase()
+}
+
 export function buildPayoutBankDetailsBlock(row: PayoutListItem): string {
+  const upi = payoutBeneficiaryUpi(row)
+  const account = payoutAccountNumber(row)
+  const hideBankPlaceholders = payoutIsUpiPayee(row)
+
   const lines = [
     ['Beneficiary', row.beneficiary_name],
-    ['Account', payoutAccountNumber(row)],
-    ['IFSC', row.beneficiary_ifsc],
-    ['Bank', row.beneficiary_bank_name],
+    ['UPI', upi || null],
+    [
+      'Account',
+      hideBankPlaceholders || isPlaceholder(account) ? null : account,
+    ],
+    [
+      'IFSC',
+      hideBankPlaceholders || isPlaceholder(row.beneficiary_ifsc) ? null : row.beneficiary_ifsc,
+    ],
+    [
+      'Bank',
+      hideBankPlaceholders || isPlaceholder(row.beneficiary_bank_name)
+        ? null
+        : row.beneficiary_bank_name,
+    ],
   ]
     .map(([key, value]) => {
       const trimmed = (value ?? '').trim()
@@ -29,7 +62,7 @@ export function buildPayoutBankDetailsBlock(row: PayoutListItem): string {
 }
 
 function DetailLine({ label, value }: { label: string; value: string }) {
-  if (!value || value === '—') return null
+  if (!value || value === '—' || isPlaceholder(value)) return null
   return (
     <div className="flex min-w-0 gap-1 text-[11px] leading-snug">
       <span className="shrink-0 font-semibold" style={{ color: 'var(--qp-text-muted)' }}>
@@ -47,18 +80,21 @@ function DetailLine({ label, value }: { label: string; value: string }) {
 ──────────────────────────────────────────────────────────────────────────── */
 export function PayoutBankDetailsCell({ row }: { row: PayoutListItem }) {
   const name = row.beneficiary_name?.trim() || '—'
-  const account = payoutAccountNumber(row) || '—'
-  const ifsc = row.beneficiary_ifsc?.trim() || '—'
-  const bank = row.beneficiary_bank_name?.trim() || '—'
+  const upi = payoutBeneficiaryUpi(row)
+  const account = payoutAccountNumber(row)
+  const ifsc = row.beneficiary_ifsc?.trim() || ''
+  const bank = row.beneficiary_bank_name?.trim() || ''
+  const upiPayee = payoutIsUpiPayee(row)
   const block = buildPayoutBankDetailsBlock(row)
 
   return (
     <div className="flex max-w-[280px] items-start gap-1.5 py-0.5">
       <div className="min-w-0 flex-1 space-y-0.5">
         <DetailLine label="Name" value={name} />
-        <DetailLine label="A/C" value={account} />
-        <DetailLine label="IFSC" value={ifsc} />
-        <DetailLine label="Bank" value={bank} />
+        {upi ? <DetailLine label="UPI" value={upi} /> : null}
+        {!upiPayee ? <DetailLine label="A/C" value={account} /> : null}
+        {!upiPayee ? <DetailLine label="IFSC" value={ifsc} /> : null}
+        {!upiPayee ? <DetailLine label="Bank" value={bank} /> : null}
       </div>
       <CopyButton value={block} label="Copy all bank details" className="mt-0.5" />
     </div>

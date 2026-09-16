@@ -1,14 +1,14 @@
 ---
-description: Frontend lives only in apps/web. Next.js App Router and TypeScript. Never a second app.
+description: Frontend lives only in quickerpay-web. Next.js App Router and TypeScript. Never a second app.
 alwaysApply: true
 ---
 
 # Frontend stack
 
-The UI for this product is the `quickerpay-web` repository. It is Next.js 15 App Router, TypeScript, and Tailwind 3.
+The UI for this product is this repository (`quickerpay-web`). It is Next.js 15 App Router, TypeScript, and Tailwind 3. Paths are `app/`, `components/`, `lib/` at the repo root — not `apps/web`.
 
 Do not create another frontend. Do not offer CRA, Craco, Vite SPA, React Router, or JavaScript-only as a faster path. `docs/00_START_HERE.md` section 8 locked this stack. Substituting it is a spec break, not a template choice.
 
 Next.js never talks to PostgreSQL or Redis. Data comes from NestJS over the same-origin `/api/v1` rewrite in `docs/08_ARCHITECTURE.md` section 3.
 
-Before writing UI, read `docs/09_FRONTEND.md` in `quickerpay-api` and follow `.cursor/skills/build-web-screen/SKILL.md` in `quickerpay-web`.
+Before writing UI, read `../QuickerPay/docs/09_FRONTEND.md` (or `docs/09_FRONTEND.md` in the API repo) and follow `.cursor/skills/build-web-screen/SKILL.md` in this repo. Workspace map: `../QuickerPay/docs/10_WORKSPACE.md`.

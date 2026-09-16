@@ -1,6 +1,6 @@
 ---
 description: Read docs/03 for the route first. Five states. FilterBar contract. Section 6 is the definition of done.
-globs: apps/web/**
+globs: app/**,components/**,lib/**
 alwaysApply: false
 ---
 

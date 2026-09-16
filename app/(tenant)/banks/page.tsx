@@ -5,6 +5,7 @@ import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type {
   BankAccountListItem,
   BankMerchantLink,
+  EligibleBankMerchant,
   Pagination,
   UpiAccountListItem,
   UpiStatusHistoryItem,
@@ -103,10 +104,29 @@ export default function BanksPage() {
   const [merchantLinksFor, setMerchantLinksFor] = useState<string | null>(null)
   const [merchantLinks, setMerchantLinks] = useState<BankMerchantLink[]>([])
   const [loadingLinks, setLoadingLinks] = useState(false)
+  const [eligibleMerchants, setEligibleMerchants] = useState<EligibleBankMerchant[]>([])
+  const [selectedMerchantIds, setSelectedMerchantIds] = useState<string[]>([])
   const merchantLinksForRef = useRef<string | null>(null)
   merchantLinksForRef.current = merchantLinksFor
 
   const canEdit = hasMenu(menus, 'BANKS', 'can_edit')
+
+  const loadEligibleMerchants = useCallback(async () => {
+    if (!accessToken) return
+    try {
+      const list = await apiRequest<EligibleBankMerchant[]>('/api/v1/bank-accounts/eligible-merchants', {
+        token: accessToken,
+      })
+      setEligibleMerchants(list)
+      setSelectedMerchantIds(list.map((m) => m.id))
+    } catch (caught) {
+      setEligibleMerchants([])
+      setSelectedMerchantIds([])
+      toast.error(
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load eligible merchants',
+      )
+    }
+  }, [accessToken])
 
   const refreshMerchantLinks = useCallback(
     async (bankId: string): Promise<boolean> => {
@@ -177,18 +197,29 @@ export default function BanksPage() {
     setForm(emptyCreateForm())
     setOtpChallenge(null)
     setOtpCode('')
+    setEligibleMerchants([])
+    setSelectedMerchantIds([])
   }
 
   const handleOpenCreate = () => {
     setEditing(null)
     setForm(emptyCreateForm())
     setCreating(true)
+    void loadEligibleMerchants()
   }
 
   const handleOpenEdit = (row: BankAccountListItem) => {
     setCreating(false)
     setEditing(row)
     setForm(formFromRow(row))
+    setEligibleMerchants([])
+    setSelectedMerchantIds([])
+  }
+
+  const handleToggleMerchant = (merchantId: string) => {
+    setSelectedMerchantIds((prev) =>
+      prev.includes(merchantId) ? prev.filter((id) => id !== merchantId) : [...prev, merchantId],
+    )
   }
 
   const buildSupagoBody = () => {
@@ -231,12 +262,20 @@ export default function BanksPage() {
       })
       toast.success('Bank updated on Supago and CRM')
     } else {
-      await apiRequest('/api/v1/bank-accounts', {
+      if (selectedMerchantIds.length === 0) {
+        toast.error('Select at least one merchant')
+        return
+      }
+      const created = await apiRequest<BankAccountListItem>('/api/v1/bank-accounts', {
         method: 'POST',
         token: accessToken,
-        body: { ...base, ...otpFields },
+        body: { ...base, merchant_ids: selectedMerchantIds, ...otpFields },
       })
-      toast.success('Bank account added (disabled). Enable when ready.')
+      toast.success(
+        created.status === 'ACTIVE'
+          ? 'Bank account added and enabled.'
+          : 'Bank account added (disabled). Enable when ready.',
+      )
     }
     setOtpChallenge(null)
     setOtpCode('')
@@ -421,6 +460,11 @@ export default function BanksPage() {
 
   const handleMerchantLinks = async (row: BankAccountListItem) => {
     if (!accessToken) return
+    if (merchantLinksFor === row.id) {
+      setMerchantLinksFor(null)
+      setMerchantLinks([])
+      return
+    }
     setMerchantLinksFor(row.id)
     setHistoryFor(null)
     const ok = await refreshMerchantLinks(row.id)
@@ -519,8 +563,8 @@ export default function BanksPage() {
               title={editing ? 'Edit Bank' : 'Add Bank'}
               description={
                 editing
-                  ? 'Updates this UPI on every Supago-connected merchant (same UPI slot, or any inactive slot), then saves CRM.'
-                  : 'Creates the same UPI on every Supago-connected merchant that allows this Admin under Merchant → Deposit Managed By (same UPI slot, or any inactive slot), then adds one disabled bank in CRM. Enable it from the list when ready.'
+                  ? 'Updates this UPI on every connected-panel merchant (same UPI slot, or any inactive slot), then saves CRM.'
+                  : 'Creates the UPI on the merchants you select (Deposit Managed By). Defaults to all eligible. Crici selections go live immediately (ACTIVE). Supago still starts disabled until Enable. Bank row is Active when any merchant link is enabled.'
               }
             >
               <FormGrid>
@@ -578,6 +622,41 @@ export default function BanksPage() {
                   />
                 </FormField>
               </FormGrid>
+              {!editing ? (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
+                    Merchants (default: all)
+                  </p>
+                  {eligibleMerchants.length === 0 ? (
+                    <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                      No eligible merchants for this Admin under Deposit Managed By.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2" aria-label="Eligible merchants">
+                      {eligibleMerchants.map((merchant) => {
+                        const checked = selectedMerchantIds.includes(merchant.id)
+                        return (
+                          <li key={merchant.id} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              id={`merchant-${merchant.id}`}
+                              checked={checked}
+                              onChange={() => handleToggleMerchant(merchant.id)}
+                              aria-label={`${merchant.display_name} (${merchant.integration_type})`}
+                            />
+                            <label htmlFor={`merchant-${merchant.id}`} className="cursor-pointer">
+                              {merchant.display_name}{' '}
+                              <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
+                                {merchant.integration_type}
+                              </span>
+                            </label>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
             </FormSection>
           </FormShell>
         </div>
@@ -593,7 +672,84 @@ export default function BanksPage() {
             { key: 'status', heading: 'STATUS' },
             { key: 'actions', heading: 'ACTION' },
           ]}
+          onRowClick={(index) => {
+            const row = rows[index]
+            if (row) void handleMerchantLinks(row)
+          }}
+          expandedRowKey={merchantLinksFor}
+          renderExpandedRow={() => (
+            <div className="rounded border border-zinc-200 bg-white p-2">
+              <div className="mb-1 flex justify-between text-xs">
+                <p>
+                  Merchant status — {merchantLinksBankLabel} (bank Active if any merchant is enabled)
+                </p>
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => {
+                    setMerchantLinksFor(null)
+                    setMerchantLinks([])
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              {loadingLinks ? (
+                <TableSkeleton />
+              ) : (
+                <DataTable
+                  columns={[
+                    { key: 'merchant', heading: 'MERCHANT' },
+                    { key: 'panel', heading: 'PANEL' },
+                    { key: 'status', heading: 'STATUS' },
+                    { key: 'allowed', heading: 'ALLOWED' },
+                    { key: 'action', heading: 'ACTION' },
+                  ]}
+                  rows={merchantLinks.map((link) => ({
+                    merchant: link.merchant_display_name,
+                    panel: link.integration_type,
+                    status: <StatusBadge status={link.status} />,
+                    allowed: link.allowed ? 'Yes' : 'No',
+                    action: !link.allowed ? (
+                      <span className="text-[11px] text-zinc-500">
+                        Not linked — Super Admin must add this Admin on the merchant&apos;s Deposit Managed By.
+                      </span>
+                    ) : canEdit ? (
+                      <button
+                        type="button"
+                        className="text-[11px] font-medium underline disabled:opacity-50"
+                        style={{ color: link.status === 'ACTIVE' ? 'var(--qp-danger)' : 'var(--qp-success)' }}
+                        disabled={submitting === `link-${link.merchant_id}`}
+                        aria-label={link.status === 'ACTIVE' ? 'Disable for merchant' : 'Enable for merchant'}
+                        onClick={() => {
+                          if (!merchantLinksFor) return
+                          void handleMerchantLinkStatus(
+                            merchantLinksFor,
+                            link.merchant_id,
+                            link.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+                          )
+                        }}
+                      >
+                        {submitting === `link-${link.merchant_id}`
+                          ? 'Saving…'
+                          : link.status === 'ACTIVE'
+                            ? 'Disable'
+                            : 'Enable'}
+                      </button>
+                    ) : (
+                      '—'
+                    ),
+                  }))}
+                  empty={<EmptyState message="No merchants" />}
+                />
+              )}
+            </div>
+          )}
           rows={rows.map((row) => ({
+            _rowKey: row.id,
+            ...(merchantLinksFor === row.id
+              ? { _rowClass: 'bg-[var(--qp-primary-light)]' }
+              : {}),
             owner: row.owner_username,
             label: row.label,
             upi: row.upi_address ?? '—',
@@ -606,7 +762,11 @@ export default function BanksPage() {
             ),
             status: <StatusBadge status={row.status} />,
             actions: (
-              <span className="flex items-center gap-1">
+              <span
+                className="flex items-center gap-1"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
                 {canEdit && row.status !== 'CLOSED' && row.status !== 'REJECTED' ? (
                   <IconButton
                     icon={<Pencil size={15} strokeWidth={1.75} />}
@@ -691,69 +851,6 @@ export default function BanksPage() {
             }))}
             empty={<EmptyState message="No history" />}
           />
-        </div>
-      ) : null}
-      {merchantLinksFor ? (
-        <div className="mt-2 rounded border border-zinc-200 bg-white p-2">
-          <div className="mb-1 flex justify-between text-xs">
-            <p>Merchants — {merchantLinksBankLabel}</p>
-            <button
-              type="button"
-              className="underline"
-              onClick={() => {
-                setMerchantLinksFor(null)
-                setMerchantLinks([])
-              }}
-            >
-              Close
-            </button>
-          </div>
-          {loadingLinks ? (
-            <TableSkeleton />
-          ) : (
-            <DataTable
-              columns={[
-                { key: 'merchant', heading: 'MERCHANT' },
-                { key: 'status', heading: 'STATUS' },
-                { key: 'allowed', heading: 'ALLOWED' },
-                { key: 'action', heading: 'ACTION' },
-              ]}
-              rows={merchantLinks.map((link) => ({
-                merchant: link.merchant_display_name,
-                status: <StatusBadge status={link.status} />,
-                allowed: link.allowed ? 'Yes' : 'No',
-                action: !link.allowed ? (
-                  <span className="text-[11px] text-zinc-500">
-                    Not linked — Super Admin must add this Admin on the merchant&apos;s Deposit Managed By.
-                  </span>
-                ) : canEdit ? (
-                  <button
-                    type="button"
-                    className="text-[11px] font-medium underline disabled:opacity-50"
-                    style={{ color: link.status === 'ACTIVE' ? 'var(--qp-danger)' : 'var(--qp-success)' }}
-                    disabled={submitting === `link-${link.merchant_id}`}
-                    aria-label={link.status === 'ACTIVE' ? 'Disable for merchant' : 'Enable for merchant'}
-                    onClick={() =>
-                      void handleMerchantLinkStatus(
-                        merchantLinksFor,
-                        link.merchant_id,
-                        link.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
-                      )
-                    }
-                  >
-                    {submitting === `link-${link.merchant_id}`
-                      ? 'Saving…'
-                      : link.status === 'ACTIVE'
-                        ? 'Disable'
-                        : 'Enable'}
-                  </button>
-                ) : (
-                  '—'
-                ),
-              }))}
-              empty={<EmptyState message="No merchants" />}
-            />
-          )}
         </div>
       ) : null}
       {closeTarget ? (

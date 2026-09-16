@@ -55,6 +55,9 @@ export default function PayinDetailPage() {
               <FormField label="UTR">
                 <Input value={row.utr ?? '—'} readOnly />
               </FormField>
+              <FormField label="Merchant">
+                <Input value={row.merchant_display_name?.trim() || '—'} readOnly />
+              </FormField>
               <FormField label="Amount">
                 <div className="flex h-10 items-center px-3 font-medium">
                   <MoneyDisplay amountMinor={row.amount_minor} />
