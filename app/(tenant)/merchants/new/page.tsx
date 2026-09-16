@@ -37,6 +37,7 @@ export default function NewMerchantPage() {
   const [supagoTransactionCode, setSupagoTransactionCode] = useState('')
   const [criciUsername, setCriciUsername] = useState('')
   const [criciPassword, setCriciPassword] = useState('')
+  const [criciTotpCode, setCriciTotpCode] = useState('')
   const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
   const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +67,7 @@ export default function NewMerchantPage() {
     if (next !== 'crici') {
       setCriciUsername('')
       setCriciPassword('')
+      setCriciTotpCode('')
     }
   }
 
@@ -85,6 +87,7 @@ export default function NewMerchantPage() {
     const trimmedTransactionCode = supagoTransactionCode.trim()
     const trimmedCriciUsername = criciUsername.trim()
     const trimmedCriciPassword = criciPassword.trim()
+    const trimmedCriciTotp = criciTotpCode.trim()
 
     if (panelType === 'supago') {
       if (!trimmedSupagoUsername || !trimmedSupagoPassword || !trimmedTransactionCode) {
@@ -146,6 +149,7 @@ export default function NewMerchantPage() {
           body: {
             crici_username: trimmedCriciUsername,
             crici_password: trimmedCriciPassword,
+            ...(trimmedCriciTotp ? { crici_totp_code: trimmedCriciTotp } : {}),
           },
         })
       }
@@ -284,9 +288,21 @@ export default function NewMerchantPage() {
                     autoComplete="new-password"
                   />
                 </FormField>
+                <FormField label="Authenticator code" error={fieldErrors.crici_totp_code}>
+                  <Input
+                    value={criciTotpCode}
+                    onChange={(event) =>
+                      setCriciTotpCode(event.target.value.replace(/\D/g, '').slice(0, 6))
+                    }
+                    placeholder="6-digit code if 2FA enabled"
+                    aria-label="Crici Google Authenticator code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  />
+                </FormField>
               </FormGrid>
               <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                Password is write-only after connect.
+                Password is write-only after connect. If Google Authenticator is enabled on Crici, include a fresh code.
               </p>
             </div>
           ) : null}
