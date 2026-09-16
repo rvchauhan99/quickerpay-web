@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import type { MenuCode, MenuGrant, UserRole } from '@quickerpay/shared-types'
+import type { CriciConnectionAlertItem, MenuCode, MenuGrant, UserRole } from '@quickerpay/shared-types'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { HeaderToggles } from './HeaderToggles'
+import { apiRequest } from '@/lib/api'
 import { isLabConsole } from '@/lib/lab'
 import { useSession } from '@/lib/session'
 import { FlaskConical } from 'lucide-react'
@@ -169,14 +170,43 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, refreshUser } = useSession()
+  const [criciAlerts, setCriciAlerts] = useState<CriciConnectionAlertItem[]>([])
+  const { user, accessToken, refreshUser } = useSession()
 
   useEffect(() => {
     if (role !== 'ADMIN') return
     void refreshUser().catch(() => undefined)
   }, [role, refreshUser])
 
+  useEffect(() => {
+    if (role !== 'SUPER_ADMIN' || !accessToken) {
+      setCriciAlerts([])
+      return
+    }
+    let cancelled = false
+    const loadAlerts = async () => {
+      try {
+        const reply = await apiRequest<{ items: CriciConnectionAlertItem[] }>(
+          '/api/v1/crici/connection-alerts',
+          { token: accessToken },
+        )
+        if (!cancelled) setCriciAlerts(reply.items ?? [])
+      } catch {
+        if (!cancelled) setCriciAlerts([])
+      }
+    }
+    void loadAlerts()
+    const timer = setInterval(() => {
+      void loadAlerts()
+    }, 60_000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [role, accessToken])
+
   const showDepositLimitStrip = Boolean(user?.daily_deposit_limit_reached)
+  const showCriciReconnectStrip = role === 'SUPER_ADMIN' && criciAlerts.length > 0
 
   const order = NAV_ORDER
   const items = [...menus]
@@ -304,6 +334,35 @@ export function AppShell({
             }}
           >
             Daily deposit limit reached. All accounts are deactivated for today.
+          </div>
+        ) : null}
+
+        {showCriciReconnectStrip ? (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="px-4 py-2 text-xs font-medium"
+            style={{
+              backgroundColor: 'var(--qp-warning-bg)',
+              color: 'var(--qp-warning)',
+              borderBottom: '1px solid var(--qp-border)',
+            }}
+          >
+            <span className="font-semibold">Crici reconnect required:</span>{' '}
+            {criciAlerts.map((alert, index) => (
+              <span key={alert.merchant_id}>
+                {index > 0 ? ', ' : null}
+                <Link
+                  href={`/merchants/${alert.merchant_id}`}
+                  className="underline underline-offset-2"
+                  style={{ color: 'inherit' }}
+                >
+                  {alert.merchant_code}
+                </Link>
+                {alert.requires_2fa ? ' (2FA)' : null}
+              </span>
+            ))}
+            . Paste a fresh Google Authenticator code on the merchant.
           </div>
         ) : null}
 

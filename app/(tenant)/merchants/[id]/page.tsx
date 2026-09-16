@@ -33,6 +33,9 @@ interface SupagoStatus {
 
 interface CriciStatus {
   connected: boolean
+  credentials_stored?: boolean
+  needs_reconnect?: boolean
+  requires_2fa?: boolean
   username?: string
   expires_at?: string
   last_error?: string
@@ -73,6 +76,7 @@ export default function MerchantDetailPage() {
   const [criciStatus, setCriciStatus] = useState<CriciStatus | null>(null)
   const [criciUsername, setCriciUsername] = useState('')
   const [criciPassword, setCriciPassword] = useState('')
+  const [criciTotpCode, setCriciTotpCode] = useState('')
   const [criciLoading, setCriciLoading] = useState(false)
   const [criciError, setCriciError] = useState<string | null>(null)
   const [confirmCriciDisconnect, setConfirmCriciDisconnect] = useState(false)
@@ -214,7 +218,12 @@ export default function MerchantDetailPage() {
   const handleCriciConnect = async () => {
     const trimmedUsername = criciUsername.trim()
     const trimmedPassword = criciPassword.trim()
+    const trimmedTotp = criciTotpCode.trim()
     if (!accessToken || !params.id || !trimmedUsername || !trimmedPassword) return
+    if (criciStatus?.requires_2fa && !/^\d{6}$/.test(trimmedTotp)) {
+      setCriciError('Enter the 6-digit Google Authenticator code')
+      return
+    }
     setCriciLoading(true)
     setCriciError(null)
     try {
@@ -224,16 +233,30 @@ export default function MerchantDetailPage() {
         body: {
           crici_username: trimmedUsername,
           crici_password: trimmedPassword,
+          ...(trimmedTotp ? { crici_totp_code: trimmedTotp } : {}),
         },
       })
       setCriciStatus(status)
       setCriciUsername('')
       setCriciPassword('')
+      setCriciTotpCode('')
       setCriciUpdateOpen(false)
       toast.success(criciUpdateOpen ? 'Crici credentials updated' : 'Crici connected')
       await load()
     } catch (caught) {
       setCriciError(caught instanceof ApiClientError ? caught.message : 'Connection failed')
+      if (caught instanceof ApiClientError && /authenticator|2fa/i.test(caught.message)) {
+        setCriciStatus((prev) =>
+          prev
+            ? { ...prev, requires_2fa: true, needs_reconnect: true, connected: false, last_error: caught.message }
+            : {
+                connected: false,
+                requires_2fa: true,
+                needs_reconnect: true,
+                last_error: caught.message,
+              },
+        )
+      }
     } finally {
       setCriciLoading(false)
     }
@@ -353,6 +376,7 @@ export default function MerchantDetailPage() {
     if (next !== 'crici') {
       setCriciUsername('')
       setCriciPassword('')
+      setCriciTotpCode('')
     }
   }
 
@@ -757,6 +781,7 @@ export default function MerchantDetailPage() {
                             setCriciUpdateOpen((open) => !open)
                             setCriciUsername('')
                             setCriciPassword('')
+                            setCriciTotpCode('')
                             setCriciError(null)
                           }}
                           disabled={panelBusy}
@@ -810,9 +835,19 @@ export default function MerchantDetailPage() {
                               autoComplete="new-password"
                             />
                           </FormField>
+                          <FormField label="Authenticator code">
+                            <Input
+                              value={criciTotpCode}
+                              onChange={(e) => setCriciTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="6-digit code if 2FA enabled"
+                              aria-label="Crici Google Authenticator code"
+                              inputMode="numeric"
+                              autoComplete="one-time-code"
+                            />
+                          </FormField>
                         </FormGrid>
                         <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                          Password is write-only. It is never shown after connect.
+                          Password is write-only. If this Crici account uses Google Authenticator, enter a fresh code.
                         </p>
                         <div className="mt-3 flex justify-end">
                           <PrimaryButton
@@ -829,7 +864,14 @@ export default function MerchantDetailPage() {
                   <>
                     {lockedPanel === 'crici' ? (
                       <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                        Credentials cleared. Reconnect Crici to resume panel sync.
+                        {criciStatus?.requires_2fa || criciStatus?.needs_reconnect
+                          ? 'Crici session needs reconnect. Enter username, password, and a fresh Google Authenticator code.'
+                          : 'Credentials cleared. Reconnect Crici to resume panel sync.'}
+                      </p>
+                    ) : null}
+                    {criciStatus?.last_error ? (
+                      <p className="mb-3 text-xs" style={{ color: 'var(--qp-danger)' }}>
+                        {criciStatus.last_error}
                       </p>
                     ) : null}
                     <FormGrid>
@@ -852,14 +894,32 @@ export default function MerchantDetailPage() {
                           autoComplete="new-password"
                         />
                       </FormField>
+                      <FormField
+                        label="Authenticator code"
+                        required={Boolean(criciStatus?.requires_2fa)}
+                      >
+                        <Input
+                          value={criciTotpCode}
+                          onChange={(e) => setCriciTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="6-digit Google Authenticator code"
+                          aria-label="Crici Google Authenticator code"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                        />
+                      </FormField>
                     </FormGrid>
                     <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                      Password is write-only after connect.
+                      Password is write-only after connect. Codes are not stored — you must paste a new code on each reconnect when 2FA is enabled.
                     </p>
                     <div className="mt-3 flex justify-end">
                       <PrimaryButton
                         onClick={() => void handleCriciConnect()}
-                        disabled={panelBusy || !criciUsername.trim() || !criciPassword.trim()}
+                        disabled={
+                          panelBusy ||
+                          !criciUsername.trim() ||
+                          !criciPassword.trim() ||
+                          (Boolean(criciStatus?.requires_2fa) && !/^\d{6}$/.test(criciTotpCode.trim()))
+                        }
                       >
                         {criciLoading ? 'Connecting…' : lockedPanel === 'crici' ? 'Reconnect' : 'Connect'}
                       </PrimaryButton>
