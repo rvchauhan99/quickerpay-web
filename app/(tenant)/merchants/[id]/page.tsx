@@ -61,6 +61,8 @@ export default function MerchantDetailPage() {
   const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
   const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
   const [savingBankAdmins, setSavingBankAdmins] = useState(false)
+  const [statusConfirm, setStatusConfirm] = useState<'SUSPENDED' | 'ACTIVE' | null>(null)
+  const [statusSubmitting, setStatusSubmitting] = useState(false)
 
   // Supago state
   const [supagoStatus, setSupagoStatus] = useState<SupagoStatus | null>(null)
@@ -338,6 +340,29 @@ export default function MerchantDetailPage() {
     }
   }
 
+  const handleMerchantStatus = async () => {
+    if (!accessToken || !params.id || !statusConfirm || statusSubmitting) return
+    setStatusSubmitting(true)
+    try {
+      await apiRequest(`/api/v1/merchants/${params.id}/status`, {
+        method: 'POST',
+        token: accessToken,
+        body: { status: statusConfirm },
+      })
+      setStatusConfirm(null)
+      if (statusConfirm === 'SUSPENDED') {
+        toast.success('Merchant suspended. Synced banks disabled; reconnect panel after Activate.')
+      } else {
+        toast.success('Merchant activated. Reconnect panel credentials; re-enable banks from Bank Details.')
+      }
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update status')
+    } finally {
+      setStatusSubmitting(false)
+    }
+  }
+
   const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
   const canEditRouting = Boolean(isSuperAdmin && canEdit)
   const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
@@ -421,6 +446,17 @@ export default function MerchantDetailPage() {
                 Status
               </span>
               <StatusBadge status={merchant.status} />
+              {canEdit && merchant.status === 'ACTIVE' ? (
+                <PrimaryButton onClick={() => setStatusConfirm('SUSPENDED')}>Suspend</PrimaryButton>
+              ) : null}
+              {canEdit && merchant.status === 'SUSPENDED' ? (
+                <PrimaryButton onClick={() => setStatusConfirm('ACTIVE')}>Activate</PrimaryButton>
+              ) : null}
+              {merchant.status === 'SUSPENDED' ? (
+                <span className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                  Reconnect panel credentials after Activate; re-enable banks from Bank Details.
+                </span>
+              ) : null}
               {supagoStatus?.connected ? (
                 <span
                   className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
@@ -979,6 +1015,29 @@ export default function MerchantDetailPage() {
           loading={criciLoading}
           onConfirm={() => void handleCriciDisconnect()}
           onCancel={() => setConfirmCriciDisconnect(false)}
+        />
+      ) : null}
+
+      {statusConfirm === 'SUSPENDED' ? (
+        <ConfirmDialog
+          title={`Suspend ${merchant?.legal_name ?? 'merchant'}?`}
+          subtitle="All banks synced with this merchant will be disabled (panel + CRM). Panel credentials are cleared. Polls stop until you Activate and reconnect."
+          confirmLabel="Suspend"
+          loading={statusSubmitting}
+          onConfirm={() => void handleMerchantStatus()}
+          onCancel={() => setStatusConfirm(null)}
+        />
+      ) : null}
+
+      {statusConfirm === 'ACTIVE' ? (
+        <ConfirmDialog
+          title={`Activate ${merchant?.legal_name ?? 'merchant'}?`}
+          subtitle="Sets the merchant ACTIVE only. Reconnect panel credentials here, then re-enable banks from Bank Details. Banks are not restored automatically."
+          confirmLabel="Activate"
+          variant="primary"
+          loading={statusSubmitting}
+          onConfirm={() => void handleMerchantStatus()}
+          onCancel={() => setStatusConfirm(null)}
         />
       ) : null}
     </AppShell>
