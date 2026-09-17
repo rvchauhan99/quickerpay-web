@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { PasswordInput } from '@/components/forms/PasswordInput'
 import { useEffect, useState } from 'react'
 import { ApiClientError, resetRedirectingFlag } from '@/lib/api'
 import { useSession } from '@/lib/session'
@@ -142,9 +143,8 @@ export default function LoginPage() {
                 </FormField>
 
                 <FormField label="Password" required>
-                  <Input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     autoComplete="current-password"
                     required
                     value={password}
