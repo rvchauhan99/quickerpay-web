@@ -10,7 +10,7 @@ import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, EmptyState, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { IconButton } from '@/components/ui/IconButton'
-import { Pencil, List, Ban } from 'lucide-react'
+import { Pencil, List, Ban, CircleCheck } from 'lucide-react'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
@@ -36,6 +36,7 @@ export default function MerchantsPage() {
   const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [suspend, setSuspend] = useState<MerchantDetail | null>(null)
+  const [activate, setActivate] = useState<MerchantDetail | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
@@ -77,10 +78,29 @@ export default function MerchantsPage() {
         body: { status: 'SUSPENDED' },
       })
       setSuspend(null)
-      toast.success('Merchant suspended')
+      toast.success('Merchant suspended. Synced banks disabled; reconnect panel after Activate.')
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not suspend')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleActivate = async () => {
+    if (!accessToken || !activate || submitting) return
+    setSubmitting(true)
+    try {
+      await apiRequest(`/api/v1/merchants/${activate.id}/status`, {
+        method: 'POST',
+        token: accessToken,
+        body: { status: 'ACTIVE' },
+      })
+      setActivate(null)
+      toast.success('Merchant activated. Reconnect panel credentials; re-enable banks from Bank Details.')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not activate')
     } finally {
       setSubmitting(false)
     }
@@ -143,6 +163,9 @@ export default function MerchantsPage() {
                 {hasMenu(menus, 'MERCHANTS', 'can_edit') && row.status === 'ACTIVE' ? (
                   <IconButton variant="danger" icon={<Ban size={15} strokeWidth={1.75} />} tooltip="Suspend" onClick={() => setSuspend(row)} />
                 ) : null}
+                {hasMenu(menus, 'MERCHANTS', 'can_edit') && row.status === 'SUSPENDED' ? (
+                  <IconButton variant="primary" icon={<CircleCheck size={15} strokeWidth={1.75} />} tooltip="Activate" onClick={() => setActivate(row)} />
+                ) : null}
               </span>
             ),
           }))}
@@ -155,10 +178,22 @@ export default function MerchantsPage() {
       {suspend ? (
         <ConfirmDialog
           title={`Suspend ${suspend.legal_name}?`}
+          subtitle="All banks synced with this merchant will be disabled (panel + CRM). Panel credentials are cleared. Polls stop until you Activate and reconnect."
           confirmLabel="Suspend"
           loading={submitting}
           onCancel={() => setSuspend(null)}
           onConfirm={() => void handleSuspend()}
+        />
+      ) : null}
+      {activate ? (
+        <ConfirmDialog
+          title={`Activate ${activate.legal_name}?`}
+          subtitle="Sets the merchant ACTIVE only. Reconnect panel credentials on the merchant page, then re-enable banks from Bank Details. Banks are not restored automatically."
+          confirmLabel="Activate"
+          variant="primary"
+          loading={submitting}
+          onCancel={() => setActivate(null)}
+          onConfirm={() => void handleActivate()}
         />
       ) : null}
     </AppShell>

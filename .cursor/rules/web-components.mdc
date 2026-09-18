@@ -14,7 +14,7 @@ components/ui/         DataTable, FilterBar, StatusBadge, DirectionBadge,
                        ConfirmDialog, ExportButton, EmptyState, StatCard
 components/forms/      FormShell, MoneyInput, RateInput, InlineCreatePanel,
                        ScopePicker, MenuAccessPicker, ModuleMultiSelect,
-                       FormField, Input, Select, DocumentUpload
+                       FormField, Input, PasswordInput, Select, DocumentUpload
 ```
 
 A hand-rolled table, filter bar, money input, status badge, pagination control, empty state, or **visible file input** inside a feature folder is a review rejection.
