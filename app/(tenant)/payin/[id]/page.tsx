@@ -12,6 +12,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { merchantLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -55,7 +56,7 @@ export default function PayinDetailPage() {
               <FormField label="UTR">
                 <Input value={row.utr ?? '—'} readOnly />
               </FormField>
-              <FormField label="Merchant">
+              <FormField label={merchantLabel()}>
                 <Input value={row.merchant_display_name?.trim() || '—'} readOnly />
               </FormField>
               <FormField label="Amount">

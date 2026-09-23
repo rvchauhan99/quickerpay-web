@@ -13,6 +13,7 @@ import { FormField } from '@/components/forms/FormField'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { hasMenu, useSession } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -182,8 +183,8 @@ export default function CommissionPage() {
           </thead>
           <tbody>
             <SummaryRow label="Eligible volume" a={payinKind.eligible_volume_minor} b={payoutKind.eligible_volume_minor} c={summary.total.eligible_volume_minor} />
-            <SummaryRow label="Merchant commission" a={payinKind.merchant_commission_minor} b={payoutKind.merchant_commission_minor} c={summary.total.merchant_commission_minor} />
-            <SummaryRow label="Admin commission" a={payinKind.admin_commission_minor} b={payoutKind.admin_commission_minor} c={summary.total.admin_commission_minor} />
+            <SummaryRow label={`${merchantLabel()} commission`} a={payinKind.merchant_commission_minor} b={payoutKind.merchant_commission_minor} c={summary.total.merchant_commission_minor} />
+            <SummaryRow label={`${bankerLabel()} commission`} a={payinKind.admin_commission_minor} b={payoutKind.admin_commission_minor} c={summary.total.admin_commission_minor} />
             {hideMargin ? null : (
               <SummaryRow label="Your margin" a={payinKind.margin_minor} b={payoutKind.margin_minor} c={summary.total.margin_minor} />
             )}
@@ -208,10 +209,10 @@ export default function CommissionPage() {
           { key: 'created_at', heading: 'Created' },
           { key: 'rate_kind', heading: 'Kind' },
           { key: 'eligible', heading: 'Eligible volume' },
-          { key: 'merchant_rate', heading: 'Merchant rate' },
-          { key: 'admin_rate', heading: 'Admin rate' },
-          { key: 'merchant', heading: 'Merchant commission' },
-          { key: 'admin', heading: 'Admin commission' },
+          { key: 'merchant_rate', heading: `${merchantLabel()} rate` },
+          { key: 'admin_rate', heading: `${bankerLabel()} rate` },
+          { key: 'merchant', heading: `${merchantLabel()} commission` },
+          { key: 'admin', heading: `${bankerLabel()} commission` },
           ...(hideMargin ? [] : [{ key: 'margin', heading: 'Margin' }]),
         ]}
         rows={entries.map((row) => ({

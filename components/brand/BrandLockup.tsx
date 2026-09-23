@@ -1,3 +1,4 @@
+import { brandName } from '@/lib/brand'
 import { BrandMark } from './BrandMark'
 
 interface BrandLockupProps {
@@ -38,7 +39,7 @@ export function BrandLockup({
       {markOnly ? null : (
         <div className={`flex min-w-0 flex-col whitespace-nowrap ${copyClassName ?? ''}`}>
           <p className={`${dims.name} font-bold leading-none`} style={{ color: nameColor }}>
-            SafePay247
+            {brandName()}
           </p>
           {subtitle ? (
             <p

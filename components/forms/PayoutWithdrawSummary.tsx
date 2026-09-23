@@ -10,6 +10,7 @@ import {
   payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyDisplay } from '@/lib/money'
+import { merchantLabel } from '@/lib/labels'
 
 function SummaryItem({
   label,
@@ -76,7 +77,7 @@ export function PayoutWithdrawSummary({
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         <SummaryItem label="Created">{new Date(row.created_at).toLocaleString()}</SummaryItem>
         <SummaryItem label="Username">{row.supago_username?.trim() || '—'}</SummaryItem>
-        <SummaryItem label="Merchant">{merchant}</SummaryItem>
+        <SummaryItem label={merchantLabel()}>{merchant}</SummaryItem>
         <SummaryItem label="Amount">
           <span className="font-semibold">
             <MoneyDisplay amountMinor={row.amount_minor} />

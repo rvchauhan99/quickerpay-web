@@ -14,7 +14,10 @@ import { RateInput } from '@/components/forms/RateInput'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { bankerLabel, roleLabel } from '@/lib/labels'
 import { useTenantScreen } from '@/lib/useTenantScreen'
+
+type CreatableRole = 'ADMIN' | 'STAFF_ADMIN' | 'OPERATOR' | 'AUDITOR'
 
 export default function NewUserPage() {
   const router = useRouter()
@@ -23,7 +26,7 @@ export default function NewUserPage() {
   const [displayName, setDisplayName] = useState('')
   const [mobile, setMobile] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'ADMIN' | 'OPERATOR' | 'AUDITOR'>('ADMIN')
+  const [role, setRole] = useState<CreatableRole>('ADMIN')
   const [payinBp, setPayinBp] = useState(350)
   const [payoutBp, setPayoutBp] = useState(150)
   const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
@@ -43,13 +46,13 @@ export default function NewUserPage() {
     if (role === 'ADMIN') {
       const nextErrors: Record<string, string> = {}
       const national = splitE164(mobile).national
-      if (!national) nextErrors.mobile = 'Required when creating an Admin'
+      if (!national) nextErrors.mobile = `Required when creating a ${bankerLabel()}`
       if (!dailyDepositLimitMinor || dailyDepositLimitMinor <= 0) {
-        nextErrors.daily_deposit_limit_minor = 'Required when creating an Admin'
+        nextErrors.daily_deposit_limit_minor = `Required when creating a ${bankerLabel()}`
       }
       if (Object.keys(nextErrors).length > 0) {
         setFieldErrors(nextErrors)
-        setError('Contact number and daily deposit limit are required for an Admin')
+        setError(`Contact number and daily deposit limit are required for a ${bankerLabel()}`)
         return
       }
     }
@@ -146,10 +149,13 @@ export default function NewUserPage() {
               />
             </FormField>
             <FormField label="Role" required>
-              <Select value={role} onChange={(event) => setRole(event.target.value as typeof role)} aria-label="Role">
-                <option value="ADMIN">ADMIN</option>
-                <option value="OPERATOR">OPERATOR</option>
-                <option value="AUDITOR">AUDITOR</option>
+              <Select value={role} onChange={(event) => setRole(event.target.value as CreatableRole)} aria-label="Role">
+                {(user.role === 'SUPER_ADMIN'
+                  ? (['ADMIN', 'STAFF_ADMIN', 'OPERATOR', 'AUDITOR'] as const)
+                  : (['OPERATOR'] as const)
+                ).map((code) => (
+                  <option key={code} value={code}>{roleLabel(code)}</option>
+                ))}
               </Select>
             </FormField>
             {role === 'ADMIN' ? (

@@ -8,6 +8,7 @@ import { RateInput } from '@/components/forms/RateInput'
 import { EmptyState } from '@/components/ui/FilterBar'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu, useSession } from '@/lib/session'
 
@@ -111,7 +112,7 @@ export default function CommissionConfigPage() {
     <AppShell title="Commission configuration" role={user.role} menus={menus}>
       {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
       <section className="mb-4">
-        <h2 className="mb-1 text-xs font-semibold uppercase text-zinc-500">Merchants</h2>
+        <h2 className="mb-1 text-xs font-semibold uppercase text-zinc-500">{merchantLabel({ plural: true })}</h2>
         {merchants.length === 0 ? (
           <EmptyState message="No records match these filters" />
         ) : (
@@ -123,7 +124,7 @@ export default function CommissionConfigPage() {
         )}
       </section>
       <section>
-        <h2 className="mb-1 text-xs font-semibold uppercase text-zinc-500">Admins</h2>
+        <h2 className="mb-1 text-xs font-semibold uppercase text-zinc-500">{bankerLabel({ plural: true })}</h2>
         {admins.length === 0 ? (
           <EmptyState message="No records match these filters" />
         ) : (
@@ -139,10 +140,10 @@ export default function CommissionConfigPage() {
                     <span />
                     <span className="font-medium">PAY-IN</span>
                     <span className="font-medium">PAY-OUT</span>
-                    <span className="text-zinc-500">Merchant rate (reference)</span>
+                    <span className="text-zinc-500">{merchantLabel()} rate (reference)</span>
                     <RateDisplay rateBp={merchantPayin} />
                     <RateDisplay rateBp={merchantPayout} />
-                    <span>Admin rate</span>
+                    <span>{bankerLabel()} rate</span>
                     <RateInput
                       id={`${admin.id}-payin`}
                       valueBp={draft.PAYIN}
@@ -162,7 +163,7 @@ export default function CommissionConfigPage() {
                     <RateDisplay rateBp={merchantPayout - draft.PAYOUT} />
                   </div>
                   {payinInvalid || payoutInvalid ? (
-                    <p className="mt-1 text-xs text-red-700">The admin rate exceeds the merchant rate of the same kind</p>
+                    <p className="mt-1 text-xs text-red-700">The {bankerLabel().toLowerCase()} rate exceeds the {merchantLabel().toLowerCase()} rate of the same kind</p>
                   ) : null}
                   <button
                     type="button"

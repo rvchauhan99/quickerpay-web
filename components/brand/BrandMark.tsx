@@ -3,7 +3,7 @@ interface BrandMarkProps {
   className?: string
 }
 
-/** SafePay247 shield mark — safety check on a shield. */
+/** Shield mark — check on a shield. Uses --qp-primary. */
 export function BrandMark({ size = 32, className }: BrandMarkProps) {
   return (
     <svg

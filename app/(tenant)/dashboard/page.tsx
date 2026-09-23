@@ -10,6 +10,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -147,25 +148,25 @@ export default function DashboardPage() {
         </FormField>
         {user.role === 'SUPER_ADMIN' ? (
           <>
-            <FormField label="Admin">
+            <FormField label={bankerLabel()}>
               <Select
-                aria-label="Admin"
+                aria-label={bankerLabel()}
                 value={filters.admin_user_id}
                 onChange={(event) => void setFilters({ admin_user_id: event.target.value })}
               >
-                <option value="">All Admins</option>
+                <option value="">All {bankerLabel({ plural: true })}</option>
                 {admins.map((row) => (
                   <option key={row.id} value={row.id}>{row.username}</option>
                 ))}
               </Select>
             </FormField>
-            <FormField label="Merchant">
+            <FormField label={merchantLabel()}>
               <Select
-                aria-label="Merchant"
+                aria-label={merchantLabel()}
                 value={filters.merchant_id}
                 onChange={(event) => void setFilters({ merchant_id: event.target.value })}
               >
-                <option value="">All Merchants</option>
+                <option value="">All {merchantLabel({ plural: true })}</option>
                 {merchants.map((row) => (
                   <option key={row.id} value={row.id}>{row.display_name}</option>
                 ))}
@@ -197,13 +198,13 @@ export default function DashboardPage() {
             </FormField>
           </>
         ) : user.role === 'ADMIN' || user.role === 'AUDITOR' ? (
-          <FormField label="Merchant">
+          <FormField label={merchantLabel()}>
             <Select
-              aria-label="Merchant"
+              aria-label={merchantLabel()}
               value={filters.merchant_id}
               onChange={(event) => void setFilters({ merchant_id: event.target.value })}
             >
-              <option value="">All Merchants</option>
+              <option value="">All {merchantLabel({ plural: true })}</option>
               {merchants.map((row) => (
                 <option key={row.id} value={row.id}>{row.display_name}</option>
               ))}
@@ -272,10 +273,10 @@ export default function DashboardPage() {
               <p className="text-[10px] text-zinc-500">{data.inter_transfer.count} transfers</p>
             </StatCard>
           </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>Admin-wise performance</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>{bankerLabel()}-wise performance</p>
           <DataTable
             columns={[
-              { key: 'admin', heading: 'Admin' },
+              { key: 'admin', heading: bankerLabel() },
               { key: 'payin', heading: 'Pay-In' },
               { key: 'payout', heading: 'Pay-Out' },
               { key: 'commission', heading: 'Commission' },
@@ -288,7 +289,7 @@ export default function DashboardPage() {
               commission: <MoneyDisplay amountMinor={row.commission_minor} />,
               margin: <MoneyDisplay amountMinor={row.margin_minor} />,
             }))}
-            empty={<EmptyState message="No Admin activity in this range" />}
+            empty={<EmptyState message={`No ${bankerLabel()} activity in this range`} />}
           />
           <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
             <StatCard label="Pending approvals" href="/payout?status=INITIATE">{data.pending_approvals}</StatCard>

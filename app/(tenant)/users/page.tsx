@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MenuCode, Pagination, UserListItem } from '@quickerpay/shared-types'
 import { USER_ROLES, USER_STATUSES } from '@quickerpay/shared-types'
+import { roleLabel } from '@/lib/labels'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
@@ -204,7 +205,7 @@ export default function UsersPage() {
             <Select value={filters.role} onChange={(event) => void setFilters({ role: event.target.value })} aria-label="Role">
               <option value="">All roles</option>
               {USER_ROLES.filter((role) => role !== 'SUPER_ADMIN').map((role) => (
-                <option key={role} value={role}>{role}</option>
+                <option key={role} value={role}>{roleLabel(role)}</option>
               ))}
             </Select>
           </FormField>
@@ -303,7 +304,7 @@ export default function UsersPage() {
             id: String(row.display_seq ?? '—'),
             username: row.username,
             display: row.display_name,
-            role: row.role,
+            role: roleLabel(row.role),
             supervisor: row.supervisor_username ?? '—',
             menus: isAdmin
               ? row.menus.filter((grant) => grant.can_view).map((grant) => grant.menu_code).join(', ')

@@ -15,6 +15,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { merchantLabel } from '@/lib/labels'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -78,7 +79,7 @@ export default function MerchantsPage() {
         body: { status: 'SUSPENDED' },
       })
       setSuspend(null)
-      toast.success('Merchant suspended. Synced banks disabled; reconnect panel after Activate.')
+      toast.success(`${merchantLabel()} suspended. Synced banks disabled; reconnect panel after Activate.`)
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not suspend')
@@ -97,7 +98,7 @@ export default function MerchantsPage() {
         body: { status: 'ACTIVE' },
       })
       setActivate(null)
-      toast.success('Merchant activated. Reconnect panel credentials; re-enable banks from Bank Details.')
+      toast.success(`${merchantLabel()} activated. Reconnect panel credentials; re-enable banks from Bank Details.`)
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not activate')
@@ -107,14 +108,14 @@ export default function MerchantsPage() {
   }
 
   return (
-    <AppShell title="Merchants" role={user.role} menus={menus}>
+    <AppShell title={merchantLabel({ plural: true })} role={user.role} menus={menus}>
       <PageHeader
-        title="Merchants"
+        title={merchantLabel({ plural: true })}
         action={
           hasMenu(menus, 'MERCHANTS', 'can_create') ? (
             <PrimaryButton href="/merchants/new">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              New Merchant
+              New {merchantLabel()}
             </PrimaryButton>
           ) : null
         }

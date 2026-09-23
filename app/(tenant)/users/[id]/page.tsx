@@ -16,6 +16,7 @@ import { Input } from '@/components/forms/Input'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
 import { apiRequest, ApiClientError, formError } from '@/lib/api'
+import { bankerLabel, roleLabel } from '@/lib/labels'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -64,8 +65,8 @@ export default function UserDetailPage() {
     setFieldErrors({})
 
     if (detail?.role === 'ADMIN' && !splitE164(mobile).national) {
-      setFieldErrors({ mobile: 'An Admin must keep a mobile number with country code' })
-      setError('Mobile is required for an Admin')
+      setFieldErrors({ mobile: `A ${bankerLabel()} must keep a mobile number with country code` })
+      setError(`Mobile is required for a ${bankerLabel()}`)
       setSavingIdentity(false)
       return
     }
@@ -135,7 +136,7 @@ export default function UserDetailPage() {
     <AppShell title="User Detail" role={user.role} menus={menus}>
       <PageHeader
         title={detail ? `${detail.display_name}` : 'User Detail'}
-        {...(detail ? { subtitle: `@${detail.username} · ${detail.role.replaceAll('_', ' ')}` } : {})}
+        {...(detail ? { subtitle: `@${detail.username} · ${roleLabel(detail.role)}` } : {})}
         backHref="/users"
         backLabel="Users"
         action={statusActions}
@@ -235,7 +236,7 @@ export default function UserDetailPage() {
                 className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold"
                 style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}
               >
-                {detail.role.replaceAll('_', ' ')}
+                {roleLabel(detail.role)}
               </span>
               <StatusBadge status={detail.status} />
               <StatusBadge status={detail.operational_state} />
