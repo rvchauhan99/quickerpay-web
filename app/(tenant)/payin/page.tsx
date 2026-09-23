@@ -20,6 +20,7 @@ import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
@@ -148,7 +149,7 @@ export default function PayinPage() {
     if (!upi) return []
     const owner = {
       id: upi.owner_user_id,
-      label: `${upi.owner_username} (Admin)`,
+      label: `${upi.owner_username} (${bankerLabel()})`,
     }
     const operators = users
       .filter((row) => row.role === 'OPERATOR' && row.supervisor_admin_id === upi.owner_user_id && row.status === 'ACTIVE')
@@ -332,8 +333,8 @@ export default function PayinPage() {
           <FormShell title="Create Pay-In" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
               <FormGrid>
-                <FormField label="Merchant" required>
-                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Merchant">
+                <FormField label={merchantLabel()} required>
+                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label={merchantLabel()}>
                     <option value="">Select merchant</option>
                     {createMerchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>
@@ -363,7 +364,7 @@ export default function PayinPage() {
                     ))}
                   </Select>
                 </FormField>
-                <FormField label="Assign operator" required hint="Defaults to the UPI Admin. Operators of that Admin can be selected.">
+                <FormField label="Assign operator" required hint={`Defaults to the UPI ${bankerLabel()}. Operators of that ${bankerLabel()} can be selected.`}>
                   <Select value={createOperator} onChange={(event) => setCreateOperator(event.target.value)} aria-label="Assign operator">
                     <option value="">Select operator</option>
                     {assigneesForUpi(createUpi).map((row) => (

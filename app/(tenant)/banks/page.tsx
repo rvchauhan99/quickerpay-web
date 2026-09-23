@@ -25,6 +25,7 @@ import { FormField } from '@/components/forms/FormField'
 import { FormShell } from '@/components/forms/FormShell'
 import { Modal } from '@/components/ui/Modal'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { useBankListSync } from '@/lib/live/useBankListSync'
 import { hasMenu } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -658,14 +659,14 @@ export default function BanksPage() {
               </FormGrid>
               <div className="mt-4">
                   <p className="mb-2 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
-                    Merchants {editing ? '(linked + eligible)' : '(default: all)'}
+                    {merchantLabel({ plural: true })} {editing ? '(linked + eligible)' : '(default: all)'}
                   </p>
                   {eligibleMerchants.length === 0 ? (
                     <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                      No eligible merchants for this Admin under Deposit Managed By.
+                      No eligible {merchantLabel({ plural: true }).toLowerCase()} for this {bankerLabel()} under Deposit Managed By.
                     </p>
                   ) : (
-                    <ul className="space-y-2" aria-label="Eligible merchants">
+                    <ul className="space-y-2" aria-label={`Eligible ${merchantLabel({ plural: true }).toLowerCase()}`}>
                       {eligibleMerchants.map((merchant) => {
                         const checked = selectedMerchantIds.includes(merchant.id)
                         return (
@@ -713,7 +714,7 @@ export default function BanksPage() {
             <div className="rounded border border-zinc-200 bg-white p-2">
               <div className="mb-1 flex justify-between text-xs">
                 <p>
-                  Merchant status — {merchantLinksBankLabel} (bank Active if any merchant is enabled)
+                  {merchantLabel()} status — {merchantLinksBankLabel} (bank Active if any {merchantLabel().toLowerCase()} is enabled)
                 </p>
                 <button
                   type="button"
@@ -731,7 +732,7 @@ export default function BanksPage() {
               ) : (
                 <DataTable
                   columns={[
-                    { key: 'merchant', heading: 'MERCHANT' },
+                    { key: 'merchant', heading: merchantLabel().toUpperCase() },
                     { key: 'panel', heading: 'PANEL' },
                     { key: 'status', heading: 'STATUS' },
                     { key: 'allowed', heading: 'ALLOWED' },
@@ -744,7 +745,7 @@ export default function BanksPage() {
                     allowed: link.allowed ? 'Yes' : 'No',
                     action: !link.allowed ? (
                       <span className="text-[11px] text-zinc-500">
-                        Not linked — Super Admin must add this Admin on the merchant&apos;s Deposit Managed By.
+                        Not linked — Super Admin must add this {bankerLabel()} on the {merchantLabel().toLowerCase()}&apos;s Deposit Managed By.
                       </span>
                     ) : canEdit ? (
                       <button
@@ -752,7 +753,7 @@ export default function BanksPage() {
                         className="text-[11px] font-medium underline disabled:opacity-50"
                         style={{ color: link.status === 'ACTIVE' ? 'var(--qp-danger)' : 'var(--qp-success)' }}
                         disabled={submitting === `link-${link.merchant_id}`}
-                        aria-label={link.status === 'ACTIVE' ? 'Disable for merchant' : 'Enable for merchant'}
+                        aria-label={link.status === 'ACTIVE' ? `Disable for ${merchantLabel()}` : `Enable for ${merchantLabel()}`}
                         onClick={() => {
                           if (!merchantLinksFor) return
                           void handleMerchantLinkStatus(
@@ -830,7 +831,7 @@ export default function BanksPage() {
                 ) : null}
                 <IconButton
                   icon={<Building2 size={15} strokeWidth={1.75} />}
-                  tooltip="Merchants"
+                  tooltip={merchantLabel({ plural: true })}
                   onClick={() => void handleMerchantLinks(row)}
                 />
                 <IconButton

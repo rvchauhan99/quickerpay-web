@@ -3,8 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── SafePay247 Design Tokens — Light Blue + White ────────────────────────── */
-:root {
+/* ─── Design Tokens — Blue default; other themes via [data-theme] ───────────── */
+:root,
+html[data-theme='blue'] {
   /* Brand */
   --qp-primary: #2563eb;
   --qp-primary-dark: #1d4ed8;
@@ -18,6 +19,7 @@
   --qp-sidebar-text: #bfdbfe;
   --qp-sidebar-muted: #93c5fd;
   --qp-sidebar-border: rgba(191, 219, 254, 0.1);
+  --qp-sidebar-active-text: #ffffff;
   --qp-sidebar-width: 240px;
 
   /* Content */
@@ -55,6 +57,144 @@
   --qp-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --qp-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
 }
+
+html[data-theme='teal'] {
+  --qp-primary: #0d9488;
+  --qp-primary-dark: #0f766e;
+  --qp-primary-light: #f0fdfa;
+  --qp-primary-ring: rgba(13, 148, 136, 0.25);
+  --qp-sidebar-active: #0f766e;
+  --qp-sidebar-text: #99f6e4;
+  --qp-sidebar-muted: #5eead4;
+  --qp-sidebar-border: rgba(153, 246, 228, 0.12);
+  --qp-accent: #14b8a6;
+  --qp-accent-bg: #f0fdfa;
+}
+
+html[data-theme='indigo'] {
+  --qp-primary: #4f46e5;
+  --qp-primary-dark: #4338ca;
+  --qp-primary-light: #eef2ff;
+  --qp-primary-ring: rgba(79, 70, 229, 0.25);
+  --qp-sidebar-active: #3730a3;
+  --qp-sidebar-text: #c7d2fe;
+  --qp-sidebar-muted: #a5b4fc;
+  --qp-sidebar-border: rgba(199, 210, 254, 0.12);
+  --qp-accent: #6366f1;
+  --qp-accent-bg: #eef2ff;
+}
+
+html[data-theme='emerald'] {
+  --qp-primary: #059669;
+  --qp-primary-dark: #047857;
+  --qp-primary-light: #ecfdf5;
+  --qp-primary-ring: rgba(5, 150, 105, 0.25);
+  --qp-sidebar-active: #047857;
+  --qp-sidebar-text: #a7f3d0;
+  --qp-sidebar-muted: #6ee7b7;
+  --qp-sidebar-border: rgba(167, 243, 208, 0.12);
+  --qp-accent: #10b981;
+  --qp-accent-bg: #ecfdf5;
+}
+
+html[data-theme='rose'] {
+  --qp-primary: #e11d48;
+  --qp-primary-dark: #be123c;
+  --qp-primary-light: #fff1f2;
+  --qp-primary-ring: rgba(225, 29, 72, 0.25);
+  --qp-sidebar-active: #be123c;
+  --qp-sidebar-text: #fecdd3;
+  --qp-sidebar-muted: #fda4af;
+  --qp-sidebar-border: rgba(254, 205, 211, 0.12);
+  --qp-accent: #f43f5e;
+  --qp-accent-bg: #fff1f2;
+}
+
+html[data-theme='amber'] {
+  --qp-primary: #d97706;
+  --qp-primary-dark: #b45309;
+  --qp-primary-light: #fffbeb;
+  --qp-primary-ring: rgba(217, 119, 6, 0.25);
+  --qp-sidebar-active: #b45309;
+  --qp-sidebar-text: #fde68a;
+  --qp-sidebar-muted: #fcd34d;
+  --qp-sidebar-border: rgba(253, 230, 138, 0.14);
+  --qp-accent: #f59e0b;
+  --qp-accent-bg: #fffbeb;
+}
+
+html[data-theme='violet'] {
+  --qp-primary: #7c3aed;
+  --qp-primary-dark: #6d28d9;
+  --qp-primary-light: #f5f3ff;
+  --qp-primary-ring: rgba(124, 58, 237, 0.25);
+  --qp-sidebar-active: #5b21b6;
+  --qp-sidebar-text: #ddd6fe;
+  --qp-sidebar-muted: #c4b5fd;
+  --qp-sidebar-border: rgba(221, 214, 254, 0.12);
+  --qp-accent: #8b5cf6;
+  --qp-accent-bg: #f5f3ff;
+}
+
+html[data-theme='cyan'] {
+  --qp-primary: #0891b2;
+  --qp-primary-dark: #0e7490;
+  --qp-primary-light: #ecfeff;
+  --qp-primary-ring: rgba(8, 145, 178, 0.25);
+  --qp-sidebar-active: #0e7490;
+  --qp-sidebar-text: #a5f3fc;
+  --qp-sidebar-muted: #67e8f9;
+  --qp-sidebar-border: rgba(165, 243, 252, 0.12);
+  --qp-accent: #06b6d4;
+  --qp-accent-bg: #ecfeff;
+}
+
+/* custom: accent vars set inline from JS; keep blue fallbacks via :root */
+
+/* ─── Panel (sidebar shell) ──────────────────────────────────────────────────── */
+html[data-panel='slate'] {
+  --qp-sidebar-bg: #0f172a;
+  --qp-sidebar-hover: #1e293b;
+  --qp-sidebar-border: rgba(191, 219, 254, 0.1);
+  --qp-sidebar-active-text: #ffffff;
+}
+
+html[data-panel='ink'] {
+  --qp-sidebar-bg: #09090b;
+  --qp-sidebar-hover: #18181b;
+  --qp-sidebar-active: #3f3f46;
+  --qp-sidebar-text: #e4e4e7;
+  --qp-sidebar-muted: #a1a1aa;
+  --qp-sidebar-border: rgba(228, 228, 231, 0.1);
+  --qp-sidebar-active-text: #ffffff;
+}
+
+html[data-panel='light'] {
+  --qp-sidebar-bg: #f1f5f9;
+  --qp-sidebar-hover: #e2e8f0;
+  --qp-sidebar-active: var(--qp-primary);
+  --qp-sidebar-text: #334155;
+  --qp-sidebar-muted: #64748b;
+  --qp-sidebar-border: rgba(15, 23, 42, 0.08);
+  --qp-sidebar-active-text: #ffffff;
+}
+
+/* brand panel: vars from JS deriveBrandPanelVars */
+
+/* ─── Surface (content canvas) ───────────────────────────────────────────────── */
+html[data-surface='light'] {
+  --qp-surface: #f8fafc;
+  --qp-card: #ffffff;
+  --qp-border: #e2e8f0;
+}
+
+html[data-surface='contrast'] {
+  --qp-surface: #eef2f7;
+  --qp-card: #ffffff;
+  --qp-border: #cbd5e1;
+}
+
+/* soft surface: vars from JS */
 
 /* ─── Base Reset ─────────────────────────────────────────────────────────────── */
 *,

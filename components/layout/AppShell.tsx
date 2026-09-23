@@ -7,6 +7,7 @@ import type { CriciConnectionAlertItem, MenuCode, MenuGrant, UserRole } from '@q
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { HeaderToggles } from './HeaderToggles'
 import { apiRequest } from '@/lib/api'
+import { roleLabel } from '@/lib/labels'
 import { isLabConsole } from '@/lib/lab'
 import { useSession } from '@/lib/session'
 import { FlaskConical } from 'lucide-react'
@@ -15,7 +16,7 @@ import { FlaskConical } from 'lucide-react'
 const LABELS: Record<MenuCode, string> = {
   DASHBOARD: 'Dashboard',
   USERS: 'User Management',
-  MERCHANTS: 'Merchants',
+  MERCHANTS: 'Exchange Masters',
   BANKS: 'Bank Details',
   UPI: 'UPI',
   PAYIN: 'Pay-In',
@@ -153,7 +154,7 @@ const NAV_ORDER = SECTION_GROUPS.flatMap((g) => g.codes)
 
 /* ─── Role display label ──────────────────────────────────────────────────── */
 function formatRole(role: UserRole): string {
-  return role.replace(/_/g, ' ')
+  return roleLabel(role)
 }
 
 
@@ -384,7 +385,7 @@ function NavItem({ href, label, code }: { href: string; label: string; code: Men
       href={href}
       className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150"
       style={{
-        color: active ? '#ffffff' : 'var(--qp-sidebar-text)',
+        color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
         borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
         paddingLeft: active ? '9px' : '9px',
@@ -392,7 +393,6 @@ function NavItem({ href, label, code }: { href: string; label: string; code: Men
       onMouseEnter={(e) => {
         if (!active) {
           e.currentTarget.style.backgroundColor = 'var(--qp-sidebar-hover)'
-          e.currentTarget.style.color = '#ffffff'
         }
       }}
       onMouseLeave={(e) => {
@@ -418,7 +418,7 @@ function LabNavItem({ href, label }: { href: string; label: string }) {
       href={href}
       className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150"
       style={{
-        color: active ? '#ffffff' : 'var(--qp-sidebar-text)',
+        color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
         borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
         paddingLeft: '9px',
@@ -443,14 +443,13 @@ function SubNavItem({ href, label }: { href: string; label: string }) {
       href={href}
       className="flex items-center gap-2 rounded-md py-1.5 pl-10 pr-3 text-xs font-medium transition-all duration-150"
       style={{
-        color: active ? '#ffffff' : 'var(--qp-sidebar-text)',
+        color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
         opacity: active ? 1 : 0.8,
       }}
       onMouseEnter={(e) => {
         if (!active) {
           e.currentTarget.style.backgroundColor = 'var(--qp-sidebar-hover)'
-          e.currentTarget.style.color = '#ffffff'
           e.currentTarget.style.opacity = '1'
         }
       }}

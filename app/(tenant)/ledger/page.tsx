@@ -18,6 +18,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput'
 import { toast } from 'sonner'
 import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
+import { bankerLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -56,7 +57,7 @@ export default function LedgerPage() {
   const load = useCallback(async () => {
     if (isSuperAdmin && !filters.owner_user_id && !filters.bank_account_id) {
       setStatement(null)
-      setError('Pick an Admin or a bank account')
+      setError(`Pick a ${bankerLabel()} or a bank account`)
       return
     }
     setLoading(true)
@@ -155,9 +156,9 @@ export default function LedgerPage() {
       <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: todayIso(), date_to: todayIso(), owner_user_id: '', bank_account_id: '', q: '', event_type: '', direction: '', page: 1, page_size: 100 }); void (!isSuperAdmin && load()) }} onReload={() => void load()}>
         {isSuperAdmin ? (
           <>
-            <FormField label="Admin">
-              <Select value={filters.owner_user_id} onChange={(event) => void setFilters({ owner_user_id: event.target.value, bank_account_id: '' })} aria-label="Admin">
-                <option value="">Pick an Admin</option>
+            <FormField label={bankerLabel()}>
+              <Select value={filters.owner_user_id} onChange={(event) => void setFilters({ owner_user_id: event.target.value, bank_account_id: '' })} aria-label={bankerLabel()}>
+                <option value="">Pick a {bankerLabel()}</option>
                 {admins.map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.display_name} ({row.username})

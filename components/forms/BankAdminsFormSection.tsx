@@ -4,12 +4,13 @@ import { FormSection } from '@/components/forms/FormSection'
 import { FormField } from '@/components/forms/FormField'
 import { Select } from '@/components/forms/Select'
 import type { BankAdminMode } from '@quickerpay/shared-types'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 
 export const BANK_ADMINS_HELPER =
-  "Who may manage deposits (sync/enable banks) on this merchant's Supago. All Admins — every Admin can provision and enable banks for this merchant. Selected Admins — only the Admins you pick can. Others cannot link or enable banks here. Changing from All to Selected (or removing an Admin) disables that Admin's banks on this merchant only."
+  `Who may manage deposits (sync/enable banks) on this ${merchantLabel().toLowerCase()}'s Supago. All ${bankerLabel({ plural: true })} — every ${bankerLabel()} can provision and enable banks for this ${merchantLabel().toLowerCase()}. Selected ${bankerLabel({ plural: true })} — only the ${bankerLabel({ plural: true }).toLowerCase()} you pick can. Others cannot link or enable banks here. Changing from All to Selected (or removing a ${bankerLabel()}) disables that ${bankerLabel()}'s banks on this ${merchantLabel().toLowerCase()} only.`
 
 export const BANK_ADMINS_HELPER_SHORT =
-  'Who may manage deposits (sync/enable banks) on this merchant. Narrowing selection disables that Admin’s banks here only.'
+  `Who may manage deposits (sync/enable banks) on this ${merchantLabel().toLowerCase()}. Narrowing selection disables that ${bankerLabel()}'s banks here only.`
 
 export interface BankAdminOption {
   id: string
@@ -46,16 +47,20 @@ export function BankAdminsFormSection({
           disabled={disabled}
           aria-label="Deposit Managed By mode"
         >
-          <option value="ALL">All Admins</option>
-          <option value="SELECTED">Selected Admins</option>
+          <option value="ALL">All {bankerLabel({ plural: true })}</option>
+          <option value="SELECTED">Selected {bankerLabel({ plural: true })}</option>
         </Select>
       </FormField>
       {mode === 'SELECTED' ? (
         <div className="mt-3 space-y-2">
-          <p className="text-xs" style={{ color: 'var(--qp-text-secondary)' }}>Select at least one Admin, or choose All Admins.</p>
+          <p className="text-xs" style={{ color: 'var(--qp-text-secondary)' }}>
+            Select at least one {bankerLabel()}, or choose All {bankerLabel({ plural: true })}.
+          </p>
           <ul className="max-h-48 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'var(--qp-border)', backgroundColor: '#fff' }}>
             {admins.length === 0 ? (
-              <li className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>No ACTIVE Admins available</li>
+              <li className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                No ACTIVE {bankerLabel({ plural: true })} available
+              </li>
             ) : (
               admins.map((admin) => {
                 const checked = selectedIds.includes(admin.id)
@@ -67,7 +72,7 @@ export function BankAdminsFormSection({
                         checked={checked}
                         disabled={disabled}
                         onChange={() => onToggleAdmin(admin.id)}
-                        aria-label={`Select Admin ${admin.username}`}
+                        aria-label={`Select ${bankerLabel()} ${admin.username}`}
                       />
                       <span>
                         {admin.username}

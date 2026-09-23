@@ -27,6 +27,7 @@ import { PayoutBankDetailsCell } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
 import { fromMinor } from '@quickerpay/money'
 import { hasMenu } from '@/lib/session'
@@ -341,9 +342,9 @@ export default function PayoutPage() {
           >
             <FormSection title="Assign" description="FIFO from the unassigned INITIATE queue until the amount cap is filled.">
               <FormGrid>
-                <FormField label="Admin" required>
-                  <Select value={assignAdminId} onChange={(event) => setAssignAdminId(event.target.value)} aria-label="Assign Admin">
-                    <option value="">Select Admin</option>
+                <FormField label={bankerLabel()} required>
+                  <Select value={assignAdminId} onChange={(event) => setAssignAdminId(event.target.value)} aria-label={`Assign ${bankerLabel()}`}>
+                    <option value="">Select {bankerLabel()}</option>
                     {activeAdmins.map((admin) => (
                       <option key={admin.id} value={admin.id}>
                         {admin.username}
@@ -364,8 +365,8 @@ export default function PayoutPage() {
           <FormShell title="Create Pay-Out" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
               <FormGrid>
-                <FormField label="Merchant" required>
-                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Merchant">
+                <FormField label={merchantLabel()} required>
+                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label={merchantLabel()}>
                     <option value="">Select merchant</option>
                     {createMerchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>

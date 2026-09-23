@@ -17,6 +17,7 @@ import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from 'sonner'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -287,7 +288,7 @@ export default function MerchantDetailPage() {
   const handleSaveRouting = async () => {
     if (!accessToken || !params.id || savingRouting) return
     if (routingMode === 'direct' && !routingAdminId) {
-      toast.error('Select an Admin for direct assign')
+      toast.error(`Select a ${bankerLabel()} for direct assign`)
       return
     }
     setSavingRouting(true)
@@ -318,7 +319,7 @@ export default function MerchantDetailPage() {
   const handleSaveBankAdmins = async () => {
     if (!accessToken || !params.id || savingBankAdmins) return
     if (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
-      toast.error('Select at least one Admin, or choose All Admins.')
+      toast.error(`Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`)
       return
     }
     setSavingBankAdmins(true)
@@ -351,9 +352,9 @@ export default function MerchantDetailPage() {
       })
       setStatusConfirm(null)
       if (statusConfirm === 'SUSPENDED') {
-        toast.success('Merchant suspended. Synced banks disabled; reconnect panel after Activate.')
+        toast.success(`${merchantLabel()} suspended. Synced banks disabled; reconnect panel after Activate.`)
       } else {
-        toast.success('Merchant activated. Reconnect panel credentials; re-enable banks from Bank Details.')
+        toast.success(`${merchantLabel()} activated. Reconnect panel credentials; re-enable banks from Bank Details.`)
       }
       await load()
     } catch (caught) {
@@ -406,12 +407,12 @@ export default function MerchantDetailPage() {
   }
 
   return (
-    <AppShell title="Merchant Detail" role={user.role} menus={menus}>
+    <AppShell title={`${merchantLabel()} Detail`} role={user.role} menus={menus}>
       <PageHeader
-        title={merchant?.display_name ?? 'Merchant Detail'}
+        title={merchant?.display_name ?? `${merchantLabel()} Detail`}
         {...(merchant ? { subtitle: `${merchant.merchant_code} · ${merchant.legal_name}` } : {})}
         backHref="/merchants"
-        backLabel="Merchants"
+        backLabel={merchantLabel({ plural: true })}
       />
       <div className="mb-4">
         <ErrorAlert message={error} />
@@ -420,12 +421,12 @@ export default function MerchantDetailPage() {
         <TableSkeleton />
       ) : (
         <FormShell wide compact>
-          <FormSection title="Merchant">
+          <FormSection title={merchantLabel()}>
             <FormGrid>
               <FormField label="Legal Name">
                 <Input value={merchant.legal_name} readOnly />
               </FormField>
-              <FormField label="Merchant Code">
+              <FormField label={`${merchantLabel()} Code`}>
                 <Input value={merchant.merchant_code} readOnly />
               </FormField>
               <FormField label="Contact Email">
@@ -440,7 +441,7 @@ export default function MerchantDetailPage() {
             <div
               className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
               style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
-              aria-label="Merchant status"
+              aria-label={`${merchantLabel()} status`}
             >
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>
                 Status
@@ -520,18 +521,18 @@ export default function MerchantDetailPage() {
                     aria-label="Withdraw routing mode"
                   >
                     <option value="queue">Super Admin queue (assign later)</option>
-                    <option value="direct">Direct to Admin</option>
+                    <option value="direct">Direct to {bankerLabel()}</option>
                   </Select>
                 </FormField>
                 {routingMode === 'direct' ? (
-                  <FormField label="Admin" required>
+                  <FormField label={bankerLabel()} required>
                     <Select
                       id="withdraw-routing-admin"
                       value={routingAdminId}
                       onChange={(event) => setRoutingAdminId(event.target.value)}
-                      aria-label="Default payout Admin"
+                      aria-label={`Default payout ${bankerLabel()}`}
                     >
-                      <option value="">Select Admin</option>
+                      <option value="">Select {bankerLabel()}</option>
                       {activeAdmins.map((admin) => (
                         <option key={admin.id} value={admin.id}>
                           {admin.username}
@@ -557,7 +558,7 @@ export default function MerchantDetailPage() {
             </FormSection>
           ) : merchant.default_payout_admin_user_id ? (
             <FormSection title="Withdraw routing">
-              <FormField label="Direct Admin">
+              <FormField label={`Direct ${bankerLabel()}`}>
                 <Input
                   value={merchant.default_payout_admin_username ?? merchant.default_payout_admin_user_id}
                   readOnly
@@ -591,7 +592,7 @@ export default function MerchantDetailPage() {
 
           <FormSection
             title="Panel integration"
-            description="One external panel per merchant. The first connect locks the panel permanently; credentials can be changed or cleared later."
+            description="One external panel per exchange master. The first connect locks the panel permanently; credentials can be changed or cleared later."
           >
             {panelError ? (
               <div className="mb-3">

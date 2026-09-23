@@ -12,6 +12,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { merchantLabel } from '@/lib/labels'
 import { hasMenu } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -151,7 +152,7 @@ export default function CriciBanksPage() {
         action={
           canEdit ? (
             <PrimaryButton disabled={resyncing} onClick={() => void handleResyncAll()}>
-              {resyncing ? 'Syncing…' : filters.merchant_id ? 'Resync Merchant' : 'Resync All'}
+              {resyncing ? 'Syncing…' : filters.merchant_id ? `Resync ${merchantLabel()}` : 'Resync All'}
             </PrimaryButton>
           ) : null
         }
@@ -162,12 +163,12 @@ export default function CriciBanksPage() {
         onClear={() => void setFilters({ merchant_id: '', owner_user_id: '', active: '', linked: '', page: 1 })}
         onReload={() => void load()}
       >
-        <FormField label="Merchant">
+        <FormField label={merchantLabel()}>
           <Select
             value={filters.merchant_id}
             onChange={(e) => void setFilters({ merchant_id: e.target.value, page: 1 })}
           >
-            <option value="">All merchants</option>
+            <option value="">All {merchantLabel({ plural: true }).toLowerCase()}</option>
             {merchants.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.merchant_code} — {m.display_name}

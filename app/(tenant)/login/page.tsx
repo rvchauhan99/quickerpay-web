@@ -7,6 +7,7 @@ import { Input } from '@/components/forms/Input'
 import { PasswordInput } from '@/components/forms/PasswordInput'
 import { useEffect, useState } from 'react'
 import { ApiClientError, resetRedirectingFlag } from '@/lib/api'
+import { brandName } from '@/lib/brand'
 import { useSession } from '@/lib/session'
 
 export default function LoginPage() {
@@ -219,7 +220,7 @@ export default function LoginPage() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
             <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-              Secured by SafePay247 · All sessions are encrypted
+              Secured by {brandName()} · All sessions are encrypted
             </span>
           </div>
         </div>

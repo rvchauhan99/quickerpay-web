@@ -15,6 +15,7 @@ import { RateInput } from '@/components/forms/RateInput'
 import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
 import { toast } from 'sonner'
 import { apiRequest, formError } from '@/lib/api'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -77,8 +78,10 @@ export default function NewMerchantPage() {
     setFieldErrors({})
 
     if (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
-      setFieldErrors({ admin_user_ids: 'Select at least one Admin, or choose All Admins.' })
-      setError('Select at least one Admin, or choose All Admins.')
+      setFieldErrors({
+        admin_user_ids: `Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`,
+      })
+      setError(`Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`)
       return
     }
 
@@ -153,7 +156,7 @@ export default function NewMerchantPage() {
           },
         })
       }
-      toast.success('Merchant created')
+      toast.success(`${merchantLabel()} created`)
       router.replace('/merchants')
     } catch (caught) {
       const next = formError(caught, 'Could not create')
@@ -166,7 +169,7 @@ export default function NewMerchantPage() {
 
   return (
     <AppShell title="Create merchant" role={user.role} menus={menus}>
-      <PageHeader title="Create Merchant" backHref="/merchants" backLabel="Merchants" />
+      <PageHeader title={`Create ${merchantLabel()}`} backHref="/merchants" backLabel={merchantLabel({ plural: true })} />
       <div className="mb-4">
         <ErrorAlert message={error} />
       </div>
@@ -176,7 +179,7 @@ export default function NewMerchantPage() {
         submitLabel={submitting ? 'Creating…' : 'Create'}
         onSubmit={() => void handleSubmit()}
       >
-        <FormSection title="Merchant">
+        <FormSection title={merchantLabel()}>
           <FormGrid>
             <FormField label="Legal Name" required error={fieldErrors.legal_name}>
               <Input value={legalName} onChange={(event) => setLegalName(event.target.value)} />
@@ -184,7 +187,7 @@ export default function NewMerchantPage() {
             <FormField label="Display Name" error={fieldErrors.display_name}>
               <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
             </FormField>
-            <FormField label="Merchant Code" required error={fieldErrors.merchant_code}>
+            <FormField label={`${merchantLabel()} Code`} required error={fieldErrors.merchant_code}>
               <Input value={code} onChange={(event) => setCode(event.target.value)} />
             </FormField>
             <FormField label="Contact Email" error={fieldErrors.contact_email}>

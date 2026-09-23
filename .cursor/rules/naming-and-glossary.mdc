@@ -14,20 +14,23 @@ alwaysApply: true
 | Platform Owner | Runs QuickerPay itself, sells to Tenants, sees no tenant financial data |
 | Tenant | One customer of QuickerPay, one isolated database |
 | Super Admin | Owns a Tenant |
-| Admin | Holds banking inside a Tenant, earns commission |
-| Operator | Works a subset of an Admin's banking |
+| Admin (storage) / Banker (UI) | Holds banking inside a Tenant, earns commission. Stored `users.role = ADMIN`; UI shows Banker |
+| Staff Admin (storage) / Admin (UI) | Super Admin helper. Stored `STAFF_ADMIN`; menus only, no banking. UI shows Admin |
+| Operator | Works a subset of a Banker's banking |
 | Auditor | Read-only across the Tenant |
-| Merchant | The Super Admin's customer, sends and receives money |
+| Merchant (storage) / Exchange Master (UI) | The Super Admin's customer; table `merchants`, UI label Exchange Master |
 
-There is no nesting. A Tenant cannot contain a Tenant, and an Admin cannot contain an Admin.
+There is no nesting. A Tenant cannot contain a Tenant, and an Admin (Banker) cannot contain an Admin (Banker).
 
 ## Banned words
 
 Each of these names a concept this product deliberately does not have. Using one is a bug, not a style choice.
 
+**Display exception:** UI may say **Banker** for `ADMIN` and **Exchange Master** for merchants. Do not invent nested agencies.
+
 ```text
 Provider, P2P Provider, Agency        -> Tenant
-Agency Admin, Banker                  -> Admin
+Agency Admin                          -> ADMIN (UI: Banker)
 Agency Super Admin                    -> Super Admin
 Platform Super Admin                  -> Platform Owner
 Master Agency, Sub Agency, Nested     -> do not exist

@@ -5,12 +5,14 @@ import type { MerchantListItem, UserListItem } from '@quickerpay/shared-types'
 import { FormField } from '@/components/forms/FormField'
 import { Select } from '@/components/forms/Select'
 import { apiListRequest } from '@/lib/api'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 
 /** Roles that may filter Pay-In / Pay-Out / Dashboard by merchant. */
-const MERCHANT_FILTER_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'AUDITOR'])
+const MERCHANT_FILTER_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'STAFF_ADMIN', 'AUDITOR'])
 
 export function useSuperAdminDirectory(accessToken: string | null, role: string | undefined) {
   const isSuperAdmin = role === 'SUPER_ADMIN'
+  const canFilterDirectory = role === 'SUPER_ADMIN' || role === 'STAFF_ADMIN'
   const canFilterMerchants = Boolean(role && MERCHANT_FILTER_ROLES.has(role))
   const [admins, setAdmins] = useState<UserListItem[]>([])
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
@@ -18,7 +20,7 @@ export function useSuperAdminDirectory(accessToken: string | null, role: string 
   useEffect(() => {
     if (!accessToken) return
 
-    if (isSuperAdmin) {
+    if (canFilterDirectory) {
       void Promise.all([
         apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
         apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
@@ -37,7 +39,7 @@ export function useSuperAdminDirectory(accessToken: string | null, role: string 
     })
       .then((result) => setMerchants(result.items))
       .catch(() => setMerchants([]))
-  }, [accessToken, isSuperAdmin, canFilterMerchants])
+  }, [accessToken, canFilterDirectory, canFilterMerchants])
 
   return { isSuperAdmin, canFilterMerchants, admins, merchants }
 }
@@ -59,13 +61,13 @@ export function SuperAdminDirectoryFilters(props: {
   return (
     <>
       {showAdmin ? (
-        <FormField label="Admin">
+        <FormField label={bankerLabel()}>
           <Select
-            aria-label="Admin"
+            aria-label={bankerLabel()}
             value={props.adminId ?? ''}
             onChange={(event) => props.onAdminChange?.(event.target.value)}
           >
-            <option value="">All Admins</option>
+            <option value="">All {bankerLabel({ plural: true })}</option>
             {props.admins.map((row) => (
               <option key={row.id} value={row.id}>{row.username}</option>
             ))}
@@ -73,13 +75,13 @@ export function SuperAdminDirectoryFilters(props: {
         </FormField>
       ) : null}
       {showMerchant ? (
-        <FormField label="Merchant">
+        <FormField label={merchantLabel()}>
           <Select
-            aria-label="Merchant"
+            aria-label={merchantLabel()}
             value={props.merchantId ?? ''}
             onChange={(event) => props.onMerchantChange?.(event.target.value)}
           >
-            <option value="">All Merchants</option>
+            <option value="">All {merchantLabel({ plural: true })}</option>
             {props.merchants.map((row) => (
               <option key={row.id} value={row.id}>{row.display_name}</option>
             ))}

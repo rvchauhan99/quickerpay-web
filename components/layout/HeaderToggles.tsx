@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ApiClientError, apiRequest } from '@/lib/api'
+import { roleLabel } from '@/lib/labels'
 import { useSession } from '@/lib/session'
 
 /* ─── Toggle chip: pill-style with coloured dot indicator ─────────────────── */
@@ -202,7 +203,7 @@ export function HeaderToggles() {
             {user.display_name}
           </span>
           <span className="text-[10px] uppercase leading-tight" style={{ color: 'var(--qp-text-muted)' }}>
-            {user.role.replaceAll('_', ' ')}
+            {roleLabel(user.role)}
           </span>
         </div>
       </a>
