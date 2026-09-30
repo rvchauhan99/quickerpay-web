@@ -21,7 +21,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
-import { canSeeMerchants } from '@/lib/merchant-visibility'
+import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
@@ -140,6 +140,7 @@ export default function PayinPage() {
   }, [accessToken, allowed, menus, user?.role])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
+  const showPanelUsername = canSeeOwnPanelUsernames(user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -408,7 +409,7 @@ export default function PayinPage() {
           columns={[
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
-            ...(canFilterMerchants ? [{ key: 'username', heading: 'USERNAME' }] : []),
+            ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
             { key: 'actionTime', heading: 'ACTION TIME' },
@@ -420,9 +421,13 @@ export default function PayinPage() {
           rows={rows.map((row) => ({
             ref: row.reference,
             utr: row.utr ?? '—',
-            ...(canFilterMerchants
+            ...(showPanelUsername
               ? {
                   username: row.customer_ref?.trim() || '—',
+                }
+              : {}),
+            ...(canFilterMerchants
+              ? {
                   merchant: row.merchant_display_name?.trim() || '—',
                 }
               : {}),

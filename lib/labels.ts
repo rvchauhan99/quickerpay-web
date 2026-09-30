@@ -1,7 +1,7 @@
 import type { UserRole } from '@quickerpay/shared-types'
 
 /**
- * Display labels. Storage/API codes are SUPER_ADMIN | ADMIN | BANKER | OPERATOR | AUDITOR.
+ * Display labels. Storage/API codes are SUPER_ADMIN | ADMIN | BANKER | OPERATOR | AUDITOR | MERCHANT.
  */
 const ROLE_LABELS: Record<UserRole, string> = {
   SUPER_ADMIN: 'Super Admin',
@@ -11,6 +11,8 @@ const ROLE_LABELS: Record<UserRole, string> = {
   BANKER: 'Banker',
   OPERATOR: 'Operator',
   AUDITOR: 'Auditor',
+  /** Exchange Master portal login. */
+  MERCHANT: 'Exchange Master',
 }
 
 export function roleLabel(role: string | null | undefined): string {

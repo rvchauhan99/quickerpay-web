@@ -26,7 +26,8 @@ export default function LoginPage() {
   }, [])
 
   useEffect(() => {
-    if (ready && user) router.replace('/dashboard')
+    if (!ready || !user) return
+    router.replace(user.require_password_change ? '/profile' : '/dashboard')
   }, [ready, user, router])
 
   const handleSubmit = async () => {
@@ -42,7 +43,7 @@ export default function LoginPage() {
         setNeedsTotp(true)
         return
       }
-      router.replace('/dashboard')
+      router.replace(outcome.user.require_password_change ? '/profile' : '/dashboard')
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Invalid credentials')
     } finally {

@@ -9,7 +9,7 @@ interface SessionState {
   user: SessionUser | null
   menus: MenuGrant[]
   ready: boolean
-  login: (body: { username: string; password: string; totp?: string }) => Promise<'ok' | 'two_fa_required'>
+  login: (body: { username: string; password: string; totp?: string }) => Promise<LoginResponse | 'two_fa_required'>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -67,8 +67,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         body,
       })
       if ('two_fa_required' in payload && payload.two_fa_required) return 'two_fa_required'
-      applyLogin(payload as LoginResponse)
-      return 'ok' as const
+      const session = payload as LoginResponse
+      applyLogin(session)
+      return session
     },
     [applyLogin],
   )

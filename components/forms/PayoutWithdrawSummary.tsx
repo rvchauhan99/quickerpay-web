@@ -11,7 +11,7 @@ import {
 } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyDisplay } from '@/lib/money'
 import { merchantLabel } from '@/lib/labels'
-import { canSeeMerchants } from '@/lib/merchant-visibility'
+import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { useSession } from '@/lib/session'
 
 function SummaryItem({
@@ -53,7 +53,8 @@ export function PayoutWithdrawSummary({
   className?: string
 }) {
   const { user } = useSession()
-  const showPanelIdentity = canSeeMerchants(user?.role)
+  const showPanelIdentity = canSeeOwnPanelUsernames(user?.role)
+  const showMerchantCatalog = canSeeMerchants(user?.role)
   const beneficiary = row.beneficiary_name?.trim() || '—'
   const upi = payoutBeneficiaryUpi(row)
   const upiPayee = payoutIsUpiPayee(row)
@@ -83,7 +84,7 @@ export function PayoutWithdrawSummary({
         {showPanelIdentity ? (
           <SummaryItem label="Username">{row.supago_username?.trim() || '—'}</SummaryItem>
         ) : null}
-        {showPanelIdentity ? (
+        {showMerchantCatalog ? (
           <SummaryItem label={merchantLabel()}>{merchant}</SummaryItem>
         ) : null}
         <SummaryItem label="Amount">

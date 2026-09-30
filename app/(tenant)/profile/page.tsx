@@ -39,6 +39,8 @@ export default function ProfilePage() {
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
 
+  const mustChangePassword = user.require_password_change
+
   const handleSubmit = async () => {
     if (!accessToken || changingPassword) return
     setError(null)
@@ -62,7 +64,7 @@ export default function ProfilePage() {
   }
 
   const handleGenerate = async () => {
-    if (!accessToken) return
+    if (!accessToken || mustChangePassword) return
     setTotpBusy(true)
     setTotpError(null)
     setTotpOk(null)
@@ -82,7 +84,7 @@ export default function ProfilePage() {
   }
 
   const handleEnable = async () => {
-    if (!accessToken) return
+    if (!accessToken || mustChangePassword) return
     setTotpBusy(true)
     setTotpError(null)
     try {
@@ -104,7 +106,7 @@ export default function ProfilePage() {
   }
 
   const handleDisable = async () => {
-    if (!accessToken) return
+    if (!accessToken || mustChangePassword) return
     setConfirmDisable(false)
     setTotpBusy(true)
     setTotpError(null)
@@ -122,6 +124,11 @@ export default function ProfilePage() {
   return (
     <AppShell title="Profile" role={user.role} menus={menus}>
       <PageHeader title="Profile & Security" />
+      {mustChangePassword ? (
+        <div className="mb-4">
+          <ErrorAlert message="Change your temporary password to continue. Sign in again after saving." />
+        </div>
+      ) : null}
       <div className="mb-4">
         <p className="text-sm font-medium text-[var(--qp-text-primary)]">
           {user.username} <span className="text-[var(--qp-text-muted)] font-normal ml-2">({user.role.replaceAll('_', ' ')})</span>
@@ -130,7 +137,14 @@ export default function ProfilePage() {
 
       <div className="flex flex-col gap-6">
         <FormShell submitLabel={done ? undefined : changingPassword ? 'Saving…' : 'Change password'} onSubmit={done ? undefined : () => void handleSubmit()}>
-          <FormSection title="Password Change" description="Update your login password.">
+          <FormSection
+            title={mustChangePassword ? 'Required password change' : 'Password Change'}
+            description={
+              mustChangePassword
+                ? 'Set a new password of your own. Your temporary password stops working after this.'
+                : 'Update your login password.'
+            }
+          >
             {done ? (
               <ErrorAlert message="Password changed. Sign in again." type="success" />
             ) : (
@@ -159,6 +173,7 @@ export default function ProfilePage() {
           </FormSection>
         </FormShell>
 
+        {!mustChangePassword ? (
         <FormShell>
           <FormSection title="Authenticator (2FA)" description="Manage two-factor authentication for your account.">
             <div className="p-4">
@@ -214,6 +229,7 @@ export default function ProfilePage() {
             </div>
           </FormSection>
         </FormShell>
+        ) : null}
       </div>
       {confirmDisable ? (
         <ConfirmDialog

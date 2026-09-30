@@ -140,6 +140,10 @@ function isUnauthenticated(error: unknown): boolean {
   return error instanceof ApiClientError && (error.status === 401 || error.code === 'UNAUTHENTICATED')
 }
 
+function isPasswordChangeRequired(error: unknown): boolean {
+  return error instanceof ApiClientError && error.code === 'PASSWORD_CHANGE_REQUIRED'
+}
+
 function isAuthBootstrapPath(path: string): boolean {
   return AUTH_BOOTSTRAP_PATHS.has(path) || path.startsWith('/api/v1/platform/auth/')
 }
@@ -149,6 +153,12 @@ function redirectToLogin(): void {
   if (window.location.pathname === '/login') return
   isRedirecting = true
   window.location.replace('/login')
+}
+
+function redirectToProfileForPasswordChange(): void {
+  if (typeof window === 'undefined') return
+  if (window.location.pathname === '/profile') return
+  window.location.replace('/profile')
 }
 
 // Called by the login page on mount so that any previous redirect flag is cleared
@@ -191,6 +201,10 @@ async function requestWithRefresh(path: string, options: RequestOptions): Promis
     return await request(path, opts)
   } catch (error) {
     if (isRedirecting) return SILENT
+    if (isPasswordChangeRequired(error)) {
+      redirectToProfileForPasswordChange()
+      throw error
+    }
     if (isAuthBootstrapPath(path) || !isUnauthenticated(error)) throw error
     const freshToken = await recoverAccessToken()
     return request(path, { ...opts, token: freshToken })

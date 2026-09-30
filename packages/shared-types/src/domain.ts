@@ -23,7 +23,7 @@ export const READABLE_TENANT_STATUSES = ['ACTIVE', 'READ_ONLY', 'DEGRADED'] as c
 /** Tenant statuses that may create new financial operations. Non-negotiable 12. */
 export const WRITABLE_TENANT_STATUSES = ['ACTIVE'] as const
 
-export const USER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BANKER', 'OPERATOR', 'AUDITOR'] as const
+export const USER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BANKER', 'OPERATOR', 'AUDITOR', 'MERCHANT'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 export const USER_STATUSES = ['ACTIVE', 'DISABLED', 'SUSPENDED'] as const

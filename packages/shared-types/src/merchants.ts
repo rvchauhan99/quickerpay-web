@@ -44,4 +44,15 @@ export interface MerchantDetail extends MerchantListItem {
    * Cross-panel switch is rejected by the API.
    */
   integration_type: 'NONE' | 'SUPAGO' | 'CRICI'
+  /** Exchange Master portal login (`users.role = MERCHANT`), if enabled. */
+  portal_user_id: string | null
+  portal_username: string | null
+  portal_user_status: 'ACTIVE' | 'DISABLED' | 'SUSPENDED' | null
+}
+
+export interface MerchantPortalEnableResult {
+  user_id: string
+  username: string
+  temporary_password: string
+  require_password_change: true
 }

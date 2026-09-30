@@ -26,7 +26,7 @@ import {
 } from '@/components/forms/PayoutBankDetailsCell'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { merchantLabel } from '@/lib/labels'
-import { canSeeMerchants } from '@/lib/merchant-visibility'
+import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -170,7 +170,7 @@ export default function PayoutDetailPage() {
               <FormField label="Created">
                 <Input value={new Date(row.created_at).toLocaleString()} readOnly />
               </FormField>
-              {canSeeMerchants(user.role) ? (
+              {canSeeOwnPanelUsernames(user.role) ? (
                 <FormField label="Username">
                   <Input value={row.supago_username ?? '—'} readOnly />
                 </FormField>
