@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { MENU_CODES, PHASE_1_ADMIN_MENUS } from '@quickerpay/shared-types'
+import { MENU_CODES, PHASE_1_BANKER_MENUS } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
@@ -17,7 +17,7 @@ import { apiRequest, ApiClientError } from '@/lib/api'
 import { bankerLabel, roleLabel } from '@/lib/labels'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
-type CreatableRole = 'ADMIN' | 'STAFF_ADMIN' | 'OPERATOR' | 'AUDITOR'
+type CreatableRole = 'BANKER' | 'ADMIN' | 'OPERATOR' | 'AUDITOR'
 
 export default function NewUserPage() {
   const router = useRouter()
@@ -26,11 +26,11 @@ export default function NewUserPage() {
   const [displayName, setDisplayName] = useState('')
   const [mobile, setMobile] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<CreatableRole>('ADMIN')
+  const [role, setRole] = useState<CreatableRole>('BANKER')
   const [payinBp, setPayinBp] = useState(350)
   const [payoutBp, setPayoutBp] = useState(150)
   const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
-  const [selected, setSelected] = useState<string[]>([...PHASE_1_ADMIN_MENUS])
+  const [selected, setSelected] = useState<string[]>([...PHASE_1_BANKER_MENUS])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -43,7 +43,7 @@ export default function NewUserPage() {
     setError(null)
     setFieldErrors({})
 
-    if (role === 'ADMIN') {
+    if (role === 'BANKER') {
       const nextErrors: Record<string, string> = {}
       const national = splitE164(mobile).national
       if (!national) nextErrors.mobile = `Required when creating a ${bankerLabel()}`
@@ -69,9 +69,9 @@ export default function NewUserPage() {
           require_password_change: true,
           role,
           mobile: splitE164(mobile).national ? mobile.trim() : undefined,
-          daily_deposit_limit_minor: role === 'ADMIN' ? dailyDepositLimitMinor : undefined,
+          daily_deposit_limit_minor: role === 'BANKER' ? dailyDepositLimitMinor : undefined,
           rates:
-            role === 'ADMIN'
+            role === 'BANKER'
               ? [
                   { rate_kind: 'PAYIN', rate_bp: payinBp },
                   { rate_kind: 'PAYOUT', rate_bp: payoutBp },
@@ -125,9 +125,9 @@ export default function NewUserPage() {
             </FormField>
             <FormField
               label="Contact number"
-              required={role === 'ADMIN'}
+              required={role === 'BANKER'}
               error={fieldErrors.mobile}
-              hint={role === 'ADMIN' ? 'Used for bank OTP.' : 'Optional.'}
+              hint={role === 'BANKER' ? 'Used for bank OTP.' : 'Optional.'}
             >
               <PhoneInput
                 value={mobile}
@@ -151,14 +151,14 @@ export default function NewUserPage() {
             <FormField label="Role" required>
               <Select value={role} onChange={(event) => setRole(event.target.value as CreatableRole)} aria-label="Role">
                 {(user.role === 'SUPER_ADMIN'
-                  ? (['ADMIN', 'STAFF_ADMIN', 'OPERATOR', 'AUDITOR'] as const)
+                  ? (['BANKER', 'ADMIN', 'OPERATOR', 'AUDITOR'] as const)
                   : (['OPERATOR'] as const)
                 ).map((code) => (
                   <option key={code} value={code}>{roleLabel(code)}</option>
                 ))}
               </Select>
             </FormField>
-            {role === 'ADMIN' ? (
+            {role === 'BANKER' ? (
               <>
                 <FormField label="PAYIN rate (bp)" error={fieldErrors.rates ?? fieldErrors['rates.0.rate_bp']}>
                   <RateInput id="payin" valueBp={payinBp} onChangeBp={setPayinBp} />

@@ -1,15 +1,14 @@
 import type { UserRole } from '@quickerpay/shared-types'
 
 /**
- * Display labels only. API/DB codes stay SUPER_ADMIN | ADMIN | STAFF_ADMIN | …
- * Frontend always shows these strings regardless of backend spelling.
+ * Display labels. Storage/API codes are SUPER_ADMIN | ADMIN | BANKER | OPERATOR | AUDITOR.
  */
 const ROLE_LABELS: Record<UserRole, string> = {
   SUPER_ADMIN: 'Super Admin',
-  /** Banking owner — stored as ADMIN. */
-  ADMIN: 'Banker',
-  /** Super Admin helper — stored as STAFF_ADMIN. Always display "Admin". */
-  STAFF_ADMIN: 'Admin',
+  /** Super Admin helper — menus only. */
+  ADMIN: 'Admin',
+  /** Banking owner. */
+  BANKER: 'Banker',
   OPERATOR: 'Operator',
   AUDITOR: 'Auditor',
 }
@@ -25,7 +24,7 @@ export function merchantLabel(opts?: { plural?: boolean }): string {
   return opts?.plural ? 'Exchange Masters' : 'Exchange Master'
 }
 
-/** Banking owner filter / column (API role ADMIN). */
+/** Banking owner filter / column. */
 export function bankerLabel(opts?: { plural?: boolean }): string {
   return opts?.plural ? 'Bankers' : 'Banker'
 }

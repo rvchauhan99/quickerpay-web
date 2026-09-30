@@ -48,7 +48,7 @@ export default function NewMerchantPage() {
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
-  const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
+  const activeAdmins = admins.filter((row) => row.role === 'BANKER' && row.status === 'ACTIVE')
 
   const handleToggleAdmin = (adminId: string) => {
     setBankAdminIds((prev) =>
@@ -79,7 +79,7 @@ export default function NewMerchantPage() {
 
     if (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
       setFieldErrors({
-        admin_user_ids: `Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`,
+        banker_user_ids: `Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`,
       })
       setError(`Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`)
       return
@@ -130,8 +130,8 @@ export default function NewMerchantPage() {
             { rate_kind: 'PAYIN', rate_bp: payinBp },
             { rate_kind: 'PAYOUT', rate_bp: payoutBp },
           ],
-          bank_admin_mode: bankAdminMode,
-          admin_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
+          bank_banker_mode: bankAdminMode,
+          banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
       })
       if (panelType === 'supago') {

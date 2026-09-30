@@ -1,19 +1,22 @@
 /**
  * The Users module contract, docs/04_API_CONTRACT.md section 8.2.
  *
- * Rates are integer basis points, never a percentage. Admin daily deposit limit is
+ * Rates are integer basis points, never a percentage. Banker daily deposit limit is
  * integer paise (`daily_deposit_limit_minor`); enforced on IST-day COMPLETED Pay-In volume.
  */
 
 import type { BankingScope, MenuGrant } from './auth'
 import type { OperationalState, RateKind, UserRole, UserStatus } from './domain'
 
-export interface AdminRate {
+export interface BankerRate {
   rate_kind: RateKind
   rate_bp: number
   basis: string
   effective_from: string
 }
+
+/** @deprecated Use BankerRate */
+export type AdminRate = BankerRate
 
 /** A row in the user list, docs/03_MODULES_AND_SCREENS.md section 4.4. */
 export interface UserListItem {
@@ -23,12 +26,12 @@ export interface UserListItem {
   username: string
   display_name: string
   role: UserRole
-  supervisor_admin_id: string | null
+  supervisor_banker_id: string | null
   supervisor_username: string | null
   email: string | null
   mobile: string | null
   user_code: string | null
-  /** Admin daily deposit ceiling in paise. Null for non-Admin roles. */
+  /** Banker daily deposit ceiling in paise. Null for non-Banker roles. */
   daily_deposit_limit_minor: number | null
   status: UserStatus
   operational_state: OperationalState
@@ -38,7 +41,7 @@ export interface UserListItem {
   require_password_change: boolean
   menus: MenuGrant[]
   /**
-   * ACTIVE banking grant rows this user holds. An Admin's effective scope also includes
+   * ACTIVE banking grant rows this user holds. A Banker's effective scope also includes
    * the accounts they own, which arrives with banking in build step 4.
    */
   scope_grant_count: number
@@ -47,10 +50,10 @@ export interface UserListItem {
 }
 
 export interface UserDetail extends UserListItem {
-  /** The granted ids. An Operator's effective scope is this intersected with their Admin's. */
+  /** The granted ids. An Operator's effective scope is this intersected with their Banker's. */
   scope: BankingScope
-  /** Both open kinds for an Admin, empty for every other role. */
-  rates: AdminRate[]
+  /** Both open kinds for a Banker, empty for every other role. */
+  rates: BankerRate[]
 }
 
 export interface RevokedSessions {

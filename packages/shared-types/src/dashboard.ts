@@ -9,9 +9,9 @@ export interface DashboardCard {
   margin_minor?: number
 }
 
-export interface DashboardAdminRow {
-  admin_user_id: string
-  admin_username: string
+export interface DashboardBankerRow {
+  banker_user_id: string
+  banker_username: string
   payin_minor: number
   payout_minor: number
   commission_minor: number
@@ -20,7 +20,7 @@ export interface DashboardAdminRow {
 
 export interface DashboardKindCommission {
   rate_kind: 'PAYIN' | 'PAYOUT'
-  admin_commission_minor: number
+  banker_commission_minor: number
   margin_minor: number
 }
 
@@ -30,9 +30,9 @@ export interface DashboardSummary {
   commission: DashboardCard
   inter_transfer: DashboardCard
   refunded_minor: number
-  /** Live ADMIN_BALANCE. Date filters do not apply. Null when the caller has no Admin ledger. */
+  /** Live BANKER_BALANCE. Date filters do not apply. Null when the caller has no Banker ledger. */
   my_account_minor: number | null
-  admin_wise: DashboardAdminRow[]
+  banker_wise: DashboardBankerRow[]
   pending_approvals: number
   failed_transactions: number
   unmatched_utrs: number

@@ -79,8 +79,8 @@ export default function TransactionDetailPage() {
             {detail.commission ? (
               <p className="text-xs">
                 {detail.commission.rate_kind} merchant <RateDisplay rateBp={detail.commission.merchant_rate_bp} /> admin{' '}
-                <RateDisplay rateBp={detail.commission.admin_rate_bp} /> amount{' '}
-                <MoneyDisplay amountMinor={detail.commission.admin_commission_minor} />
+                <RateDisplay rateBp={detail.commission.banker_rate_bp} /> amount{' '}
+                <MoneyDisplay amountMinor={detail.commission.banker_commission_minor} />
               </p>
             ) : (
               <p className="text-xs text-zinc-500">No snapshot</p>

@@ -14,23 +14,23 @@ alwaysApply: true
 | Platform Owner | Runs QuickerPay itself, sells to Tenants, sees no tenant financial data |
 | Tenant | One customer of QuickerPay, one isolated database |
 | Super Admin | Owns a Tenant |
-| Admin (storage) / Banker (UI) | Holds banking inside a Tenant, earns commission. Stored `users.role = ADMIN`; UI shows Banker |
-| Staff Admin (storage) / Admin (UI) | Super Admin helper. Stored `STAFF_ADMIN`; menus only, no banking. UI shows Admin |
+| Banker | Holds banking inside a Tenant, earns commission. Stored `users.role = BANKER`. Ledger `BANKER_BALANCE:<id>` |
+| Admin | Super Admin helper. Stored `users.role = ADMIN`; menus only, no banking |
 | Operator | Works a subset of a Banker's banking |
 | Auditor | Read-only across the Tenant |
 | Merchant (storage) / Exchange Master (UI) | The Super Admin's customer; table `merchants`, UI label Exchange Master |
 
-There is no nesting. A Tenant cannot contain a Tenant, and an Admin (Banker) cannot contain an Admin (Banker).
+There is no nesting. A Tenant cannot contain a Tenant, and a Banker cannot contain a Banker.
 
 ## Banned words
 
 Each of these names a concept this product deliberately does not have. Using one is a bug, not a style choice.
 
-**Display exception:** UI may say **Banker** for `ADMIN` and **Exchange Master** for merchants. Do not invent nested agencies.
+**Display exception:** UI may say **Exchange Master** for merchants. Do not invent nested agencies. Do not store banking owners as `ADMIN` — that role is the SA helper only.
 
 ```text
 Provider, P2P Provider, Agency        -> Tenant
-Agency Admin                          -> ADMIN (UI: Banker)
+Agency Admin                          -> BANKER (UI: Banker)
 Agency Super Admin                    -> Super Admin
 Platform Super Admin                  -> Platform Owner
 Master Agency, Sub Agency, Nested     -> do not exist
@@ -42,6 +42,9 @@ VISIONPAY_CONFIG                      -> QUICKERPAY_CONFIG
 bankerCode                            -> username
 bankerUPI, banker_UPI                 -> upiAddress
 VisonPay, VisionPay                   -> QuickerPay
+STAFF_ADMIN                           -> ADMIN (SA helper)
+users.role ADMIN (banking)            -> BANKER
+ADMIN_BALANCE                         -> BANKER_BALANCE
 ```
 
 `BOT` is not banned. It is the label the UTR Entries screen renders for an extension-created row, derived from `utr_entries.source`, never stored as a username.

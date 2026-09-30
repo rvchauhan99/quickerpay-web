@@ -69,8 +69,8 @@ export function HeaderToggles() {
 
   if (!user) return null
 
-  const showAutoAccept = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN'
-  const showOnline = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'OPERATOR'
+  const showAutoAccept = user.role === 'SUPER_ADMIN' || user.role === 'BANKER'
+  const showOnline = user.role === 'SUPER_ADMIN' || user.role === 'BANKER' || user.role === 'OPERATOR'
 
   const handleAutoAccept = () => {
     if (!accessToken) return

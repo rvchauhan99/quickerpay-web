@@ -137,7 +137,7 @@ export default function MockGpayPage() {
   if (!hydrated) return <main className="p-4 text-sm text-zinc-600">Loading mock Google Pay</main>
 
   return (
-    <AppShell title="Google Pay for Business (mock)" role="ADMIN" menus={[]}>
+    <AppShell title="Google Pay for Business (mock)" role="BANKER" menus={[]}>
       <header className="mb-4">
         <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--qp-primary)' }}>Local test fixture — not Google Pay</p>
         <p className="mt-1 text-sm text-zinc-600">

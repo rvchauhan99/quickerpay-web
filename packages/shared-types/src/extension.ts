@@ -14,8 +14,8 @@ export interface ExtensionDeviceListItem {
   token_prefix: string
   status: string
   presence: 'Online' | 'Offline'
-  admin_name: string
-  admin_username: string
+  banker_name: string
+  banker_username: string
   upi_address: string
   last_seen_at: string | null
   scraper_version: string | null

@@ -42,7 +42,7 @@ export default function PayinPage() {
     status: parseAsString.withDefault('IN_PROCESS'),
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -76,7 +76,7 @@ export default function PayinPage() {
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+    if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     try {
       const result = await apiListRequest<PayinListItem>(`/api/v1/payin?${query}`)
       setRows(result.items)
@@ -86,7 +86,7 @@ export default function PayinPage() {
     } finally {
       if (!options?.silent) setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.admin_user_id])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -104,7 +104,7 @@ export default function PayinPage() {
       date_to: filters.date_to || undefined,
       q: filters.q || undefined,
       merchant_id: filters.merchant_id || undefined,
-      admin_user_id: filters.admin_user_id || undefined,
+      banker_user_id: filters.banker_user_id || undefined,
     },
     rows,
     setRows,
@@ -152,7 +152,7 @@ export default function PayinPage() {
       label: `${upi.owner_username} (${bankerLabel()})`,
     }
     const operators = users
-      .filter((row) => row.role === 'OPERATOR' && row.supervisor_admin_id === upi.owner_user_id && row.status === 'ACTIVE')
+      .filter((row) => row.role === 'OPERATOR' && row.supervisor_banker_id === upi.owner_user_id && row.status === 'ACTIVE')
       .map((row) => ({ id: row.id, label: `${row.username} (Operator)` }))
     return [owner, ...operators.filter((row) => row.id !== owner.id)]
   }
@@ -281,7 +281,7 @@ export default function PayinPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', merchant_id: '', banker_user_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -303,10 +303,10 @@ export default function PayinPage() {
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={directoryMerchants.length > 0 ? directoryMerchants : merchants}
-            adminId={filters.admin_user_id}
+            adminId={filters.banker_user_id}
             merchantId={filters.merchant_id}
             showAdmin={isSuperAdmin}
-            onAdminChange={isSuperAdmin ? (value) => void setFilters({ admin_user_id: value, page: 1 }) : undefined}
+            onAdminChange={isSuperAdmin ? (value) => void setFilters({ banker_user_id: value, page: 1 }) : undefined}
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
@@ -321,7 +321,7 @@ export default function PayinPage() {
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.q) query.set('q', filters.q)
               if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
               void downloadExport(`/api/v1/payin/export?${query}`, 'payins.csv', accessToken!)
             }}
           />

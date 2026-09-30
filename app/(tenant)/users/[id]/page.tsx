@@ -64,7 +64,7 @@ export default function UserDetailPage() {
     setError(null)
     setFieldErrors({})
 
-    if (detail?.role === 'ADMIN' && !splitE164(mobile).national) {
+    if (detail?.role === 'BANKER' && !splitE164(mobile).national) {
       setFieldErrors({ mobile: `A ${bankerLabel()} must keep a mobile number with country code` })
       setError(`Mobile is required for a ${bankerLabel()}`)
       setSavingIdentity(false)
@@ -79,7 +79,7 @@ export default function UserDetailPage() {
           display_name: displayName,
           email: email.trim() ? email.trim() : null,
           mobile: splitE164(mobile).national ? mobile.trim() : null,
-          ...(canEditDepositLimit && detail?.role === 'ADMIN'
+          ...(canEditDepositLimit && detail?.role === 'BANKER'
             ? { daily_deposit_limit_minor: dailyDepositLimitMinor }
             : {}),
         },
@@ -186,7 +186,7 @@ export default function UserDetailPage() {
               </FormField>
               <FormField
                 label="Mobile"
-                required={detail.role === 'ADMIN'}
+                required={detail.role === 'BANKER'}
                 error={fieldErrors.mobile}
                 hint="Used for bank OTP."
               >
@@ -197,7 +197,7 @@ export default function UserDetailPage() {
                   onChange={setMobile}
                 />
               </FormField>
-              {detail.role === 'ADMIN' ? (
+              {detail.role === 'BANKER' ? (
                 <FormField
                   label="Daily deposit limit"
                   required={canEditDepositLimit}

@@ -175,7 +175,7 @@ export function AppShell({
   const { user, accessToken, refreshUser } = useSession()
 
   useEffect(() => {
-    if (role !== 'ADMIN') return
+    if (role !== 'BANKER') return
     void refreshUser().catch(() => undefined)
   }, [role, refreshUser])
 

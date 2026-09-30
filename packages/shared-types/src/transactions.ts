@@ -13,8 +13,8 @@ export interface TransactionListItem {
   type: TransactionType
   created_at: string
   merchant_id: string | null
-  admin_user_id: string | null
-  admin_username: string | null
+  banker_user_id: string | null
+  banker_username: string | null
   amount_minor: number
   status: string
   utr: string | null

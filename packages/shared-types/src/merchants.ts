@@ -5,7 +5,9 @@
 
 import type { MerchantStatus, RateKind } from './domain'
 
-export type BankAdminMode = 'ALL' | 'SELECTED'
+export type BankBankerMode = 'ALL' | 'SELECTED'
+/** @deprecated Use BankBankerMode */
+export type BankAdminMode = BankBankerMode
 
 export interface MerchantRate {
   rate_kind: RateKind
@@ -28,15 +30,15 @@ export interface MerchantDetail extends MerchantListItem {
   contact_mobile: string | null
   rates: MerchantRate[]
   /**
-   * NULL = Supago withdraws land in Super Admin unassigned queue.
-   * Set = poll auto-assigns to this ACTIVE Admin (fallback to unassigned if invalid).
+   * NULL = panel withdraws land in Super Admin unassigned queue.
+   * Set = poll auto-assigns to this ACTIVE Banker (fallback to unassigned if invalid).
    */
-  default_payout_admin_user_id: string | null
-  default_payout_admin_username: string | null
-  /** Who may sync/enable banks on this merchant's Supago. */
-  bank_admin_mode: BankAdminMode
-  /** Populated when bank_admin_mode is SELECTED; empty when ALL. */
-  bank_admin_user_ids: string[]
+  default_payout_banker_user_id: string | null
+  default_payout_banker_username: string | null
+  /** Who may sync/enable banks on this Exchange Master's panel. */
+  bank_banker_mode: BankBankerMode
+  /** Populated when bank_banker_mode is SELECTED; empty when ALL. */
+  bank_banker_user_ids: string[]
   /**
    * Permanent panel lock after first connect. Credential clear does not reset to NONE.
    * Cross-panel switch is rejected by the API.

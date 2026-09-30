@@ -1,0 +1,28 @@
+# Web image / deploy context — never ship local ops, secrets, or scratch.
+# Keep in lockstep with .gitignore and ../QuickerPay/.cursor/rules/no-local-ops-scripts.mdc
+
+credentials/
+.env
+.env.*
+!.env.example
+
+testdata/
+test_reports/
+tmp/
+scratch/
+coverage/
+**/*.live.json
+
+scripts/qa-*.ts
+scripts/test-*.ts
+scripts/*_local.ts
+scripts/*_prod.ts
+scripts/*_tmp.ts
+scripts/*_scratch.ts
+scripts/tmp-*.ts
+scripts/scratch-*.ts
+
+.git/
+.cursor/
+*.md
+AGENTS.md

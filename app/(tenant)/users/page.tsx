@@ -46,7 +46,7 @@ export default function UsersPage() {
   const [statusTarget, setStatusTarget] = useState<{ id: string; username: string; next: 'ACTIVE' | 'DISABLED' } | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
 
-  const isAdmin = user?.role === 'ADMIN'
+  const isAdmin = user?.role === 'BANKER'
   const offerableModules = menus.filter((grant) => grant.can_view && grant.menu_code !== 'USERS')
 
   const load = useCallback(async () => {

@@ -58,7 +58,7 @@ export default function ExtensionDevicesPage() {
   const shown = useMemo(
     () =>
       rows.filter((row) => {
-        if (filters.owner && !`${row.admin_name} ${row.admin_username}`.toLowerCase().includes(filters.owner.toLowerCase())) {
+        if (filters.owner && !`${row.banker_name} ${row.banker_username}`.toLowerCase().includes(filters.owner.toLowerCase())) {
           return false
         }
         if (filters.upi && !row.upi_address.toLowerCase().includes(filters.upi.toLowerCase())) return false
@@ -147,7 +147,7 @@ export default function ExtensionDevicesPage() {
           rows={shown.map((row) => ({
             label: row.label,
             token_prefix: row.token_prefix,
-            admin: row.admin_name,
+            admin: row.banker_name,
             upi: row.upi_address,
             status: (
               <span className="flex gap-1">

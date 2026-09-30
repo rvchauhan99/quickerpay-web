@@ -84,7 +84,7 @@ export default function LedgerPage() {
   useEffect(() => {
     if (!ready || !allowed) return
     if (isSuperAdmin) {
-      void apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100').then((result) =>
+      void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100').then((result) =>
         setAdmins(result.items),
       )
       void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100').then((result) =>

@@ -21,7 +21,7 @@ export function applyLiveEnvelope<T extends MergeableRow>(params: {
   event: LiveEventEnvelope
   statusFilter: string
   pagination: Pagination | null
-  /** When true, an event with admin_user_id set has left the unassigned queue. */
+  /** When true, an event with banker_user_id set has left the unassigned queue. */
   unassignedFilter?: boolean
 }): { rows: T[]; pagination: Pagination | null; shouldPullChanges: boolean } {
   if (!params.event.id) {
@@ -31,8 +31,8 @@ export function applyLiveEnvelope<T extends MergeableRow>(params: {
   const onPage = params.rows.some((row) => row.id === params.event.id)
   const leftUnassigned =
     params.unassignedFilter === true &&
-    params.event.admin_user_id !== null &&
-    params.event.admin_user_id !== ''
+    params.event.banker_user_id !== null &&
+    params.event.banker_user_id !== ''
 
   if (!statusMatchesFilter(params.event.status, params.statusFilter) || leftUnassigned) {
     if (!onPage) {

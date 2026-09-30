@@ -41,11 +41,11 @@ export interface SessionUser {
   username: string
   display_name: string
   role: UserRole
-  supervisor_admin_id: string | null
+  supervisor_banker_id: string | null
   operational_state: OperationalState
   auto_accept_enabled: boolean
   two_fa_enabled: boolean
-  /** Admin only; null for other roles. IST-day COMPLETED Pay-In cap. */
+  /** Banker only; null for other roles. IST-day COMPLETED Pay-In cap. */
   daily_deposit_limit_minor: number | null
   daily_deposit_used_minor: number | null
   daily_deposit_limit_reached: boolean

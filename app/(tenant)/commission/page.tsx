@@ -24,7 +24,7 @@ const EMPTY: CommissionSummary = {
       rate_kind: 'PAYIN',
       eligible_volume_minor: 0,
       merchant_commission_minor: 0,
-      admin_commission_minor: 0,
+      banker_commission_minor: 0,
       margin_minor: 0,
       reversals_minor: 0,
       net_minor: 0,
@@ -33,7 +33,7 @@ const EMPTY: CommissionSummary = {
       rate_kind: 'PAYOUT',
       eligible_volume_minor: 0,
       merchant_commission_minor: 0,
-      admin_commission_minor: 0,
+      banker_commission_minor: 0,
       margin_minor: 0,
       reversals_minor: 0,
       net_minor: 0,
@@ -42,7 +42,7 @@ const EMPTY: CommissionSummary = {
   total: {
     eligible_volume_minor: 0,
     merchant_commission_minor: 0,
-    admin_commission_minor: 0,
+    banker_commission_minor: 0,
     margin_minor: 0,
     reversals_minor: 0,
     net_minor: 0,
@@ -56,20 +56,20 @@ export default function CommissionPage() {
     date_from: parseAsString.withDefault(''),
     date_to: parseAsString.withDefault(''),
     rate_kind: parseAsString.withDefault(''),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
   })
   const dateFrom = filters.date_from
   const dateTo = filters.date_to
   const rateKind = filters.rate_kind
-  const adminUserId = filters.admin_user_id
+  const adminUserId = filters.banker_user_id
   const merchantId = filters.merchant_id
   const [summary, setSummary] = useState<CommissionSummary>(EMPTY)
   const [entries, setEntries] = useState<CommissionEntry[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const hideMargin = user?.role === 'ADMIN'
+  const hideMargin = user?.role === 'BANKER'
 
   const load = useCallback(async () => {
     if (!accessToken) return
@@ -79,7 +79,7 @@ export default function CommissionPage() {
     if (dateFrom) query.set('date_from', dateFrom)
     if (dateTo) query.set('date_to', dateTo)
     if (rateKind) query.set('rate_kind', rateKind)
-    if (adminUserId) query.set('admin_user_id', adminUserId)
+    if (adminUserId) query.set('banker_user_id', adminUserId)
     if (merchantId) query.set('merchant_id', merchantId)
     const suffix = query.toString() ? `?${query.toString()}` : ''
     try {
@@ -120,7 +120,7 @@ export default function CommissionPage() {
   const payoutKind = summary.kinds.find((row) => row.rate_kind === 'PAYOUT') ?? EMPTY.kinds[1]!
 
   const handleClear = () => {
-    void setFilters({ date_from: '', date_to: '', rate_kind: '', admin_user_id: '', merchant_id: '' })
+    void setFilters({ date_from: '', date_to: '', rate_kind: '', banker_user_id: '', merchant_id: '' })
   }
 
   return (
@@ -148,7 +148,7 @@ export default function CommissionPage() {
             merchants={merchants}
             adminId={adminUserId}
             merchantId={merchantId}
-            onAdminChange={(value) => void setFilters({ admin_user_id: value })}
+            onAdminChange={(value) => void setFilters({ banker_user_id: value })}
             onMerchantChange={(value) => void setFilters({ merchant_id: value })}
           />
         ) : null}
@@ -160,7 +160,7 @@ export default function CommissionPage() {
               if (dateFrom) query.set('date_from', dateFrom)
               if (dateTo) query.set('date_to', dateTo)
               if (rateKind) query.set('rate_kind', rateKind)
-              if (adminUserId) query.set('admin_user_id', adminUserId)
+              if (adminUserId) query.set('banker_user_id', adminUserId)
               if (merchantId) query.set('merchant_id', merchantId)
               void downloadExport(`/api/v1/commission/export?${query}`, 'commission.csv', accessToken!)
             }}
@@ -184,7 +184,7 @@ export default function CommissionPage() {
           <tbody>
             <SummaryRow label="Eligible volume" a={payinKind.eligible_volume_minor} b={payoutKind.eligible_volume_minor} c={summary.total.eligible_volume_minor} />
             <SummaryRow label={`${merchantLabel()} commission`} a={payinKind.merchant_commission_minor} b={payoutKind.merchant_commission_minor} c={summary.total.merchant_commission_minor} />
-            <SummaryRow label={`${bankerLabel()} commission`} a={payinKind.admin_commission_minor} b={payoutKind.admin_commission_minor} c={summary.total.admin_commission_minor} />
+            <SummaryRow label={`${bankerLabel()} commission`} a={payinKind.banker_commission_minor} b={payoutKind.banker_commission_minor} c={summary.total.banker_commission_minor} />
             {hideMargin ? null : (
               <SummaryRow label="Your margin" a={payinKind.margin_minor} b={payoutKind.margin_minor} c={summary.total.margin_minor} />
             )}
@@ -220,9 +220,9 @@ export default function CommissionPage() {
           rate_kind: row.rate_kind,
           eligible: <MoneyDisplay amountMinor={row.eligible_amount_minor} />,
           merchant_rate: <RateDisplay rateBp={row.merchant_rate_bp} />,
-          admin_rate: <RateDisplay rateBp={row.admin_rate_bp} />,
+          admin_rate: <RateDisplay rateBp={row.banker_rate_bp} />,
           merchant: <MoneyDisplay amountMinor={row.merchant_commission_minor} />,
-          admin: <MoneyDisplay amountMinor={row.admin_commission_minor} />,
+          admin: <MoneyDisplay amountMinor={row.banker_commission_minor} />,
           margin: <MoneyDisplay amountMinor={row.margin_minor} />,
         }))}
         empty={<EmptyState message="No records match these filters" onClear={handleClear} />}

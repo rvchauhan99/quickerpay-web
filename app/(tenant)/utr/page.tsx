@@ -34,7 +34,7 @@ export default function UtrPage() {
     status: parseAsString.withDefault('PENDING'),
     upi_account_id: parseAsString.withDefault(''),
     q: parseAsString.withDefault(''),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     extension_device_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
@@ -62,7 +62,7 @@ export default function UtrPage() {
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.upi_account_id) query.set('upi_account_id', filters.upi_account_id)
     if (filters.q) query.set('q', filters.q)
-    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+    if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     if (filters.extension_device_id) query.set('extension_device_id', filters.extension_device_id)
     try {
       const result = await apiListRequest<UtrListItem>(`/api/v1/utr?${query}`)
@@ -74,7 +74,7 @@ export default function UtrPage() {
     } finally {
       if (!options?.silent) setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.upi_account_id, filters.q, filters.admin_user_id, filters.extension_device_id])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.upi_account_id, filters.q, filters.banker_user_id, filters.extension_device_id])
 
   const { pendingOnPage1 } = useQueueSync({
     entity: 'utr',
@@ -88,7 +88,7 @@ export default function UtrPage() {
       date_to: filters.date_to || undefined,
       upi_account_id: filters.upi_account_id || undefined,
       q: filters.q || undefined,
-      admin_user_id: filters.admin_user_id || undefined,
+      banker_user_id: filters.banker_user_id || undefined,
       extension_device_id: filters.extension_device_id || undefined,
     },
     rows,
@@ -186,7 +186,7 @@ export default function UtrPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', upi_account_id: '', q: '', admin_user_id: '', extension_device_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', upi_account_id: '', q: '', banker_user_id: '', extension_device_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -216,8 +216,8 @@ export default function UtrPage() {
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={merchants}
-            adminId={filters.admin_user_id}
-            onAdminChange={(value) => void setFilters({ admin_user_id: value, page: 1 })}
+            adminId={filters.banker_user_id}
+            onAdminChange={(value) => void setFilters({ banker_user_id: value, page: 1 })}
             showMerchant={false}
           />
         ) : null}
@@ -235,7 +235,7 @@ export default function UtrPage() {
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.upi_account_id) query.set('upi_account_id', filters.upi_account_id)
               if (filters.q) query.set('q', filters.q)
-              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
               if (filters.extension_device_id) query.set('extension_device_id', filters.extension_device_id)
               void downloadExport(`/api/v1/utr/export?${query}`, 'utrs.csv', accessToken!)
             }}

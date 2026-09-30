@@ -24,7 +24,7 @@ export default function ReportsPage() {
     date_from: parseAsString.withDefault(''),
     date_to: parseAsString.withDefault(''),
     owner_user_id: parseAsString.withDefault(''),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
     bank_account_id: parseAsString.withDefault(''),
   })
@@ -37,7 +37,7 @@ export default function ReportsPage() {
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
-    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+    if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
     return query.toString()
@@ -68,7 +68,7 @@ export default function ReportsPage() {
       <PageHeader
         title="Reports"
       />
-      <FilterBar onApply={() => void handleRun()} onClear={() => void setFilters({ type: 'commission', date_from: '', date_to: '', owner_user_id: '', admin_user_id: '', merchant_id: '', bank_account_id: '' })} onReload={() => void handleRun()}>
+      <FilterBar onApply={() => void handleRun()} onClear={() => void setFilters({ type: 'commission', date_from: '', date_to: '', owner_user_id: '', banker_user_id: '', merchant_id: '', bank_account_id: '' })} onReload={() => void handleRun()}>
         <FormField label="Report Type">
           <Select value={filters.type} onChange={(event) => void setFilters({ type: event.target.value })} aria-label="Report type">
             {REPORT_TYPES.map((type) => (
@@ -86,11 +86,11 @@ export default function ReportsPage() {
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={merchants}
-            adminId={filters.type === 'ledger' ? filters.owner_user_id : filters.admin_user_id}
+            adminId={filters.type === 'ledger' ? filters.owner_user_id : filters.banker_user_id}
             merchantId={filters.merchant_id}
             onAdminChange={(value) => {
-              if (filters.type === 'ledger') void setFilters({ owner_user_id: value, admin_user_id: '', bank_account_id: '' })
-              else void setFilters({ admin_user_id: value, owner_user_id: '' })
+              if (filters.type === 'ledger') void setFilters({ owner_user_id: value, banker_user_id: '', bank_account_id: '' })
+              else void setFilters({ banker_user_id: value, owner_user_id: '' })
             }}
             onMerchantChange={(value) => void setFilters({ merchant_id: value })}
           />

@@ -9,10 +9,10 @@ export interface CommissionSnapshot {
   rate_kind: RateKind
   eligible_amount_minor: number
   merchant_rate_bp: number
-  admin_rate_bp: number
+  banker_rate_bp: number
   margin_rate_bp: number
   merchant_commission_minor: number
-  admin_commission_minor: number
+  banker_commission_minor: number
   margin_minor: number
 }
 
@@ -20,7 +20,7 @@ export interface CommissionKindTotals {
   rate_kind: RateKind
   eligible_volume_minor: number
   merchant_commission_minor: number
-  admin_commission_minor: number
+  banker_commission_minor: number
   margin_minor: number
   reversals_minor: number
   net_minor: number
@@ -36,12 +36,12 @@ export interface CommissionEntry {
   transaction_id: string
   rate_kind: RateKind
   merchant_id: string
-  admin_user_id: string
+  banker_user_id: string
   eligible_amount_minor: number
   merchant_rate_bp: number
-  admin_rate_bp: number
+  banker_rate_bp: number
   merchant_commission_minor: number
-  admin_commission_minor: number
+  banker_commission_minor: number
   margin_minor: number | null
   created_at: string
 }

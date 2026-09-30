@@ -8,11 +8,11 @@ import { apiListRequest } from '@/lib/api'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 
 /** Roles that may filter Pay-In / Pay-Out / Dashboard by merchant. */
-const MERCHANT_FILTER_ROLES = new Set(['SUPER_ADMIN', 'ADMIN', 'STAFF_ADMIN', 'AUDITOR'])
+const MERCHANT_FILTER_ROLES = new Set(['SUPER_ADMIN', 'BANKER', 'ADMIN', 'AUDITOR'])
 
 export function useSuperAdminDirectory(accessToken: string | null, role: string | undefined) {
   const isSuperAdmin = role === 'SUPER_ADMIN'
-  const canFilterDirectory = role === 'SUPER_ADMIN' || role === 'STAFF_ADMIN'
+  const canFilterDirectory = role === 'SUPER_ADMIN' || role === 'ADMIN'
   const canFilterMerchants = Boolean(role && MERCHANT_FILTER_ROLES.has(role))
   const [admins, setAdmins] = useState<UserListItem[]>([])
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
@@ -22,7 +22,7 @@ export function useSuperAdminDirectory(accessToken: string | null, role: string 
 
     if (canFilterDirectory) {
       void Promise.all([
-        apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
+        apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken }),
         apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
           items: [] as MerchantListItem[],
         })),

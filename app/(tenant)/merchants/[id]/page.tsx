@@ -106,9 +106,9 @@ export default function MerchantDetailPage() {
   }, [])
 
   const applyRoutingFromDetail = (detail: MerchantDetail) => {
-    if (detail.default_payout_admin_user_id) {
+    if (detail.default_payout_banker_user_id) {
       setRoutingMode('direct')
-      setRoutingAdminId(detail.default_payout_admin_user_id)
+      setRoutingAdminId(detail.default_payout_banker_user_id)
       return
     }
     setRoutingMode('queue')
@@ -116,8 +116,8 @@ export default function MerchantDetailPage() {
   }
 
   const applyBankAdminsFromDetail = (detail: MerchantDetail) => {
-    setBankAdminMode(detail.bank_admin_mode ?? 'ALL')
-    setBankAdminIds(detail.bank_admin_user_ids ?? [])
+    setBankAdminMode(detail.bank_banker_mode ?? 'ALL')
+    setBankAdminIds(detail.bank_banker_user_ids ?? [])
   }
 
   const load = useCallback(async () => {
@@ -297,7 +297,7 @@ export default function MerchantDetailPage() {
         method: 'PATCH',
         token: accessToken,
         body: {
-          default_payout_admin_user_id: routingMode === 'direct' ? routingAdminId : null,
+          default_payout_banker_user_id: routingMode === 'direct' ? routingAdminId : null,
         },
       })
       setMerchant(detail)
@@ -328,8 +328,8 @@ export default function MerchantDetailPage() {
         method: 'PATCH',
         token: accessToken,
         body: {
-          bank_admin_mode: bankAdminMode,
-          admin_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
+          bank_banker_mode: bankAdminMode,
+          banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
       })
       toast.success('Deposit managers saved')
@@ -367,7 +367,7 @@ export default function MerchantDetailPage() {
   const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
   const canEditRouting = Boolean(isSuperAdmin && canEdit)
   const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
-  const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
+  const activeAdmins = admins.filter((row) => row.role === 'BANKER' && row.status === 'ACTIVE')
   const lockedPanel: PanelIntegrationType =
     merchant?.integration_type === 'SUPAGO'
       ? 'supago'
@@ -556,11 +556,11 @@ export default function MerchantDetailPage() {
                 </PrimaryButton>
               </div>
             </FormSection>
-          ) : merchant.default_payout_admin_user_id ? (
+          ) : merchant.default_payout_banker_user_id ? (
             <FormSection title="Withdraw routing">
               <FormField label={`Direct ${bankerLabel()}`}>
                 <Input
-                  value={merchant.default_payout_admin_username ?? merchant.default_payout_admin_user_id}
+                  value={merchant.default_payout_banker_username ?? merchant.default_payout_banker_user_id}
                   readOnly
                 />
               </FormField>
