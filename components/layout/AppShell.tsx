@@ -23,7 +23,9 @@ const LABELS: Record<MenuCode, string> = {
   PAYOUT: 'Pay-Out',
   UTR: 'UTR Entries',
   TRANSACTIONS: 'Transactions',
-  INTER_TRANSFER: 'Inter Transfer',
+  INTER_TRANSFER: 'Hawala',
+  HAWALA: 'Hawala',
+  PARTIES: 'Party Master',
   LEDGER: 'Ledger',
   COMMISSION: 'Commission',
   REPORTS: 'Reports',
@@ -47,7 +49,8 @@ const HREF: Partial<Record<MenuCode, string>> = {
   UTR: '/utr',
   LEDGER: '/ledger',
   COMMISSION: '/commission',
-  INTER_TRANSFER: '/inter-transfers',
+  HAWALA: '/hawala',
+  PARTIES: '/parties',
   TRANSACTIONS: '/transactions',
   REPORTS: '/reports',
   AUDIT: '/audit',
@@ -111,9 +114,14 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
       <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
     </svg>
   ),
-  INTER_TRANSFER: (
+  HAWALA: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+    </svg>
+  ),
+  PARTIES: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
     </svg>
   ),
   LEDGER: (
@@ -145,7 +153,7 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
 
 /* ─── Nav section groupings ───────────────────────────────────────────────── */
 const SECTION_GROUPS: { label: string; codes: MenuCode[] }[] = [
-  { label: 'Operations', codes: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'INTER_TRANSFER', 'MERCHANTS', 'SUPAGO_BANKS', 'CRICI_BANKS'] },
+  { label: 'Operations', codes: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'HAWALA', 'PARTIES', 'MERCHANTS', 'SUPAGO_BANKS', 'CRICI_BANKS'] },
   { label: 'Finance', codes: ['TRANSACTIONS', 'LEDGER', 'COMMISSION', 'REPORTS'] },
   { label: 'Admin', codes: ['USERS', 'BANKS', 'UPI', 'AUDIT', 'SETTINGS'] },
 ]

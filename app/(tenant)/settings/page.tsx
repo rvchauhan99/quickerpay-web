@@ -165,7 +165,7 @@ export default function SettingsPage() {
         token: accessToken,
         body: {
           require_banking_approval: settings.require_banking_approval,
-          inter_transfer_approval_above_minor: settings.inter_transfer_approval_above_minor,
+          hawala_approval_above_minor: settings.hawala_approval_above_minor,
           allow_negative_margin: settings.allow_negative_margin,
           confirmation: confirmation || undefined,
         },
@@ -207,11 +207,11 @@ export default function SettingsPage() {
                 />
               </div>
             </FormField>
-            <FormField label="Inter-transfer approval above (paise)">
+            <FormField label="Hawala approval above (paise)">
               <Input
                 type="number"
-                value={settings.inter_transfer_approval_above_minor}
-                onChange={(event) => setSettings({ ...settings, inter_transfer_approval_above_minor: Number(event.target.value) })}
+                value={settings.hawala_approval_above_minor}
+                onChange={(event) => setSettings({ ...settings, hawala_approval_above_minor: Number(event.target.value) })}
               />
             </FormField>
             <FormField label="Allow negative margin">

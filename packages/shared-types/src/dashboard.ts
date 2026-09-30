@@ -28,7 +28,9 @@ export interface DashboardSummary {
   payin: DashboardCard
   payout: DashboardCard
   commission: DashboardCard
-  inter_transfer: DashboardCard
+  /** @deprecated Prefer hawala — same card, legacy name */
+  inter_transfer?: DashboardCard
+  hawala: DashboardCard
   refunded_minor: number
   /** Live BANKER_BALANCE. Date filters do not apply. Null when the caller has no Banker ledger. */
   my_account_minor: number | null

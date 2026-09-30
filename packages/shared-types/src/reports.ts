@@ -7,7 +7,10 @@ export const REPORT_TYPES = [
   'transactions',
   'breakdown',
   'commission',
+  /** @deprecated Alias of hawala — kept for older clients */
   'inter_transfer',
+  'hawala',
+  'parties',
   'ledger',
 ] as const
 export type ReportType = (typeof REPORT_TYPES)[number]
