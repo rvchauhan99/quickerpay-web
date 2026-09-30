@@ -16,9 +16,10 @@ export interface PayinListItem {
   amount_minor: number
   status: PayinStatus
   auto_accepted: boolean
-  merchant_id: string
-  /** Merchant display name when joined; null if merchant row missing. */
-  merchant_display_name: string | null
+  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
+  merchant_id?: string
+  /** Merchant display name when joined; omitted when actor cannot see merchants. */
+  merchant_display_name?: string | null
   assigned_upi_id: string | null
   assigned_operator_id: string | null
   created_at: string

@@ -28,6 +28,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { fromMinor } from '@quickerpay/money'
 import { hasMenu } from '@/lib/session'
@@ -131,7 +132,7 @@ export default function PayoutPage() {
 
   useEffect(() => {
     if (!accessToken || !allowed) return
-    if (hasMenu(menus, 'PAYOUT', 'can_create')) {
+    if (hasMenu(menus, 'PAYOUT', 'can_create') && canSeeMerchants(user?.role)) {
       void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', {
         token: accessToken,
       })
@@ -147,7 +148,7 @@ export default function PayoutPage() {
           setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load banks')
         })
     }
-  }, [accessToken, allowed, menus])
+  }, [accessToken, allowed, menus, user?.role])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
 
@@ -305,7 +306,7 @@ export default function PayoutPage() {
             </Select>
           </FormField>
         ) : null}
-        {isSuperAdmin || canFilterMerchants ? (
+        {canFilterMerchants ? (
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={directoryMerchants.length > 0 ? directoryMerchants : merchants}
@@ -360,7 +361,7 @@ export default function PayoutPage() {
           </FormShell>
         </div>
       ) : null}
-      {creating && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+      {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
         <div className="mb-4">
           <FormShell title="Create Pay-Out" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
@@ -404,7 +405,7 @@ export default function PayoutPage() {
           columns={[
             { key: 'created', heading: 'CREATED' },
             { key: 'username', heading: 'USERNAME' },
-            { key: 'merchant', heading: 'MERCHANT' },
+            ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             ...(isSuperAdmin ? [{ key: 'admin', heading: 'Banker' }] : []),
             { key: 'bank', heading: 'BANK DETAILS' },
             { key: 'amount', heading: 'AMOUNT' },
@@ -415,7 +416,9 @@ export default function PayoutPage() {
           rows={rows.map((row) => ({
             created: new Date(row.created_at).toLocaleString(),
             username: row.supago_username ?? '—',
-            merchant: row.merchant_display_name?.trim() || '—',
+            ...(canFilterMerchants
+              ? { merchant: row.merchant_display_name?.trim() || '—' }
+              : {}),
             ...(isSuperAdmin
               ? {
                   admin: row.banker_user_id

@@ -21,6 +21,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
@@ -128,6 +129,7 @@ export default function PayinPage() {
 
   useEffect(() => {
     if (!accessToken || !allowed || !hasMenu(menus, 'PAYIN', 'can_create')) return
+    if (!canSeeMerchants(user?.role)) return
     void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', {
       token: accessToken,
     })
@@ -135,7 +137,7 @@ export default function PayinPage() {
       .catch((caught) => {
         setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
       })
-  }, [accessToken, allowed, menus])
+  }, [accessToken, allowed, menus, user?.role])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
 
@@ -299,7 +301,7 @@ export default function PayinPage() {
         <FormField label="Search">
           <Input placeholder="Search UTR / ID" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
-        {isSuperAdmin || canFilterMerchants ? (
+        {canFilterMerchants ? (
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={directoryMerchants.length > 0 ? directoryMerchants : merchants}
@@ -328,7 +330,7 @@ export default function PayinPage() {
         </div>
       </FilterBar>
 
-      {creating && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+      {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
         <div className="mb-4">
           <FormShell title="Create Pay-In" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
@@ -407,7 +409,7 @@ export default function PayinPage() {
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
             { key: 'username', heading: 'USERNAME' },
-            { key: 'merchant', heading: 'MERCHANT' },
+            ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
             { key: 'actionTime', heading: 'ACTION TIME' },
             { key: 'amount', heading: 'AMOUNT' },
@@ -419,7 +421,9 @@ export default function PayinPage() {
             ref: row.reference,
             utr: row.utr ?? '—',
             username: row.customer_ref?.trim() || '—',
-            merchant: row.merchant_display_name?.trim() || '—',
+            ...(canFilterMerchants
+              ? { merchant: row.merchant_display_name?.trim() || '—' }
+              : {}),
             inprog: row.in_progress_at ? new Date(row.in_progress_at).toLocaleString() : '—',
             actionTime: row.action_at ? new Date(row.action_at).toLocaleString() : '—',
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,

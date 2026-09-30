@@ -82,7 +82,8 @@ export interface RevealedAccountNumber {
 /** Per-merchant link status for one CRM bank (Bank Details merchant panel). */
 export interface BankMerchantLink {
   merchant_id: string
-  merchant_display_name: string
+  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
+  merchant_display_name?: string
   status: 'ACTIVE' | 'DISABLED'
   /** False when the bank owner Admin is not on this merchant's Deposit Managed By allowlist. */
   allowed: boolean
@@ -97,6 +98,7 @@ export interface BankMerchantLink {
 /** Merchants the bank owner may provision on Create (Deposit Managed By + panel credentials). */
 export interface EligibleBankMerchant {
   id: string
-  display_name: string
+  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
+  display_name?: string
   integration_type: 'SUPAGO' | 'CRICI'
 }

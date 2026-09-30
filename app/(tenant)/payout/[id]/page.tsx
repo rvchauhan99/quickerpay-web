@@ -26,6 +26,7 @@ import {
 } from '@/components/forms/PayoutBankDetailsCell'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { merchantLabel } from '@/lib/labels'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -172,9 +173,11 @@ export default function PayoutDetailPage() {
               <FormField label="Username">
                 <Input value={row.supago_username ?? '—'} readOnly />
               </FormField>
-              <FormField label={merchantLabel()}>
-                <Input value={row.merchant_display_name?.trim() || '—'} readOnly />
-              </FormField>
+              {canSeeMerchants(user.role) ? (
+                <FormField label={merchantLabel()}>
+                  <Input value={row.merchant_display_name?.trim() || '—'} readOnly />
+                </FormField>
+              ) : null}
               <FormField label="Order id">
                 <Input value={row.merchant_order_id ?? '—'} readOnly />
               </FormField>

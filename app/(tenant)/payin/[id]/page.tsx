@@ -13,6 +13,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { merchantLabel } from '@/lib/labels'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -56,9 +57,11 @@ export default function PayinDetailPage() {
               <FormField label="UTR">
                 <Input value={row.utr ?? '—'} readOnly />
               </FormField>
-              <FormField label={merchantLabel()}>
-                <Input value={row.merchant_display_name?.trim() || '—'} readOnly />
-              </FormField>
+              {canSeeMerchants(user.role) ? (
+                <FormField label={merchantLabel()}>
+                  <Input value={row.merchant_display_name?.trim() || '—'} readOnly />
+                </FormField>
+              ) : null}
               <FormField label="Amount">
                 <div className="flex h-10 items-center px-3 font-medium">
                   <MoneyDisplay amountMinor={row.amount_minor} />

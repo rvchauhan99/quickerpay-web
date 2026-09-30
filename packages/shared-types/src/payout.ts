@@ -14,9 +14,10 @@ export interface PayoutListItem {
   utr: string | null
   amount_minor: number
   status: PayoutStatus
-  merchant_id: string
-  /** Merchant display name when joined; null if merchant row missing. */
-  merchant_display_name: string | null
+  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
+  merchant_id?: string
+  /** Merchant display name when joined; omitted when actor cannot see merchants. */
+  merchant_display_name?: string | null
   banker_user_id: string | null
   source_bank_account_id: string | null
   assigned_operator_id: string | null

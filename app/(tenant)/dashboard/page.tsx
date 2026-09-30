@@ -11,6 +11,7 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -84,29 +85,34 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!accessToken || !allowed) return
     const isSuperAdmin = user?.role === 'SUPER_ADMIN'
-    const canFilterMerchants = user?.role === 'SUPER_ADMIN' || user?.role === 'BANKER' || user?.role === 'AUDITOR'
-    if (!isSuperAdmin && !canFilterMerchants) return
+    const showMerchants = canSeeMerchants(user?.role)
+    if (!isSuperAdmin && !showMerchants) return
 
-    if (isSuperAdmin) {
+    if (isSuperAdmin || user?.role === 'ADMIN') {
       void Promise.all([
-        apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken }),
-        apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({ items: [] as MerchantListItem[] })),
-        apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }),
-        apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
-          items: [] as UpiAccountListItem[],
-        })),
+        isSuperAdmin
+          ? apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken })
+          : Promise.resolve({ items: [] as UserListItem[] }),
+        showMerchants
+          ? apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
+              items: [] as MerchantListItem[],
+            }))
+          : Promise.resolve({ items: [] as MerchantListItem[] }),
+        isSuperAdmin
+          ? apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken })
+          : Promise.resolve({ items: [] as BankAccountListItem[] }),
+        isSuperAdmin
+          ? apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
+              items: [] as UpiAccountListItem[],
+            }))
+          : Promise.resolve({ items: [] as UpiAccountListItem[] }),
       ]).then(([adminRows, merchantRows, bankRows, upiRows]) => {
         setAdmins(adminRows.items)
         setMerchants(merchantRows.items)
         setBanks(bankRows.items)
         setUpis(upiRows.items)
       })
-      return
     }
-
-    void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', { token: accessToken })
-      .then((result) => setMerchants(result.items))
-      .catch(() => setMerchants([]))
   }, [accessToken, allowed, user?.role])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
@@ -197,7 +203,7 @@ export default function DashboardPage() {
               </Select>
             </FormField>
           </>
-        ) : user.role === 'BANKER' || user.role === 'AUDITOR' ? (
+        ) : user.role === 'ADMIN' ? (
           <FormField label={merchantLabel()}>
             <Select
               aria-label={merchantLabel()}

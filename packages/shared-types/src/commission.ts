@@ -35,7 +35,8 @@ export interface CommissionEntry {
   id: string
   transaction_id: string
   rate_kind: RateKind
-  merchant_id: string
+  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
+  merchant_id?: string
   banker_user_id: string
   eligible_amount_minor: number
   merchant_rate_bp: number
