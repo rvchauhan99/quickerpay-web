@@ -404,7 +404,7 @@ export default function PayoutPage() {
         <DataTable
           columns={[
             { key: 'created', heading: 'CREATED' },
-            { key: 'username', heading: 'USERNAME' },
+            ...(canFilterMerchants ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             ...(isSuperAdmin ? [{ key: 'admin', heading: 'Banker' }] : []),
             { key: 'bank', heading: 'BANK DETAILS' },
@@ -415,9 +415,11 @@ export default function PayoutPage() {
           ]}
           rows={rows.map((row) => ({
             created: new Date(row.created_at).toLocaleString(),
-            username: row.supago_username ?? '—',
             ...(canFilterMerchants
-              ? { merchant: row.merchant_display_name?.trim() || '—' }
+              ? {
+                  username: row.supago_username ?? '—',
+                  merchant: row.merchant_display_name?.trim() || '—',
+                }
               : {}),
             ...(isSuperAdmin
               ? {

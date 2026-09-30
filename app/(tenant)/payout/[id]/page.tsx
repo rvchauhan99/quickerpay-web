@@ -170,9 +170,11 @@ export default function PayoutDetailPage() {
               <FormField label="Created">
                 <Input value={new Date(row.created_at).toLocaleString()} readOnly />
               </FormField>
-              <FormField label="Username">
-                <Input value={row.supago_username ?? '—'} readOnly />
-              </FormField>
+              {canSeeMerchants(user.role) ? (
+                <FormField label="Username">
+                  <Input value={row.supago_username ?? '—'} readOnly />
+                </FormField>
+              ) : null}
               {canSeeMerchants(user.role) ? (
                 <FormField label={merchantLabel()}>
                   <Input value={row.merchant_display_name?.trim() || '—'} readOnly />

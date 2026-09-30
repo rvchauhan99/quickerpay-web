@@ -20,10 +20,11 @@ export interface TransactionListItem {
   status: string
   utr: string | null
   /**
-   * Supago party username: pay-in depositor (`payin_requests.customer_ref`) or
-   * pay-out withdrawer (`transactions.gateway_reference`). Null for other types / lab rows.
+   * Panel party username: pay-in depositor (`payin_requests.customer_ref`) or
+   * pay-out withdrawer (`transactions.gateway_reference`).
+   * Omitted for Banker / Operator / Auditor (canSeeMerchants); null when SA/Admin and unset.
    */
-  customer_ref: string | null
+  customer_ref?: string | null
 }
 
 export interface TransactionEventItem {

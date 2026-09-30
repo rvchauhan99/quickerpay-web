@@ -15,6 +15,7 @@ import { apiListRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -130,7 +131,7 @@ export default function TransactionsPage() {
             { key: 'type', heading: 'TYPE' },
             { key: 'when', heading: 'CREATED' },
             { key: 'admin', heading: 'Banker' },
-            { key: 'username', heading: 'USERNAME' },
+            ...(canSeeMerchants(user.role) ? [{ key: 'username', heading: 'USERNAME' }] : []),
             { key: 'amount', heading: 'AMOUNT' },
             { key: 'status', heading: 'STATUS' },
             { key: 'utr', heading: 'UTR' },
@@ -140,7 +141,9 @@ export default function TransactionsPage() {
             type: row.type,
             when: new Date(row.created_at).toLocaleString(),
             admin: row.banker_username ?? '—',
-            username: row.customer_ref?.trim() || '—',
+            ...(canSeeMerchants(user.role)
+              ? { username: row.customer_ref?.trim() || '—' }
+              : {}),
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,
             status: <StatusBadge status={row.status} />,
             utr: row.utr ?? '—',

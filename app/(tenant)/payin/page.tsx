@@ -408,7 +408,7 @@ export default function PayinPage() {
           columns={[
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
-            { key: 'username', heading: 'USERNAME' },
+            ...(canFilterMerchants ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
             { key: 'actionTime', heading: 'ACTION TIME' },
@@ -420,9 +420,11 @@ export default function PayinPage() {
           rows={rows.map((row) => ({
             ref: row.reference,
             utr: row.utr ?? '—',
-            username: row.customer_ref?.trim() || '—',
             ...(canFilterMerchants
-              ? { merchant: row.merchant_display_name?.trim() || '—' }
+              ? {
+                  username: row.customer_ref?.trim() || '—',
+                  merchant: row.merchant_display_name?.trim() || '—',
+                }
               : {}),
             inprog: row.in_progress_at ? new Date(row.in_progress_at).toLocaleString() : '—',
             actionTime: row.action_at ? new Date(row.action_at).toLocaleString() : '—',

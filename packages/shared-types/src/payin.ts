@@ -11,8 +11,11 @@ export interface PayinListItem {
   transaction_id: string
   reference: string
   utr: string | null
-  /** Supago depositor wusername when ingested; null for lab/manual creates without it. */
-  customer_ref: string | null
+  /**
+   * Panel party username (Supago/Crici depositor wusername).
+   * Omitted for Banker / Operator / Auditor (canSeeMerchants); null when SA/Admin and not ingested.
+   */
+  customer_ref?: string | null
   amount_minor: number
   status: PayinStatus
   auto_accepted: boolean
