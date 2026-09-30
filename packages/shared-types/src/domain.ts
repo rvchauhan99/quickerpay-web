@@ -23,7 +23,7 @@ export const READABLE_TENANT_STATUSES = ['ACTIVE', 'READ_ONLY', 'DEGRADED'] as c
 /** Tenant statuses that may create new financial operations. Non-negotiable 12. */
 export const WRITABLE_TENANT_STATUSES = ['ACTIVE'] as const
 
-export const USER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'STAFF_ADMIN', 'OPERATOR', 'AUDITOR'] as const
+export const USER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BANKER', 'OPERATOR', 'AUDITOR', 'MERCHANT'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 export const USER_STATUSES = ['ACTIVE', 'DISABLED', 'SUSPENDED'] as const
@@ -66,8 +66,8 @@ export interface MenuActions {
   can_export: boolean
 }
 
-/** The eight-item Admin sidebar for Phase 1, per docs/03_MODULES_AND_SCREENS.md section 2.1.1. */
-export const PHASE_1_ADMIN_MENUS = [
+/** The eight-item Banker sidebar for Phase 1, per docs/03_MODULES_AND_SCREENS.md section 2.1.1. */
+export const PHASE_1_BANKER_MENUS = [
   'DASHBOARD',
   'USERS',
   'BANKS',
@@ -77,6 +77,9 @@ export const PHASE_1_ADMIN_MENUS = [
   'UTR',
   'INTER_TRANSFER',
 ] as const satisfies readonly MenuCode[]
+
+/** @deprecated Use PHASE_1_BANKER_MENUS */
+export const PHASE_1_ADMIN_MENUS = PHASE_1_BANKER_MENUS
 
 /** Commission is charged per kind at independent rates. Decision D9. */
 export const RATE_KINDS = ['PAYIN', 'PAYOUT'] as const
@@ -108,9 +111,9 @@ export const PAYOUT_STATUSES = [
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number]
 
 export const TRANSFER_TYPES = [
-  'ADMIN_TO_ADMIN',
-  'ADMIN_TO_SUPER_ADMIN',
-  'SUPER_ADMIN_TO_ADMIN',
+  'BANKER_TO_BANKER',
+  'BANKER_TO_SUPER_ADMIN',
+  'SUPER_ADMIN_TO_BANKER',
   'SELF_TRANSFER',
 ] as const
 export type TransferType = (typeof TRANSFER_TYPES)[number]

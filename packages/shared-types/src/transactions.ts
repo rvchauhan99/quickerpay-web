@@ -12,17 +12,19 @@ export interface TransactionListItem {
   reference: string
   type: TransactionType
   created_at: string
-  merchant_id: string | null
-  admin_user_id: string | null
-  admin_username: string | null
+  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
+  merchant_id?: string | null
+  banker_user_id: string | null
+  banker_username: string | null
   amount_minor: number
   status: string
   utr: string | null
   /**
-   * Supago party username: pay-in depositor (`payin_requests.customer_ref`) or
-   * pay-out withdrawer (`transactions.gateway_reference`). Null for other types / lab rows.
+   * Panel party username: pay-in depositor (`payin_requests.customer_ref`) or
+   * pay-out withdrawer (`transactions.gateway_reference`).
+   * Omitted for Banker / Operator / Auditor (canSeeMerchants); null when SA/Admin and unset.
    */
-  customer_ref: string | null
+  customer_ref?: string | null
 }
 
 export interface TransactionEventItem {

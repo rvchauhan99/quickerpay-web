@@ -41,11 +41,18 @@ export interface SessionUser {
   username: string
   display_name: string
   role: UserRole
-  supervisor_admin_id: string | null
+  supervisor_banker_id: string | null
+  /** Set only when role is MERCHANT (Exchange Master portal). */
+  merchant_id: string | null
   operational_state: OperationalState
   auto_accept_enabled: boolean
   two_fa_enabled: boolean
-  /** Admin only; null for other roles. IST-day COMPLETED Pay-In cap. */
+  /**
+   * True while `password_changed_at` is null (temporary password). Until the user
+   * changes password, the API allows only change-password, logout, me, and refresh.
+   */
+  require_password_change: boolean
+  /** Banker only; null for other roles. IST-day COMPLETED Pay-In cap. */
   daily_deposit_limit_minor: number | null
   daily_deposit_used_minor: number | null
   daily_deposit_limit_reached: boolean

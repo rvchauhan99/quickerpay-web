@@ -51,14 +51,14 @@ describe('applyLiveEnvelope', () => {
     expect(result.shouldPullChanges).toBe(true)
   })
 
-  it('removes a row from the unassigned queue when admin_user_id is set', () => {
+  it('removes a row from the unassigned queue when banker_user_id is set', () => {
     const result = applyLiveEnvelope({
       rows: [{ id: 'payout-1', status: 'INITIATE' }],
       event: envelope({
         entity: 'payout',
         id: 'payout-1',
         status: 'INITIATE',
-        admin_user_id: 'admin-1',
+        banker_user_id: 'admin-1',
       }),
       statusFilter: 'INITIATE',
       pagination: { page: 1, page_size: 10, total: 1, total_is_estimate: false, has_next: false },
@@ -77,7 +77,7 @@ describe('applyLiveEnvelope', () => {
         entity: 'payout',
         id: 'payout-2',
         status: 'INITIATE',
-        admin_user_id: null,
+        banker_user_id: null,
       }),
       statusFilter: 'INITIATE',
       pagination: null,

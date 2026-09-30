@@ -64,6 +64,10 @@ export default function MerchantDetailPage() {
   const [savingBankAdmins, setSavingBankAdmins] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<'SUSPENDED' | 'ACTIVE' | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
+  const [portalPassword, setPortalPassword] = useState('')
+  const [portalBusy, setPortalBusy] = useState(false)
+  const [portalOncePassword, setPortalOncePassword] = useState<string | null>(null)
+  const [portalDisableConfirm, setPortalDisableConfirm] = useState(false)
 
   // Supago state
   const [supagoStatus, setSupagoStatus] = useState<SupagoStatus | null>(null)
@@ -106,9 +110,9 @@ export default function MerchantDetailPage() {
   }, [])
 
   const applyRoutingFromDetail = (detail: MerchantDetail) => {
-    if (detail.default_payout_admin_user_id) {
+    if (detail.default_payout_banker_user_id) {
       setRoutingMode('direct')
-      setRoutingAdminId(detail.default_payout_admin_user_id)
+      setRoutingAdminId(detail.default_payout_banker_user_id)
       return
     }
     setRoutingMode('queue')
@@ -116,8 +120,8 @@ export default function MerchantDetailPage() {
   }
 
   const applyBankAdminsFromDetail = (detail: MerchantDetail) => {
-    setBankAdminMode(detail.bank_admin_mode ?? 'ALL')
-    setBankAdminIds(detail.bank_admin_user_ids ?? [])
+    setBankAdminMode(detail.bank_banker_mode ?? 'ALL')
+    setBankAdminIds(detail.bank_banker_user_ids ?? [])
   }
 
   const load = useCallback(async () => {
@@ -297,7 +301,7 @@ export default function MerchantDetailPage() {
         method: 'PATCH',
         token: accessToken,
         body: {
-          default_payout_admin_user_id: routingMode === 'direct' ? routingAdminId : null,
+          default_payout_banker_user_id: routingMode === 'direct' ? routingAdminId : null,
         },
       })
       setMerchant(detail)
@@ -328,8 +332,8 @@ export default function MerchantDetailPage() {
         method: 'PATCH',
         token: accessToken,
         body: {
-          bank_admin_mode: bankAdminMode,
-          admin_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
+          bank_banker_mode: bankAdminMode,
+          banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
       })
       toast.success('Deposit managers saved')
@@ -364,10 +368,53 @@ export default function MerchantDetailPage() {
     }
   }
 
+  const handlePortalEnable = async () => {
+    if (!accessToken || !params.id || !portalPassword.trim() || portalBusy) return
+    setPortalBusy(true)
+    try {
+      const result = await apiRequest<{
+        user_id: string
+        username: string
+        temporary_password: string
+      }>(`/api/v1/merchants/${params.id}/portal/enable`, {
+        method: 'POST',
+        token: accessToken,
+        body: { temporary_password: portalPassword },
+      })
+      setPortalOncePassword(result.temporary_password)
+      setPortalPassword('')
+      toast.success(`Portal enabled. Username: ${result.username}`)
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not enable portal')
+    } finally {
+      setPortalBusy(false)
+    }
+  }
+
+  const handlePortalDisable = async () => {
+    if (!accessToken || !params.id || portalBusy) return
+    setPortalBusy(true)
+    try {
+      await apiRequest(`/api/v1/merchants/${params.id}/portal/disable`, {
+        method: 'POST',
+        token: accessToken,
+      })
+      setPortalDisableConfirm(false)
+      setPortalOncePassword(null)
+      toast.success('Portal access disabled')
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not disable portal')
+    } finally {
+      setPortalBusy(false)
+    }
+  }
+
   const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
   const canEditRouting = Boolean(isSuperAdmin && canEdit)
   const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
-  const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
+  const activeAdmins = admins.filter((row) => row.role === 'BANKER' && row.status === 'ACTIVE')
   const lockedPanel: PanelIntegrationType =
     merchant?.integration_type === 'SUPAGO'
       ? 'supago'
@@ -484,6 +531,82 @@ export default function MerchantDetailPage() {
           </FormSection>
 
           {canEdit ? (
+            <FormSection
+              title="Portal access"
+              description="One Exchange Master login (username = merchant code). View-only Dashboard, Pay-In, Pay-Out, and Transactions."
+            >
+              {merchant.portal_user_id && merchant.portal_user_status === 'ACTIVE' ? (
+                <div className="space-y-3">
+                  <FormGrid>
+                    <FormField label="Portal username">
+                      <Input value={merchant.portal_username ?? merchant.merchant_code} readOnly />
+                    </FormField>
+                    <FormField label="Portal status">
+                      <div className="flex h-10 items-center px-3">
+                        <StatusBadge status={merchant.portal_user_status} />
+                      </div>
+                    </FormField>
+                  </FormGrid>
+                  {portalOncePassword ? (
+                    <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--qp-border)' }}>
+                      Temporary password (shown once): <strong className="font-mono">{portalOncePassword}</strong>
+                    </p>
+                  ) : null}
+                  <PrimaryButton onClick={() => setPortalDisableConfirm(true)} disabled={portalBusy}>
+                    Disable portal
+                  </PrimaryButton>
+                </div>
+              ) : merchant.portal_user_id && merchant.portal_user_status === 'DISABLED' ? (
+                <div className="space-y-3">
+                  <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                    Portal user <span className="font-mono">{merchant.portal_username}</span> is disabled.
+                    Set a temporary password to re-enable (merchant must be ACTIVE).
+                  </p>
+                  {merchant.status === 'ACTIVE' ? (
+                    <>
+                      <FormField label="Temporary password" required>
+                        <Input
+                          type="password"
+                          value={portalPassword}
+                          onChange={(event) => setPortalPassword(event.target.value)}
+                          autoComplete="new-password"
+                          aria-label="Temporary portal password"
+                        />
+                      </FormField>
+                      <PrimaryButton onClick={() => void handlePortalEnable()} disabled={portalBusy || !portalPassword.trim()}>
+                        Re-enable portal
+                      </PrimaryButton>
+                    </>
+                  ) : (
+                    <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                      Activate this {merchantLabel()} before re-enabling portal login.
+                    </p>
+                  )}
+                </div>
+              ) : merchant.status !== 'ACTIVE' ? (
+                <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                  Activate this {merchantLabel()} before enabling portal login.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <FormField label="Temporary password" required>
+                    <Input
+                      type="password"
+                      value={portalPassword}
+                      onChange={(event) => setPortalPassword(event.target.value)}
+                      autoComplete="new-password"
+                      aria-label="Temporary portal password"
+                    />
+                  </FormField>
+                  <PrimaryButton onClick={() => void handlePortalEnable()} disabled={portalBusy || !portalPassword.trim()}>
+                    Enable portal
+                  </PrimaryButton>
+                </div>
+              )}
+            </FormSection>
+          ) : null}
+
+          {canEdit ? (
             <FormSection title="Rates">
               <FormGrid>
                 <FormField label="PAY-IN">
@@ -556,11 +679,11 @@ export default function MerchantDetailPage() {
                 </PrimaryButton>
               </div>
             </FormSection>
-          ) : merchant.default_payout_admin_user_id ? (
+          ) : merchant.default_payout_banker_user_id ? (
             <FormSection title="Withdraw routing">
               <FormField label={`Direct ${bankerLabel()}`}>
                 <Input
-                  value={merchant.default_payout_admin_username ?? merchant.default_payout_admin_user_id}
+                  value={merchant.default_payout_banker_username ?? merchant.default_payout_banker_user_id}
                   readOnly
                 />
               </FormField>
@@ -1039,6 +1162,18 @@ export default function MerchantDetailPage() {
           loading={statusSubmitting}
           onConfirm={() => void handleMerchantStatus()}
           onCancel={() => setStatusConfirm(null)}
+        />
+      ) : null}
+
+      {portalDisableConfirm ? (
+        <ConfirmDialog
+          title="Disable portal access?"
+          subtitle="The Exchange Master login will be DISABLED and all sessions revoked. You can re-enable later with a new temporary password."
+          confirmLabel="Disable portal"
+          variant="danger"
+          loading={portalBusy}
+          onConfirm={() => void handlePortalDisable()}
+          onCancel={() => setPortalDisableConfirm(false)}
         />
       ) : null}
     </AppShell>

@@ -15,6 +15,7 @@ import { apiListRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -27,7 +28,7 @@ export default function TransactionsPage() {
     status: parseAsString.withDefault(''),
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -48,7 +49,7 @@ export default function TransactionsPage() {
     if (filters.status) query.set('status', filters.status)
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+    if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     try {
       const result = await apiListRequest<TransactionListItem>(`/api/v1/transactions?${query}`)
       setRows(result.items)
@@ -58,7 +59,7 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.date_from, filters.date_to, filters.type, filters.status, filters.q, filters.merchant_id, filters.admin_user_id])
+  }, [filters.page, filters.page_size, filters.date_from, filters.date_to, filters.type, filters.status, filters.q, filters.merchant_id, filters.banker_user_id])
 
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
 
@@ -74,7 +75,7 @@ export default function TransactionsPage() {
       <PageHeader
         title="Transactions"
       />
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', banker_user_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -96,9 +97,9 @@ export default function TransactionsPage() {
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={merchants}
-            adminId={filters.admin_user_id}
+            adminId={filters.banker_user_id}
             merchantId={filters.merchant_id}
-            onAdminChange={(value) => void setFilters({ admin_user_id: value, page: 1 })}
+            onAdminChange={(value) => void setFilters({ banker_user_id: value, page: 1 })}
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
@@ -114,7 +115,7 @@ export default function TransactionsPage() {
               if (filters.status) query.set('status', filters.status)
               if (filters.q) query.set('q', filters.q)
               if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
               void downloadExport(`/api/v1/transactions/export?${query}`, 'transactions.csv', accessToken!)
             }}
           />
@@ -129,8 +130,8 @@ export default function TransactionsPage() {
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'type', heading: 'TYPE' },
             { key: 'when', heading: 'CREATED' },
-            { key: 'admin', heading: 'ADMIN' },
-            { key: 'username', heading: 'USERNAME' },
+            { key: 'admin', heading: 'Banker' },
+            ...(canSeeOwnPanelUsernames(user.role) ? [{ key: 'username', heading: 'USERNAME' }] : []),
             { key: 'amount', heading: 'AMOUNT' },
             { key: 'status', heading: 'STATUS' },
             { key: 'utr', heading: 'UTR' },
@@ -139,8 +140,10 @@ export default function TransactionsPage() {
             ref: <Link className="underline" href={`/transactions/${row.id}`}>{row.reference}</Link>,
             type: row.type,
             when: new Date(row.created_at).toLocaleString(),
-            admin: row.admin_username ?? '—',
-            username: row.customer_ref?.trim() || '—',
+            admin: row.banker_username ?? '—',
+            ...(canSeeOwnPanelUsernames(user.role)
+              ? { username: row.customer_ref?.trim() || '—' }
+              : {}),
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,
             status: <StatusBadge status={row.status} />,
             utr: row.utr ?? '—',

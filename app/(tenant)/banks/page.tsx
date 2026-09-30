@@ -26,6 +26,7 @@ import { FormShell } from '@/components/forms/FormShell'
 import { Modal } from '@/components/ui/Modal'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { useBankListSync } from '@/lib/live/useBankListSync'
 import { hasMenu } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -676,10 +677,14 @@ export default function BanksPage() {
                               id={`merchant-${merchant.id}`}
                               checked={checked}
                               onChange={() => handleToggleMerchant(merchant.id)}
-                              aria-label={`${merchant.display_name} (${merchant.integration_type})`}
+                              aria-label={
+                                merchant.display_name
+                                  ? `${merchant.display_name} (${merchant.integration_type})`
+                                  : `${merchant.integration_type} link`
+                              }
                             />
                             <label htmlFor={`merchant-${merchant.id}`} className="cursor-pointer">
-                              {merchant.display_name}{' '}
+                              {merchant.display_name ?? 'Linked merchant'}{' '}
                               <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
                                 {merchant.integration_type}
                               </span>
@@ -732,14 +737,18 @@ export default function BanksPage() {
               ) : (
                 <DataTable
                   columns={[
-                    { key: 'merchant', heading: merchantLabel().toUpperCase() },
+                    ...(canSeeMerchants(user.role)
+                      ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }]
+                      : [{ key: 'merchant', heading: 'LINK' }]),
                     { key: 'panel', heading: 'PANEL' },
                     { key: 'status', heading: 'STATUS' },
                     { key: 'allowed', heading: 'ALLOWED' },
                     { key: 'action', heading: 'ACTION' },
                   ]}
                   rows={merchantLinks.map((link) => ({
-                    merchant: link.merchant_display_name,
+                    merchant: canSeeMerchants(user.role)
+                      ? (link.merchant_display_name ?? '—')
+                      : 'Linked',
                     panel: link.integration_type,
                     status: <StatusBadge status={link.status} />,
                     allowed: link.allowed ? 'Yes' : 'No',

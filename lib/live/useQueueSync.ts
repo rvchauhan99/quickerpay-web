@@ -20,7 +20,7 @@ interface UseQueueSyncOptions<T extends { id: string; status: string }> {
   setRows: (rows: T[]) => void
   pagination: Pagination | null
   setPagination: (pagination: Pagination | null) => void
-  /** Super Admin Unassigned queue: drop rows when admin_user_id becomes set. */
+  /** Super Admin Unassigned queue: drop rows when banker_user_id becomes set. */
   unassignedFilter?: boolean
 }
 

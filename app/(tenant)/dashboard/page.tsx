@@ -11,6 +11,7 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -26,7 +27,7 @@ const EMPTY: DashboardSummary = {
   inter_transfer: { amount_minor: 0, count: 0 },
   refunded_minor: 0,
   my_account_minor: null,
-  admin_wise: [],
+  banker_wise: [],
   pending_approvals: 0,
   failed_transactions: 0,
   unmatched_utrs: 0,
@@ -35,8 +36,8 @@ const EMPTY: DashboardSummary = {
   assigned_queue_depth: 0,
   processed_today: 0,
   commission_by_kind: [
-    { rate_kind: 'PAYIN', admin_commission_minor: 0, margin_minor: 0 },
-    { rate_kind: 'PAYOUT', admin_commission_minor: 0, margin_minor: 0 },
+    { rate_kind: 'PAYIN', banker_commission_minor: 0, margin_minor: 0 },
+    { rate_kind: 'PAYOUT', banker_commission_minor: 0, margin_minor: 0 },
   ],
 }
 
@@ -45,7 +46,7 @@ export default function DashboardPage() {
   const [filters, setFilters] = useQueryStates({
     date_from: parseAsString.withDefault(todayIso()),
     date_to: parseAsString.withDefault(todayIso()),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
     bank_account_id: parseAsString.withDefault(''),
     upi_account_id: parseAsString.withDefault(''),
@@ -64,7 +65,7 @@ export default function DashboardPage() {
     const query = new URLSearchParams()
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
-    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+    if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
     if (filters.upi_account_id) query.set('upi_account_id', filters.upi_account_id)
@@ -75,7 +76,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.date_from, filters.date_to, filters.admin_user_id, filters.merchant_id, filters.bank_account_id, filters.upi_account_id])
+  }, [filters.date_from, filters.date_to, filters.banker_user_id, filters.merchant_id, filters.bank_account_id, filters.upi_account_id])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -84,36 +85,41 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!accessToken || !allowed) return
     const isSuperAdmin = user?.role === 'SUPER_ADMIN'
-    const canFilterMerchants = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
-    if (!isSuperAdmin && !canFilterMerchants) return
+    const showMerchants = canSeeMerchants(user?.role)
+    if (!isSuperAdmin && !showMerchants) return
 
-    if (isSuperAdmin) {
+    if (isSuperAdmin || user?.role === 'ADMIN') {
       void Promise.all([
-        apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
-        apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({ items: [] as MerchantListItem[] })),
-        apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }),
-        apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
-          items: [] as UpiAccountListItem[],
-        })),
+        isSuperAdmin
+          ? apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken })
+          : Promise.resolve({ items: [] as UserListItem[] }),
+        showMerchants
+          ? apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
+              items: [] as MerchantListItem[],
+            }))
+          : Promise.resolve({ items: [] as MerchantListItem[] }),
+        isSuperAdmin
+          ? apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken })
+          : Promise.resolve({ items: [] as BankAccountListItem[] }),
+        isSuperAdmin
+          ? apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
+              items: [] as UpiAccountListItem[],
+            }))
+          : Promise.resolve({ items: [] as UpiAccountListItem[] }),
       ]).then(([adminRows, merchantRows, bankRows, upiRows]) => {
         setAdmins(adminRows.items)
         setMerchants(merchantRows.items)
         setBanks(bankRows.items)
         setUpis(upiRows.items)
       })
-      return
     }
-
-    void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', { token: accessToken })
-      .then((result) => setMerchants(result.items))
-      .catch(() => setMerchants([]))
   }, [accessToken, allowed, user?.role])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
   const range = `date_from=${filters.date_from}&date_to=${filters.date_to}`
-  const isAdmin = user.role === 'ADMIN' || user.role === 'OPERATOR'
+  const isAdmin = user.role === 'BANKER' || user.role === 'OPERATOR'
   const isOperator = user.role === 'OPERATOR'
 
   return (
@@ -124,7 +130,7 @@ export default function DashboardPage() {
           void setFilters({
             date_from: todayIso(),
             date_to: todayIso(),
-            admin_user_id: '',
+            banker_user_id: '',
             merchant_id: '',
             bank_account_id: '',
             upi_account_id: '',
@@ -151,8 +157,8 @@ export default function DashboardPage() {
             <FormField label={bankerLabel()}>
               <Select
                 aria-label={bankerLabel()}
-                value={filters.admin_user_id}
-                onChange={(event) => void setFilters({ admin_user_id: event.target.value })}
+                value={filters.banker_user_id}
+                onChange={(event) => void setFilters({ banker_user_id: event.target.value })}
               >
                 <option value="">All {bankerLabel({ plural: true })}</option>
                 {admins.map((row) => (
@@ -197,7 +203,7 @@ export default function DashboardPage() {
               </Select>
             </FormField>
           </>
-        ) : user.role === 'ADMIN' || user.role === 'AUDITOR' ? (
+        ) : user.role === 'ADMIN' ? (
           <FormField label={merchantLabel()}>
             <Select
               aria-label={merchantLabel()}
@@ -241,10 +247,10 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <StatCard label="Commission PAYIN" href={`/commission?${range}`}>
-              <MoneyDisplay amountMinor={data.commission_by_kind.find((row) => row.rate_kind === 'PAYIN')?.admin_commission_minor} />
+              <MoneyDisplay amountMinor={data.commission_by_kind.find((row) => row.rate_kind === 'PAYIN')?.banker_commission_minor} />
             </StatCard>
             <StatCard label="Commission PAYOUT" href={`/commission?${range}`}>
-              <MoneyDisplay amountMinor={data.commission_by_kind.find((row) => row.rate_kind === 'PAYOUT')?.admin_commission_minor} />
+              <MoneyDisplay amountMinor={data.commission_by_kind.find((row) => row.rate_kind === 'PAYOUT')?.banker_commission_minor} />
             </StatCard>
             <StatCard label="Operators online">{data.operators_online}</StatCard>
             <StatCard label="Pending UTRs" href="/utr?status=PENDING">{data.pending_utrs}</StatCard>
@@ -282,8 +288,8 @@ export default function DashboardPage() {
               { key: 'commission', heading: 'Commission' },
               { key: 'margin', heading: 'Margin' },
             ]}
-            rows={data.admin_wise.map((row) => ({
-              admin: row.admin_username,
+            rows={data.banker_wise.map((row) => ({
+              admin: row.banker_username,
               payin: <MoneyDisplay amountMinor={row.payin_minor} />,
               payout: <MoneyDisplay amountMinor={row.payout_minor} />,
               commission: <MoneyDisplay amountMinor={row.commission_minor} />,

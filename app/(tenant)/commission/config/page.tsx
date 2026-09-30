@@ -26,7 +26,7 @@ export default function CommissionConfigPage() {
     try {
       const [merchantRows, adminRows] = await Promise.all([
         apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }),
-        apiListRequest<UserListItem>('/api/v1/users?role=ADMIN&page_size=100', { token: accessToken }),
+        apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken }),
       ])
       const details = await Promise.all(
         merchantRows.items.map((row) => apiRequest<MerchantDetail>(`/api/v1/merchants/${row.id}`, { token: accessToken })),

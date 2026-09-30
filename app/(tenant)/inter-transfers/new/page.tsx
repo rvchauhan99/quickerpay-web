@@ -23,26 +23,26 @@ function bankLabel(row: BankAccountListItem) {
 }
 
 function sourceBanks(rows: BankAccountListItem[], transferType: TransferType) {
-  if (transferType === 'ADMIN_TO_ADMIN' || transferType === 'ADMIN_TO_SUPER_ADMIN') {
-    return rows.filter((row) => row.owner_role === 'ADMIN')
+  if (transferType === 'BANKER_TO_BANKER' || transferType === 'BANKER_TO_SUPER_ADMIN') {
+    return rows.filter((row) => row.owner_role === 'BANKER')
   }
-  if (transferType === 'SUPER_ADMIN_TO_ADMIN') {
+  if (transferType === 'SUPER_ADMIN_TO_BANKER') {
     return rows.filter((row) => row.owner_role === 'SUPER_ADMIN')
   }
   return rows
 }
 
 function destinationBanks(rows: BankAccountListItem[], transferType: TransferType, source: BankAccountListItem | undefined) {
-  if (transferType === 'ADMIN_TO_ADMIN') {
+  if (transferType === 'BANKER_TO_BANKER') {
     return rows.filter(
-      (row) => row.owner_role === 'ADMIN' && (!source || row.owner_user_id !== source.owner_user_id),
+      (row) => row.owner_role === 'BANKER' && (!source || row.owner_user_id !== source.owner_user_id),
     )
   }
-  if (transferType === 'ADMIN_TO_SUPER_ADMIN') {
+  if (transferType === 'BANKER_TO_SUPER_ADMIN') {
     return rows.filter((row) => row.owner_role === 'SUPER_ADMIN')
   }
-  if (transferType === 'SUPER_ADMIN_TO_ADMIN') {
-    return rows.filter((row) => row.owner_role === 'ADMIN')
+  if (transferType === 'SUPER_ADMIN_TO_BANKER') {
+    return rows.filter((row) => row.owner_role === 'BANKER')
   }
   return rows.filter((row) => source && row.owner_user_id === source.owner_user_id && row.id !== source.id)
 }
@@ -51,7 +51,7 @@ export default function NewInterTransferPage() {
   const router = useRouter()
   const { ready, user, menus, accessToken } = useSession()
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
-  const [transferType, setTransferType] = useState<TransferType>('ADMIN_TO_ADMIN')
+  const [transferType, setTransferType] = useState<TransferType>('BANKER_TO_BANKER')
   const [sourceId, setSourceId] = useState('')
   const [destId, setDestId] = useState('')
   const [amountMinor, setAmountMinor] = useState(0)

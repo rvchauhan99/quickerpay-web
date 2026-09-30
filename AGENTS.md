@@ -41,3 +41,5 @@ Extension contract: `../QuickerPay/docs/07_EXTENSION_INTEGRATION.md`. Do not inv
 - Masked fields arrive `_masked`. Do not hide full account numbers in CSS.
 - Glossary and banned words: `../QuickerPay/docs/00_START_HERE.md` and `.cursor/rules/naming-and-glossary.mdc`.
 - Build position: `../QuickerPay/PROGRESS.md` (step 13 complete; V1 remaining is business UAT).
+- Local/temp/QA scripts and `*.live.json`: ignore in **both** `.gitignore` and `.dockerignore` (see `../QuickerPay/.cursor/rules/no-local-ops-scripts.mdc`).
+- Strict sign-off: `.cursor/rules/strict-testing-signoff.mdc` (and API sibling) — no partial / pending testing before Done.

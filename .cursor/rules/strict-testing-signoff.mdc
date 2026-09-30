@@ -1,0 +1,10 @@
+---
+description: Strict sign-off — follow QuickerPay API strict-testing-signoff; no partial Done
+alwaysApply: true
+---
+
+# Strict testing sign-off (Web)
+
+Follow [`../QuickerPay/.cursor/rules/strict-testing-signoff.mdc`](../../QuickerPay/.cursor/rules/strict-testing-signoff.mdc).
+
+After UI or shared-types changes: `pnpm run build`, browser for every role that can open the changed routes, and a Sign-off section with Pass/Fail. No pending or “thin” Done.

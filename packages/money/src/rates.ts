@@ -53,36 +53,36 @@ export function assertRateBp(rateBp: number): void {
 
 export interface CommissionSplit {
   merchantCommissionMinor: bigint
-  adminCommissionMinor: bigint
+  bankerCommissionMinor: bigint
   marginMinor: bigint
 }
 
 /**
- * Compute merchant, admin and margin independently, then force the identity
+ * Compute merchant, banker and margin independently, then force the identity
  * by assigning the remainder to the margin, per docs/02_DATA_MODEL.md 4.20:
  *
  *   merchant = roundHalfUp(eligible * merchantRate / 10000)
- *   admin    = roundHalfUp(eligible * adminRate / 10000)
- *   margin   = merchant - admin
+ *   banker   = roundHalfUp(eligible * bankerRate / 10000)
+ *   margin   = merchant - banker
  */
 export function splitCommission(
   eligibleMinor: bigint,
   merchantRateBp: number,
-  adminRateBp: number,
+  bankerRateBp: number,
 ): CommissionSplit {
   if (eligibleMinor <= 0n) {
     throw new MoneyError('INVALID_AMOUNT', 'Eligible amount must be positive')
   }
   assertRateBp(merchantRateBp)
-  assertRateBp(adminRateBp)
+  assertRateBp(bankerRateBp)
 
   const merchantCommissionMinor = applyRateBp(eligibleMinor, merchantRateBp)
-  const adminCommissionMinor = applyRateBp(eligibleMinor, adminRateBp)
-  const marginMinor = merchantCommissionMinor - adminCommissionMinor
+  const bankerCommissionMinor = applyRateBp(eligibleMinor, bankerRateBp)
+  const marginMinor = merchantCommissionMinor - bankerCommissionMinor
 
-  if (merchantCommissionMinor !== adminCommissionMinor + marginMinor) {
-    throw new MoneyError('COMMISSION_IDENTITY', 'merchant must equal admin + margin')
+  if (merchantCommissionMinor !== bankerCommissionMinor + marginMinor) {
+    throw new MoneyError('COMMISSION_IDENTITY', 'merchant must equal banker + margin')
   }
 
-  return { merchantCommissionMinor, adminCommissionMinor, marginMinor }
+  return { merchantCommissionMinor, bankerCommissionMinor, marginMinor }
 }

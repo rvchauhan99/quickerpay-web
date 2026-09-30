@@ -1,0 +1,10 @@
+---
+description: Strict — local/temp/QA scripts must be gitignored AND dockerignored
+alwaysApply: true
+---
+
+# No local ops scripts (Web)
+
+Follow the QuickerPay API rule: `../QuickerPay/.cursor/rules/no-local-ops-scripts.mdc`.
+
+Any new temporary, one-off QA, or non-required script under this repo must be added to **both** `.gitignore` and `.dockerignore` in the same change. Verify with `git check-ignore -v <path>` before Done.

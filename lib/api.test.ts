@@ -10,7 +10,7 @@ const loginPayload = (accessToken: string): LoginResponse => ({
     username: 'superadmin',
     display_name: 'Super Admin',
     role: 'SUPER_ADMIN',
-    supervisor_admin_id: null,
+    supervisor_banker_id: null,
     operational_state: 'ONLINE',
     auto_accept_enabled: false,
     two_fa_enabled: false,

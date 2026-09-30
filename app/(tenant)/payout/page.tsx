@@ -28,6 +28,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { fromMinor } from '@quickerpay/money'
 import { hasMenu } from '@/lib/session'
@@ -44,7 +45,7 @@ export default function PayoutPage() {
     status: parseAsString.withDefault('INITIATE'),
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     unassigned: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
@@ -83,7 +84,7 @@ export default function PayoutPage() {
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+    if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     if (saUnassignedOnly) query.set('unassigned', 'true')
     try {
       const result = await apiListRequest<PayoutListItem>(`/api/v1/payout?${query}`)
@@ -94,7 +95,7 @@ export default function PayoutPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.admin_user_id, saUnassignedOnly])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, saUnassignedOnly])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -119,7 +120,7 @@ export default function PayoutPage() {
       date_to: filters.date_to || undefined,
       q: filters.q || undefined,
       merchant_id: filters.merchant_id || undefined,
-      admin_user_id: filters.admin_user_id || undefined,
+      banker_user_id: filters.banker_user_id || undefined,
       unassigned: saUnassignedOnly ? 'true' : undefined,
     },
     rows,
@@ -131,7 +132,7 @@ export default function PayoutPage() {
 
   useEffect(() => {
     if (!accessToken || !allowed) return
-    if (hasMenu(menus, 'PAYOUT', 'can_create')) {
+    if (hasMenu(menus, 'PAYOUT', 'can_create') && canSeeMerchants(user?.role)) {
       void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', {
         token: accessToken,
       })
@@ -147,15 +148,16 @@ export default function PayoutPage() {
           setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load banks')
         })
     }
-  }, [accessToken, allowed, menus])
+  }, [accessToken, allowed, menus, user?.role])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
+  const showPanelUsername = canSeeOwnPanelUsernames(user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
   const createMerchants = merchants.length > 0 ? merchants : directoryMerchants.filter((row) => row.status === 'ACTIVE')
-  const activeAdmins = admins.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE')
+  const activeAdmins = admins.filter((row) => row.role === 'BANKER' && row.status === 'ACTIVE')
   const adminUsernameById = new Map(admins.map((admin) => [admin.id, admin.username]))
 
   const handleClearFilters = () => {
@@ -165,7 +167,7 @@ export default function PayoutPage() {
       status: 'INITIATE',
       q: '',
       merchant_id: '',
-      admin_user_id: '',
+      banker_user_id: '',
       unassigned: isSuperAdmin ? 'true' : '',
       page: 1,
     })
@@ -182,7 +184,7 @@ export default function PayoutPage() {
       }>('/api/v1/payout/bulk-assign', {
         method: 'POST',
         token: accessToken,
-        body: { admin_user_id: assignAdminId, amount_minor: assignAmountMinor },
+        body: { banker_user_id: assignAdminId, amount_minor: assignAmountMinor },
       })
       toast.success(
         result.assigned_ids.length === 0
@@ -305,14 +307,14 @@ export default function PayoutPage() {
             </Select>
           </FormField>
         ) : null}
-        {isSuperAdmin || canFilterMerchants ? (
+        {canFilterMerchants ? (
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={directoryMerchants.length > 0 ? directoryMerchants : merchants}
-            adminId={filters.admin_user_id}
+            adminId={filters.banker_user_id}
             merchantId={filters.merchant_id}
             showAdmin={isSuperAdmin}
-            onAdminChange={isSuperAdmin ? (value) => void setFilters({ admin_user_id: value, page: 1 }) : undefined}
+            onAdminChange={isSuperAdmin ? (value) => void setFilters({ banker_user_id: value, page: 1 }) : undefined}
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
@@ -327,7 +329,7 @@ export default function PayoutPage() {
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.q) query.set('q', filters.q)
               if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
               void downloadExport(`/api/v1/payout/export?${query}`, 'payouts.csv', accessToken!)
             }}
           />
@@ -360,7 +362,7 @@ export default function PayoutPage() {
           </FormShell>
         </div>
       ) : null}
-      {creating && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+      {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
         <div className="mb-4">
           <FormShell title="Create Pay-Out" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
@@ -403,9 +405,9 @@ export default function PayoutPage() {
         <DataTable
           columns={[
             { key: 'created', heading: 'CREATED' },
-            { key: 'username', heading: 'USERNAME' },
-            { key: 'merchant', heading: 'MERCHANT' },
-            ...(isSuperAdmin ? [{ key: 'admin', heading: 'ADMIN' }] : []),
+            ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
+            ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
+            ...(isSuperAdmin ? [{ key: 'admin', heading: 'Banker' }] : []),
             { key: 'bank', heading: 'BANK DETAILS' },
             { key: 'amount', heading: 'AMOUNT' },
             { key: 'utr', heading: 'UTR' },
@@ -414,12 +416,20 @@ export default function PayoutPage() {
           ]}
           rows={rows.map((row) => ({
             created: new Date(row.created_at).toLocaleString(),
-            username: row.supago_username ?? '—',
-            merchant: row.merchant_display_name?.trim() || '—',
+            ...(showPanelUsername
+              ? {
+                  username: row.supago_username ?? '—',
+                }
+              : {}),
+            ...(canFilterMerchants
+              ? {
+                  merchant: row.merchant_display_name?.trim() || '—',
+                }
+              : {}),
             ...(isSuperAdmin
               ? {
-                  admin: row.admin_user_id
-                    ? (adminUsernameById.get(row.admin_user_id) ?? '—')
+                  admin: row.banker_user_id
+                    ? (adminUsernameById.get(row.banker_user_id) ?? '—')
                     : '—',
                 }
               : {}),

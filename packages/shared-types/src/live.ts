@@ -12,7 +12,7 @@ export interface LiveEventEnvelope {
   upi_account_id?: string | null
   /** Pay-Out source bank; used for Operator live scope. */
   bank_account_id?: string | null
-  admin_user_id?: string | null
+  banker_user_id?: string | null
   assigned_operator_id?: string | null
   updated_at: string
 }

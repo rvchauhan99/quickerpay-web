@@ -21,6 +21,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
@@ -42,7 +43,7 @@ export default function PayinPage() {
     status: parseAsString.withDefault('IN_PROCESS'),
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
-    admin_user_id: parseAsString.withDefault(''),
+    banker_user_id: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -76,7 +77,7 @@ export default function PayinPage() {
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-    if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+    if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     try {
       const result = await apiListRequest<PayinListItem>(`/api/v1/payin?${query}`)
       setRows(result.items)
@@ -86,7 +87,7 @@ export default function PayinPage() {
     } finally {
       if (!options?.silent) setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.admin_user_id])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -104,7 +105,7 @@ export default function PayinPage() {
       date_to: filters.date_to || undefined,
       q: filters.q || undefined,
       merchant_id: filters.merchant_id || undefined,
-      admin_user_id: filters.admin_user_id || undefined,
+      banker_user_id: filters.banker_user_id || undefined,
     },
     rows,
     setRows,
@@ -128,6 +129,7 @@ export default function PayinPage() {
 
   useEffect(() => {
     if (!accessToken || !allowed || !hasMenu(menus, 'PAYIN', 'can_create')) return
+    if (!canSeeMerchants(user?.role)) return
     void apiListRequest<MerchantListItem>('/api/v1/merchants?status=ACTIVE&page_size=100', {
       token: accessToken,
     })
@@ -135,9 +137,10 @@ export default function PayinPage() {
       .catch((caught) => {
         setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
       })
-  }, [accessToken, allowed, menus])
+  }, [accessToken, allowed, menus, user?.role])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
+  const showPanelUsername = canSeeOwnPanelUsernames(user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -152,7 +155,7 @@ export default function PayinPage() {
       label: `${upi.owner_username} (${bankerLabel()})`,
     }
     const operators = users
-      .filter((row) => row.role === 'OPERATOR' && row.supervisor_admin_id === upi.owner_user_id && row.status === 'ACTIVE')
+      .filter((row) => row.role === 'OPERATOR' && row.supervisor_banker_id === upi.owner_user_id && row.status === 'ACTIVE')
       .map((row) => ({ id: row.id, label: `${row.username} (Operator)` }))
     return [owner, ...operators.filter((row) => row.id !== owner.id)]
   }
@@ -281,7 +284,7 @@ export default function PayinPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', merchant_id: '', admin_user_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', merchant_id: '', banker_user_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -299,14 +302,14 @@ export default function PayinPage() {
         <FormField label="Search">
           <Input placeholder="Search UTR / ID" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
-        {isSuperAdmin || canFilterMerchants ? (
+        {canFilterMerchants ? (
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={directoryMerchants.length > 0 ? directoryMerchants : merchants}
-            adminId={filters.admin_user_id}
+            adminId={filters.banker_user_id}
             merchantId={filters.merchant_id}
             showAdmin={isSuperAdmin}
-            onAdminChange={isSuperAdmin ? (value) => void setFilters({ admin_user_id: value, page: 1 }) : undefined}
+            onAdminChange={isSuperAdmin ? (value) => void setFilters({ banker_user_id: value, page: 1 }) : undefined}
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
@@ -321,14 +324,14 @@ export default function PayinPage() {
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.q) query.set('q', filters.q)
               if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.admin_user_id) query.set('admin_user_id', filters.admin_user_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
               void downloadExport(`/api/v1/payin/export?${query}`, 'payins.csv', accessToken!)
             }}
           />
         </div>
       </FilterBar>
 
-      {creating && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+      {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
         <div className="mb-4">
           <FormShell title="Create Pay-In" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
@@ -406,8 +409,8 @@ export default function PayinPage() {
           columns={[
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
-            { key: 'username', heading: 'USERNAME' },
-            { key: 'merchant', heading: 'MERCHANT' },
+            ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
+            ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
             { key: 'actionTime', heading: 'ACTION TIME' },
             { key: 'amount', heading: 'AMOUNT' },
@@ -418,8 +421,16 @@ export default function PayinPage() {
           rows={rows.map((row) => ({
             ref: row.reference,
             utr: row.utr ?? '—',
-            username: row.customer_ref?.trim() || '—',
-            merchant: row.merchant_display_name?.trim() || '—',
+            ...(showPanelUsername
+              ? {
+                  username: row.customer_ref?.trim() || '—',
+                }
+              : {}),
+            ...(canFilterMerchants
+              ? {
+                  merchant: row.merchant_display_name?.trim() || '—',
+                }
+              : {}),
             inprog: row.in_progress_at ? new Date(row.in_progress_at).toLocaleString() : '—',
             actionTime: row.action_at ? new Date(row.action_at).toLocaleString() : '—',
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,

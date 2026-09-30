@@ -11,6 +11,8 @@ import {
 } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyDisplay } from '@/lib/money'
 import { merchantLabel } from '@/lib/labels'
+import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
+import { useSession } from '@/lib/session'
 
 function SummaryItem({
   label,
@@ -50,6 +52,9 @@ export function PayoutWithdrawSummary({
   row: PayoutListItem
   className?: string
 }) {
+  const { user } = useSession()
+  const showPanelIdentity = canSeeOwnPanelUsernames(user?.role)
+  const showMerchantCatalog = canSeeMerchants(user?.role)
   const beneficiary = row.beneficiary_name?.trim() || '—'
   const upi = payoutBeneficiaryUpi(row)
   const upiPayee = payoutIsUpiPayee(row)
@@ -76,8 +81,12 @@ export function PayoutWithdrawSummary({
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         <SummaryItem label="Created">{new Date(row.created_at).toLocaleString()}</SummaryItem>
-        <SummaryItem label="Username">{row.supago_username?.trim() || '—'}</SummaryItem>
-        <SummaryItem label={merchantLabel()}>{merchant}</SummaryItem>
+        {showPanelIdentity ? (
+          <SummaryItem label="Username">{row.supago_username?.trim() || '—'}</SummaryItem>
+        ) : null}
+        {showMerchantCatalog ? (
+          <SummaryItem label={merchantLabel()}>{merchant}</SummaryItem>
+        ) : null}
         <SummaryItem label="Amount">
           <span className="font-semibold">
             <MoneyDisplay amountMinor={row.amount_minor} />

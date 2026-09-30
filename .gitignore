@@ -16,3 +16,19 @@ coverage/
 *.log
 .icloud
 *.icloud
+
+# Local / temporary / one-off — never commit (mirror API .cursor/rules/no-local-ops-scripts.mdc)
+testdata/
+test_reports/
+tmp/
+scratch/
+credentials/
+scripts/qa-*.ts
+scripts/test-*.ts
+scripts/*_local.ts
+scripts/*_prod.ts
+scripts/*_tmp.ts
+scripts/*_scratch.ts
+scripts/tmp-*.ts
+scripts/scratch-*.ts
+**/*.live.json

@@ -36,7 +36,9 @@ export default function UserDetailPage() {
   const [statusSubmitting, setStatusSubmitting] = useState(false)
 
   const canEdit = hasMenu(menus, 'USERS', 'can_edit')
-  const canEditDepositLimit = user?.role === 'SUPER_ADMIN'
+  const isMerchantPortalUser = detail?.role === 'MERCHANT'
+  const canEditIdentity = canEdit && !isMerchantPortalUser
+  const canEditDepositLimit = user?.role === 'SUPER_ADMIN' && !isMerchantPortalUser
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
@@ -59,12 +61,12 @@ export default function UserDetailPage() {
   }, [ready, allowed, load])
 
   const handleSaveIdentity = async () => {
-    if (!accessToken || !params.id || !canEdit || savingIdentity) return
+    if (!accessToken || !params.id || !canEditIdentity || savingIdentity) return
     setSavingIdentity(true)
     setError(null)
     setFieldErrors({})
 
-    if (detail?.role === 'ADMIN' && !splitE164(mobile).national) {
+    if (detail?.role === 'BANKER' && !splitE164(mobile).national) {
       setFieldErrors({ mobile: `A ${bankerLabel()} must keep a mobile number with country code` })
       setError(`Mobile is required for a ${bankerLabel()}`)
       setSavingIdentity(false)
@@ -79,7 +81,7 @@ export default function UserDetailPage() {
           display_name: displayName,
           email: email.trim() ? email.trim() : null,
           mobile: splitE164(mobile).national ? mobile.trim() : null,
-          ...(canEditDepositLimit && detail?.role === 'ADMIN'
+          ...(canEditDepositLimit && detail?.role === 'BANKER'
             ? { daily_deposit_limit_minor: dailyDepositLimitMinor }
             : {}),
         },
@@ -144,16 +146,23 @@ export default function UserDetailPage() {
       <div className="mb-4">
         <ErrorAlert message={error} />
       </div>
+      {detail?.role === 'MERCHANT' ? (
+        <div className="mb-4">
+          <ErrorAlert
+            message="Exchange Master portal login is managed from Merchants (enable/disable). Role, username, and menus cannot be changed here. You may activate, deactivate, or reset password."
+          />
+        </div>
+      ) : null}
       {!detail ? (
         <TableSkeleton />
       ) : (
         <FormShell
           wide
           compact
-          submitLabel={canEdit ? 'Save' : undefined}
+          submitLabel={canEditIdentity ? 'Save' : undefined}
           loading={savingIdentity}
-          onSubmit={canEdit ? () => void handleSaveIdentity() : undefined}
-          onCancel={canEdit ? () => {
+          onSubmit={canEditIdentity ? () => void handleSaveIdentity() : undefined}
+          onCancel={canEditIdentity ? () => {
             setDisplayName(detail.display_name)
             setEmail(detail.email ?? '')
             setMobile(detail.mobile ?? '')
@@ -167,10 +176,10 @@ export default function UserDetailPage() {
               <FormField label="Username">
                 <Input value={detail.username} readOnly />
               </FormField>
-              <FormField label="Display name" required={canEdit} error={fieldErrors.display_name}>
+              <FormField label="Display name" required={canEditIdentity} error={fieldErrors.display_name}>
                 <Input
                   value={displayName}
-                  readOnly={!canEdit}
+                  readOnly={!canEditIdentity}
                   aria-label="Display name"
                   onChange={(event) => setDisplayName(event.target.value)}
                 />
@@ -179,25 +188,25 @@ export default function UserDetailPage() {
                 <Input
                   type="email"
                   value={email}
-                  readOnly={!canEdit}
+                  readOnly={!canEditIdentity}
                   aria-label="Email"
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </FormField>
               <FormField
                 label="Mobile"
-                required={detail.role === 'ADMIN'}
+                required={detail.role === 'BANKER'}
                 error={fieldErrors.mobile}
                 hint="Used for bank OTP."
               >
                 <PhoneInput
                   value={mobile}
-                  readOnly={!canEdit}
+                  readOnly={!canEditIdentity}
                   aria-label="Mobile"
                   onChange={setMobile}
                 />
               </FormField>
-              {detail.role === 'ADMIN' ? (
+              {detail.role === 'BANKER' ? (
                 <FormField
                   label="Daily deposit limit"
                   required={canEditDepositLimit}
@@ -274,6 +283,11 @@ export default function UserDetailPage() {
                   </div>
                 </FormField>
               </div>
+              {detail.role === 'MERCHANT' ? (
+                <div className="col-span-full text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                  Portal menus are fixed at enable time and cannot be edited from Users Master.
+                </div>
+              ) : null}
               <FormField label="Scope (Banks)">
                 <div className="flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium" style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}>
                   {detail.scope?.bank_account_ids.length ?? 0} accounts

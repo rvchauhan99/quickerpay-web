@@ -98,28 +98,28 @@ describe('splitCommission', () => {
   it('holds the identity on the worked Pay-In example', () => {
     const split = splitCommission(10_000_000n, 400, 350)
     expect(split.merchantCommissionMinor).toBe(400_000n)
-    expect(split.adminCommissionMinor).toBe(350_000n)
+    expect(split.bankerCommissionMinor).toBe(350_000n)
     expect(split.marginMinor).toBe(50_000n)
-    expect(split.merchantCommissionMinor).toBe(split.adminCommissionMinor + split.marginMinor)
+    expect(split.merchantCommissionMinor).toBe(split.bankerCommissionMinor + split.marginMinor)
   })
 
   it('holds the identity on the worked Pay-Out example', () => {
     const split = splitCommission(10_000_000n, 200, 150)
     expect(split.merchantCommissionMinor).toBe(200_000n)
-    expect(split.adminCommissionMinor).toBe(150_000n)
+    expect(split.bankerCommissionMinor).toBe(150_000n)
     expect(split.marginMinor).toBe(50_000n)
   })
 
   it('keeps merchant = admin + margin exact on 333 paise at 4.00% and 3.50%', () => {
     const split = splitCommission(333n, 400, 350)
-    expect(split.merchantCommissionMinor).toBe(split.adminCommissionMinor + split.marginMinor)
+    expect(split.merchantCommissionMinor).toBe(split.bankerCommissionMinor + split.marginMinor)
   })
 
   it('absorbs a HALF_UP remainder into the margin on 333 rupees', () => {
     const split = splitCommission(33_300n, 400, 350)
     expect(split.merchantCommissionMinor).toBe(applyRateBp(33_300n, 400))
-    expect(split.adminCommissionMinor).toBe(applyRateBp(33_300n, 350))
-    expect(split.merchantCommissionMinor).toBe(split.adminCommissionMinor + split.marginMinor)
+    expect(split.bankerCommissionMinor).toBe(applyRateBp(33_300n, 350))
+    expect(split.merchantCommissionMinor).toBe(split.bankerCommissionMinor + split.marginMinor)
   })
 })
 

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { CriciConnectionAlertItem, MenuCode, MenuGrant, UserRole } from '@quickerpay/shared-types'
 import { BrandLockup } from '@/components/brand/BrandLockup'
@@ -173,9 +173,17 @@ export function AppShell({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [criciAlerts, setCriciAlerts] = useState<CriciConnectionAlertItem[]>([])
   const { user, accessToken, refreshUser } = useSession()
+  const pathname = usePathname()
+  const router = useRouter()
 
   useEffect(() => {
-    if (role !== 'ADMIN') return
+    if (!user?.require_password_change) return
+    if (pathname === '/profile' || pathname.startsWith('/profile/')) return
+    router.replace('/profile')
+  }, [user?.require_password_change, pathname, router])
+
+  useEffect(() => {
+    if (role !== 'BANKER') return
     void refreshUser().catch(() => undefined)
   }, [role, refreshUser])
 
@@ -210,18 +218,21 @@ export function AppShell({
   const showCriciReconnectStrip = role === 'SUPER_ADMIN' && criciAlerts.length > 0
 
   const order = NAV_ORDER
-  const items = [...menus]
-    .filter((row) => row.can_view && HREF[row.menu_code])
-    .sort((a, b) => order.indexOf(a.menu_code) - order.indexOf(b.menu_code))
-    .map((row) => ({
-      href: HREF[row.menu_code] as string,
-      label: LABELS[row.menu_code],
-      code: row.menu_code,
-      extra:
-        row.menu_code === 'COMMISSION' && row.can_edit
-          ? [{ href: '/commission/config', label: 'Commission Config' }]
-          : [],
-    }))
+  const forcePasswordChange = Boolean(user?.require_password_change)
+  const items = forcePasswordChange
+    ? []
+    : [...menus]
+        .filter((row) => row.can_view && HREF[row.menu_code])
+        .sort((a, b) => order.indexOf(a.menu_code) - order.indexOf(b.menu_code))
+        .map((row) => ({
+          href: HREF[row.menu_code] as string,
+          label: LABELS[row.menu_code],
+          code: row.menu_code,
+          extra:
+            row.menu_code === 'COMMISSION' && row.can_edit
+              ? [{ href: '/commission/config', label: 'Commission Config' }]
+              : [],
+        }))
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--qp-surface)' }}>
@@ -273,7 +284,7 @@ export function AppShell({
               </div>
             )
           })}
-          {isLabConsole() ? (
+          {isLabConsole() && role !== 'MERCHANT' && !forcePasswordChange ? (
             <div className="mb-4">
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-70" style={{ color: 'var(--qp-sidebar-muted)' }}>
                 Lab
@@ -322,6 +333,21 @@ export function AppShell({
           </div>
           <HeaderToggles />
         </header>
+
+        {forcePasswordChange ? (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="px-4 py-2 text-xs font-medium"
+            style={{
+              backgroundColor: 'var(--qp-warning-bg)',
+              color: 'var(--qp-warning)',
+              borderBottom: '1px solid var(--qp-border)',
+            }}
+          >
+            You must change your temporary password before using the console.
+          </div>
+        ) : null}
 
         {showDepositLimitStrip ? (
           <div
