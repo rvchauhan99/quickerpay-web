@@ -181,7 +181,6 @@ const PRIMARY_LINKS: PrimaryLink[] = [
   { key: 'in-process-withdrawal', code: 'PAYOUT', label: 'In Process Withdrawal', href: '/payout?status=INITIATE&assigned=true' },
   { key: 'hawala', code: 'HAWALA', label: 'Hawala', href: '/hawala' },
   { key: 'general', code: 'GENERAL', label: 'General', href: '/general' },
-  { key: 'payin-injection', code: 'PAYIN', label: 'Payin Injection', href: '/payin?inject=1' },
 ]
 
 /** Per-link icon overrides where one MenuCode maps to two primary rows. */
