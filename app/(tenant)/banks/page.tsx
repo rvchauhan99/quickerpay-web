@@ -542,9 +542,9 @@ export default function BanksPage() {
     : null
 
   return (
-    <AppShell title="Bank Details" role={user.role} menus={menus}>
+    <AppShell title="Bank Account" role={user.role} menus={menus}>
       <PageHeader
-        title="Bank Details"
+        title="Bank Account"
         action={
           hasMenu(menus, 'BANKS', 'can_create') ? (
             <PrimaryButton onClick={handleOpenCreate}>

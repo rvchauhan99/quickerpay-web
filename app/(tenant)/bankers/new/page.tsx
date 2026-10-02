@@ -1,48 +1,61 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { MENU_CODES } from '@quickerpay/shared-types'
+import { MENU_CODES, PHASE_1_BANKER_MENUS } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
-import { Select } from '@/components/forms/Select'
+import { RateInput } from '@/components/forms/RateInput'
+import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
+import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
-import { roleLabel } from '@/lib/labels'
+import { bankerLabel } from '@/lib/labels'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
-type StaffCreatableRole = 'ADMIN' | 'OPERATOR' | 'AUDITOR'
-
-const STAFF_DEFAULT_MENUS = ['DASHBOARD', 'USERS', 'LEDGER', 'PAYIN', 'PAYOUT', 'UTR', 'HAWALA'] as const
-
-export default function NewUserPage() {
+export default function NewBankerPage() {
   const router = useRouter()
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('USERS')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [mobile, setMobile] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<StaffCreatableRole>('ADMIN')
-  const [selected, setSelected] = useState<string[]>([...STAFF_DEFAULT_MENUS])
+  const [payinBp, setPayinBp] = useState(350)
+  const [payoutBp, setPayoutBp] = useState(150)
+  const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
+  const [selected, setSelected] = useState<string[]>([...PHASE_1_BANKER_MENUS])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
   if (!ready || !user) return <p className="p-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>Loading</p>
   if (!allowed) return Forbidden
-
-  const creatableRoles: StaffCreatableRole[] =
-    user.role === 'SUPER_ADMIN' ? ['ADMIN', 'OPERATOR', 'AUDITOR'] : ['OPERATOR']
+  if (user.role !== 'SUPER_ADMIN') return <ForbiddenPage permission="Banker Master (Super Admin only)" />
+  if (!menus.some((grant) => grant.menu_code === 'USERS' && grant.can_create)) {
+    return <ForbiddenPage permission="USERS.can_create" />
+  }
 
   const handleSubmit = async () => {
     if (!accessToken || submitting) return
     setError(null)
     setFieldErrors({})
+
+    const nextErrors: Record<string, string> = {}
+    const national = splitE164(mobile).national
+    if (!national) nextErrors.mobile = `Required when creating a ${bankerLabel()}`
+    if (!dailyDepositLimitMinor || dailyDepositLimitMinor <= 0) {
+      nextErrors.daily_deposit_limit_minor = `Required when creating a ${bankerLabel()}`
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      setError(`Contact number and daily deposit limit are required for a ${bankerLabel()}`)
+      return
+    }
+
     setSubmitting(true)
     try {
       await apiRequest('/api/v1/users', {
@@ -53,8 +66,13 @@ export default function NewUserPage() {
           display_name: displayName || username,
           temporary_password: password,
           require_password_change: true,
-          role,
-          mobile: splitE164(mobile).national ? mobile.trim() : undefined,
+          role: 'BANKER',
+          mobile: mobile.trim(),
+          daily_deposit_limit_minor: dailyDepositLimitMinor,
+          rates: [
+            { rate_kind: 'PAYIN', rate_bp: payinBp },
+            { rate_kind: 'PAYOUT', rate_bp: payoutBp },
+          ],
           menus: selected.map((code) => ({
             menu_code: code,
             can_view: true,
@@ -65,7 +83,7 @@ export default function NewUserPage() {
           })),
         },
       })
-      router.replace('/users')
+      router.replace('/bankers')
     } catch (caught) {
       if (caught instanceof ApiClientError) {
         setFieldErrors(caught.fieldErrors())
@@ -79,9 +97,9 @@ export default function NewUserPage() {
   }
 
   return (
-    <AppShell title="Create user" role={user.role} menus={menus}>
+    <AppShell title="Create Banker" role={user.role} menus={menus}>
       <FormShell
-        title="Create User"
+        title={`Create ${bankerLabel()}`}
         wide
         compact
         submitLabel={submitting ? 'Creating…' : 'Create'}
@@ -89,15 +107,7 @@ export default function NewUserPage() {
         onSubmit={() => void handleSubmit()}
         onCancel={() => router.back()}
       >
-        {user.role === 'SUPER_ADMIN' ? (
-          <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-            Create Admin, Operator, or Auditor here.{' '}
-            <Link href="/bankers/new" className="font-medium underline underline-offset-2" style={{ color: 'var(--qp-primary)' }}>
-              Create Banker → Banker Master
-            </Link>
-          </p>
-        ) : null}
-        <FormSection title="Account & Role">
+        <FormSection title="Account">
           <FormGrid>
             <FormField label="Username" required error={fieldErrors.username}>
               <Input value={username} onChange={(event) => setUsername(event.target.value)} aria-label="Username" />
@@ -111,8 +121,9 @@ export default function NewUserPage() {
             </FormField>
             <FormField
               label="Contact number"
+              required
               error={fieldErrors.mobile}
-              hint="Optional."
+              hint="Used for bank OTP."
             >
               <PhoneInput
                 value={mobile}
@@ -133,12 +144,26 @@ export default function NewUserPage() {
                 aria-label="Temporary password"
               />
             </FormField>
-            <FormField label="Role" required>
-              <Select value={role} onChange={(event) => setRole(event.target.value as StaffCreatableRole)} aria-label="Role">
-                {creatableRoles.map((code) => (
-                  <option key={code} value={code}>{roleLabel(code)}</option>
-                ))}
-              </Select>
+            <FormField label="Role">
+              <Input value={bankerLabel()} disabled aria-label="Role" />
+            </FormField>
+            <FormField label="PAYIN rate (bp)" error={fieldErrors.rates ?? fieldErrors['rates.0.rate_bp']}>
+              <RateInput id="payin" valueBp={payinBp} onChangeBp={setPayinBp} />
+            </FormField>
+            <FormField label="PAYOUT rate (bp)" error={fieldErrors['rates.1.rate_bp']}>
+              <RateInput id="payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
+            </FormField>
+            <FormField
+              label="Daily deposit limit"
+              required
+              error={fieldErrors.daily_deposit_limit_minor}
+              hint="Max COMPLETED Pay-In volume per IST day"
+            >
+              <MoneyInput
+                id="daily-deposit-limit"
+                valueMinor={dailyDepositLimitMinor}
+                onChangeMinor={setDailyDepositLimitMinor}
+              />
             </FormField>
           </FormGrid>
         </FormSection>

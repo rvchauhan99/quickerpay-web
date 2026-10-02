@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { PANEL_BANK_CONSOLE_ENABLED, type CriciConnectionAlertItem, type MenuCode, type MenuGrant, type UserRole } from '@quickerpay/shared-types'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { HeaderToggles } from './HeaderToggles'
@@ -18,12 +18,12 @@ const SIDEBAR_COLLAPSED_KEY = 'qp.ui.sidebarCollapsed'
 const LABELS: Record<MenuCode, string> = {
   DASHBOARD: 'Dashboard',
   USERS: 'User Management',
-  MERCHANTS: 'Exchange Masters',
-  BANKS: 'Bank Details',
+  MERCHANTS: 'Exchange Master',
+  BANKS: 'Bank Account',
   UPI: 'UPI',
-  PAYIN: 'Pay-In',
-  PAYOUT: 'Pay-Out',
-  UTR: 'UTR Entries',
+  PAYIN: 'Pending Deposit',
+  PAYOUT: 'Pending Withdrawal',
+  UTR: 'Banker UTR Entries',
   TRANSACTIONS: 'Transactions',
   INTER_TRANSFER: 'Hawala',
   HAWALA: 'Hawala',
@@ -33,6 +33,7 @@ const LABELS: Record<MenuCode, string> = {
   REPORTS: 'Reports',
   AUDIT: 'Audit',
   SETTINGS: 'Settings',
+  GENERAL: 'General',
   SUPPORT: 'Support',
   SUPAGO_BANKS: 'Supago Banks',
   CRICI_BANKS: 'Crici Banks',
@@ -57,6 +58,7 @@ const HREF: Partial<Record<MenuCode, string>> = {
   REPORTS: '/reports',
   AUDIT: '/audit',
   SETTINGS: '/settings',
+  GENERAL: '/general',
 }
 
 /* ─── Inline SVG icons (no external dependency) ───────────────────────────── */
@@ -73,7 +75,7 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
   ),
   MERCHANTS: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
     </svg>
   ),
   SUPAGO_BANKS: (
@@ -88,7 +90,7 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
   ),
   BANKS: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="10" width="18" height="10" rx="1"/><path d="M3 10l9-7 9 7"/><line x1="12" y1="10" x2="12" y2="20"/>
+      <path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/>
     </svg>
   ),
   UPI: (
@@ -98,17 +100,17 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
   ),
   PAYIN: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 5v14M5 12l7 7 7-7"/>
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
     </svg>
   ),
   PAYOUT: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 19V5M5 12l7-7 7 7"/>
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
     </svg>
   ),
   UTR: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
     </svg>
   ),
   TRANSACTIONS: (
@@ -118,12 +120,12 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
   ),
   HAWALA: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+      <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
     </svg>
   ),
   PARTIES: (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/>
     </svg>
   ),
   LEDGER: (
@@ -151,20 +153,133 @@ const NAV_ICONS: Partial<Record<MenuCode, React.ReactNode>> = {
       <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
     </svg>
   ),
+  GENERAL: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="8.01"/><line x1="17.5" y1="8" x2="17.5" y2="8.01"/>
+    </svg>
+  ),
 }
 
 /* ─── Nav section groupings ───────────────────────────────────────────────── */
-const SECTION_GROUPS: { label: string; codes: MenuCode[] }[] = [
-  { label: 'Operations', codes: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'HAWALA', 'PARTIES', 'MERCHANTS', 'SUPAGO_BANKS', 'CRICI_BANKS'] },
-  { label: 'Finance', codes: ['TRANSACTIONS', 'LEDGER', 'COMMISSION', 'REPORTS'] },
-  { label: 'Admin', codes: ['USERS', 'BANKS', 'UPI', 'AUDIT', 'SETTINGS'] },
+/**
+ * Primary rail — FastTag-exact order/labels (UI only; menu codes/RBAC unchanged).
+ * Banker opens a floating card sheet (same chrome as More). Duplicate PAYIN/PAYOUT use query hrefs.
+ */
+type PrimaryLink = {
+  key: string
+  code: MenuCode
+  label: string
+  href: string
+}
+
+const PRIMARY_LINKS: PrimaryLink[] = [
+  { key: 'dashboard', code: 'DASHBOARD', label: 'Dashboard', href: '/dashboard' },
+  { key: 'exchange', code: 'MERCHANTS', label: 'Exchange Master', href: '/merchants' },
+  { key: 'parties', code: 'PARTIES', label: 'Party Master', href: '/parties' },
+  { key: 'pending-deposit', code: 'PAYIN', label: 'Pending Deposit', href: '/payin' },
+  { key: 'pending-withdrawal', code: 'PAYOUT', label: 'Pending Withdrawal', href: '/payout?status=INITIATE' },
+  { key: 'in-process-withdrawal', code: 'PAYOUT', label: 'In Process Withdrawal', href: '/payout?status=INITIATE&assigned=true' },
+  { key: 'hawala', code: 'HAWALA', label: 'Hawala', href: '/hawala' },
+  { key: 'general', code: 'GENERAL', label: 'General', href: '/general' },
+  { key: 'payin-injection', code: 'PAYIN', label: 'Payin Injection', href: '/payin?inject=1' },
 ]
 
-const NAV_ORDER = SECTION_GROUPS.flatMap((g) => g.codes)
+/** Per-link icon overrides where one MenuCode maps to two primary rows. */
+const PRIMARY_LINK_ICONS: Record<string, React.ReactNode> = {
+  'in-process-withdrawal': (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg>
+  ),
+  'payin-injection': (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+  ),
+}
+
+const BANKER_PARENT_ICON = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/>
+  </svg>
+)
+
+const BANKER_CHILD_LINKS: PrimaryLink[] = [
+  { key: 'bank-account', code: 'BANKS', label: 'Bank Account', href: '/banks' },
+  { key: 'banker-utr', code: 'UTR', label: 'Banker UTR Entries', href: '/utr' },
+]
+
+/** More sheet — everything not on the FastTag primary rail. */
+const MORE_SECTION_GROUPS: { label: string; codes: MenuCode[] }[] = [
+  { label: 'Finance', codes: ['TRANSACTIONS', 'LEDGER', 'COMMISSION', 'REPORTS'] },
+  { label: 'Banking', codes: ['UPI'] },
+  { label: 'Admin', codes: ['USERS'] },
+  { label: 'Panel banks', codes: ['SUPAGO_BANKS', 'CRICI_BANKS'] },
+  { label: 'System', codes: ['AUDIT', 'SETTINGS'] },
+]
+
+const MORE_CODES = new Set(MORE_SECTION_GROUPS.flatMap((g) => g.codes))
+const NAV_ORDER = [
+  ...PRIMARY_LINKS.map((l) => l.code),
+  'BANKS',
+  'UTR',
+  ...MORE_SECTION_GROUPS.flatMap((g) => g.codes),
+] as MenuCode[]
 
 function panelBankNavVisible(code: MenuCode): boolean {
   if (PANEL_BANK_CONSOLE_ENABLED) return true
   return code !== 'SUPAGO_BANKS' && code !== 'CRICI_BANKS'
+}
+
+function isBankerPath(pathname: string): boolean {
+  return (
+    pathname === '/bankers' ||
+    pathname.startsWith('/bankers/') ||
+    pathname === '/banks' ||
+    pathname.startsWith('/banks/') ||
+    pathname === '/utr' ||
+    pathname.startsWith('/utr/')
+  )
+}
+
+function isMorePath(pathname: string): boolean {
+  if (pathname.startsWith('/mock/gpay')) return true
+  if (pathname.startsWith('/commission')) return true
+  if (pathname === '/upi' || pathname.startsWith('/upi/')) return true
+  if (pathname === '/users' || pathname.startsWith('/users/')) return true
+  for (const code of MORE_CODES) {
+    if (code === 'UPI' || code === 'USERS') continue
+    const href = HREF[code]
+    if (!href) continue
+    if (pathname === href || pathname.startsWith(`${href}/`)) return true
+  }
+  return false
+}
+
+function hrefIsActive(href: string, pathname: string, search: string): boolean {
+  const url = new URL(href, 'http://qp.local')
+  const pathOk = pathname === url.pathname || pathname.startsWith(`${url.pathname}/`)
+  if (!pathOk) return false
+  const want = url.searchParams
+  const have = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+
+  if (url.pathname === '/payin') {
+    const wantInject = want.get('inject') === '1'
+    const haveInject = have.get('inject') === '1'
+    return wantInject === haveInject
+  }
+  if (url.pathname === '/payout') {
+    const wantStatus = want.get('status') ?? 'INITIATE'
+    const haveStatus = have.get('status') ?? 'INITIATE'
+    if (wantStatus !== haveStatus) return false
+    const wantAssigned = want.get('assigned') === 'true'
+    const haveAssigned = have.get('assigned') === 'true'
+    return wantAssigned === haveAssigned
+  }
+  for (const [key, value] of want.entries()) {
+    if (have.get(key) !== value) return false
+  }
+  return true
 }
 
 /* ─── Role display label ──────────────────────────────────────────────────── */
@@ -185,12 +300,22 @@ export function AppShell({
   menus: MenuGrant[]
   children: React.ReactNode
 }) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const search = searchParams?.toString() ?? ''
+  const router = useRouter()
+  
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [moreExpanded, setMoreExpanded] = useState(false)
+  const [bankerExpanded, setBankerExpanded] = useState(false)
   const [criciAlerts, setCriciAlerts] = useState<CriciConnectionAlertItem[]>([])
   const { user, accessToken, refreshUser } = useSession()
-  const pathname = usePathname()
-  const router = useRouter()
+
+  useEffect(() => {
+    if (isBankerPath(pathname)) setBankerExpanded(true)
+    if (isMorePath(pathname)) setMoreExpanded(true)
+  }, [pathname])
 
   useEffect(() => {
     try {
@@ -264,11 +389,179 @@ export function AppShell({
           href: HREF[row.menu_code] as string,
           label: LABELS[row.menu_code],
           code: row.menu_code,
-          extra:
-            row.menu_code === 'COMMISSION' && row.can_edit
-              ? [{ href: '/commission/config', label: 'Commission Config' }]
-              : [],
         }))
+
+  const moreItems = items.filter((item) => MORE_CODES.has(item.code))
+  const showLabInMore = isLabConsole() && role !== 'MERCHANT' && !forcePasswordChange
+  const showMoreButton = !forcePasswordChange && (moreItems.length > 0 || showLabInMore)
+  const moreActive = isMorePath(pathname)
+  const bankerActive = isBankerPath(pathname)
+  const canView = (code: MenuCode) =>
+    !forcePasswordChange && menus.some((grant) => grant.menu_code === code && grant.can_view && panelBankNavVisible(code))
+  const showBankerMaster =
+    role === 'SUPER_ADMIN' && !forcePasswordChange && menus.some((grant) => grant.menu_code === 'USERS' && grant.can_view)
+  const bankerChildren = BANKER_CHILD_LINKS.filter((link) => canView(link.code))
+  const showBankerGroup = showBankerMaster || bankerChildren.length > 0
+
+  const renderNavGroups = (
+    groups: { label: string; codes: MenuCode[] }[],
+    options?: { onNavigate?: () => void; tone?: 'rail' | 'sheet' },
+  ) => {
+    const tone = options?.tone ?? 'rail'
+    return groups.map((group) => {
+      const groupItems = items.filter((item) => (group.codes as string[]).includes(item.code))
+      if (groupItems.length === 0) return null
+      return (
+        <ul key={group.label} className="space-y-px">
+          {groupItems.map((item) => {
+            const nav = options?.onNavigate ? (
+              <NavItem href={item.href} label={item.label} code={item.code} onNavigate={options.onNavigate} tone={tone} />
+            ) : (
+              <NavItem href={item.href} label={item.label} code={item.code} tone={tone} />
+            )
+            return (
+              <li key={item.href}>
+                {nav}
+              </li>
+            )
+          })}
+        </ul>
+      )
+    })
+  }
+
+  const renderPrimaryLink = (link: PrimaryLink, onNavigate?: () => void) => {
+    if (!canView(link.code)) return null
+    const icon = PRIMARY_LINK_ICONS[link.key]
+    return (
+      <li key={link.key}>
+        {onNavigate ? (
+          <NavItem
+            href={link.href}
+            label={link.label}
+            code={link.code}
+            active={hrefIsActive(link.href, pathname, search)}
+            {...(icon !== undefined ? { icon } : {})}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <NavItem
+            href={link.href}
+            label={link.label}
+            code={link.code}
+            active={hrefIsActive(link.href, pathname, search)}
+            {...(icon !== undefined ? { icon } : {})}
+          />
+        )}
+      </li>
+    )
+  }
+
+  const renderPrimaryNav = (onNavigate?: () => void) => (
+    <ul className="space-y-px">
+      {renderPrimaryLink(PRIMARY_LINKS[0]!, onNavigate)}
+      {renderPrimaryLink(PRIMARY_LINKS[1]!, onNavigate)}
+      {showBankerGroup ? (
+        <li className="flex flex-col gap-px">
+          <button
+            type="button"
+            onClick={() => {
+              if (collapsed && !bankerExpanded) toggleCollapsed()
+              setBankerExpanded((prev) => !prev)
+            }}
+            data-active={bankerActive ? 'true' : 'false'}
+            className="qp-nav-item flex h-8 w-full items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
+            style={navItemStyle(bankerActive, 'rail')}
+            aria-label={bankerExpanded ? 'Close Banker modules' : 'Open Banker modules'}
+            aria-expanded={bankerExpanded}
+          >
+            <span className="shrink-0 opacity-80">{BANKER_PARENT_ICON}</span>
+            <span className={`truncate ${SIDE_LABEL}`}>Banker</span>
+            <span className={`ml-auto shrink-0 opacity-60 transition-transform duration-200 ${bankerExpanded ? 'rotate-90' : ''} ${SIDE_LABEL}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </span>
+          </button>
+          {bankerExpanded && !collapsed ? (
+            <ul className="mt-1 space-y-px pl-2 pb-1 border-l-2 border-[var(--qp-sidebar-border)] ml-4">
+              {showBankerMaster ? (
+                <li>
+                  <BankerMasterNavItem
+                    {...(onNavigate ? { onNavigate } : {})}
+                    tone="rail"
+                  />
+                </li>
+              ) : null}
+              {bankerChildren.map((link) => (
+                <li key={link.key}>
+                  <NavItem
+                    href={link.href}
+                    label={link.label}
+                    code={link.code}
+                    tone="rail"
+                    {...(onNavigate ? { onNavigate } : {})}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </li>
+      ) : null}
+      {PRIMARY_LINKS.slice(2).map((link) => renderPrimaryLink(link, onNavigate))}
+
+      {showMoreButton ? (
+        <li className="flex flex-col gap-px mt-4 pt-2 border-t border-[var(--qp-sidebar-border)]">
+          <button
+            type="button"
+            onClick={() => {
+              if (collapsed && !moreExpanded) toggleCollapsed()
+              setMoreExpanded((prev) => !prev)
+            }}
+            data-active={moreActive ? 'true' : 'false'}
+            className="qp-nav-item flex h-8 w-full items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
+            style={navItemStyle(moreActive, 'rail')}
+            aria-label={moreExpanded ? 'Close More modules' : 'Open More modules'}
+            aria-expanded={moreExpanded}
+          >
+            <span className="shrink-0 opacity-80">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+              </svg>
+            </span>
+            <span className={`truncate ${SIDE_LABEL}`}>More</span>
+            <span className={`ml-auto shrink-0 opacity-60 transition-transform duration-200 ${moreExpanded ? 'rotate-90' : ''} ${SIDE_LABEL}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </span>
+          </button>
+          {moreExpanded && !collapsed ? (
+            <div className="mt-2 pl-2 border-l-2 border-[var(--qp-sidebar-border)] ml-4 pb-2">
+              <div className="flex flex-col gap-px">
+                {renderNavGroups(MORE_SECTION_GROUPS, {
+                  ...(onNavigate ? { onNavigate } : {}),
+                  tone: 'rail',
+                })}
+                {showLabInMore ? (
+                  <ul className="space-y-px">
+                    <li>
+                      <LabNavItem
+                        href="/mock/gpay"
+                        label="GPay mock"
+                        {...(onNavigate ? { onNavigate } : {})}
+                        tone="rail"
+                      />
+                    </li>
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </li>
+      ) : null}
+    </ul>
+  )
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--qp-surface)' }}>
@@ -298,62 +591,32 @@ export function AppShell({
           />
         </div>
 
-        {/* Nav */}
+        {/* Primary nav — FastTag order; Banker opens floating sheet between Exchange Master and Party Master */}
         <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 py-2 scrollbar-hide" aria-label="Main">
-          {SECTION_GROUPS.map((group) => {
-            const groupItems = items.filter((item) => (group.codes as string[]).includes(item.code))
-            if (groupItems.length === 0) return null
-            return (
-              <div key={group.label} className="mb-2.5">
-                <p className={`mb-0.5 px-2.5 text-[9.5px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-70 ${SIDE_LABEL}`} style={{ color: 'var(--qp-sidebar-muted)' }}>
-                  {group.label}
-                </p>
-                <ul className="space-y-px">
-                  {groupItems.map((item) => (
-                    <li key={item.href}>
-                      <NavItem href={item.href} label={item.label} code={item.code} />
-                      {item.extra.map((extra) => (
-                        <SubNavItem key={extra.href} href={extra.href} label={extra.label} />
-                      ))}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )
-          })}
-          {isLabConsole() && role !== 'MERCHANT' && !forcePasswordChange ? (
-            <div className="mb-2.5">
-              <p className={`mb-0.5 px-2.5 text-[9.5px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-70 ${SIDE_LABEL}`} style={{ color: 'var(--qp-sidebar-muted)' }}>
-                Lab
-              </p>
-              <ul className="space-y-px">
-                <li>
-                  <LabNavItem href="/mock/gpay" label="GPay mock" />
-                </li>
-              </ul>
-            </div>
-          ) : null}
+          {renderPrimaryNav(() => setSidebarOpen(false))}
         </nav>
 
-        {/* Role badge */}
-        <div className="flex items-center justify-between gap-2 overflow-hidden whitespace-nowrap px-3 py-1.5" style={{ borderTop: '1px solid var(--qp-sidebar-border)' }}>
-          <div className={`flex min-w-0 items-center gap-2 ${collapsed ? 'lg:hidden' : ''}`}>
-            <div className="h-1.5 w-1.5 shrink-0 rounded-full animate-pulse" style={{ backgroundColor: 'var(--qp-primary)' }} />
-            <span className="truncate text-[10.5px] font-medium uppercase tracking-wide" style={{ color: 'var(--qp-sidebar-muted)' }}>
-              {formatRole(role)}
-            </span>
+        {/* User Role */}
+        <div className="shrink-0 overflow-hidden" style={{ borderTop: '1px solid var(--qp-sidebar-border)' }}>
+          <div className="flex items-center justify-between gap-2 overflow-hidden whitespace-nowrap px-3 py-3">
+            <div className={`flex min-w-0 items-center gap-2 ${collapsed ? 'lg:hidden' : ''}`}>
+              <div className="h-1.5 w-1.5 shrink-0 rounded-full animate-pulse" style={{ backgroundColor: 'var(--qp-primary)' }} />
+              <span className="truncate text-[10.5px] font-medium uppercase tracking-wide" style={{ color: 'var(--qp-sidebar-muted)' }}>
+                {formatRole(role)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-qp transition-colors hover:bg-[var(--qp-sidebar-hover)] lg:flex"
+              style={{ color: 'var(--qp-sidebar-muted)' }}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-pressed={collapsed}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <PanelLeftOpen size={15} strokeWidth={1.75} /> : <PanelLeftClose size={15} strokeWidth={1.75} />}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-qp transition-colors hover:bg-[var(--qp-sidebar-hover)] lg:flex"
-            style={{ color: 'var(--qp-sidebar-muted)' }}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-pressed={collapsed}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <PanelLeftOpen size={15} strokeWidth={1.75} /> : <PanelLeftClose size={15} strokeWidth={1.75} />}
-          </button>
         </div>
       </aside>
 
@@ -450,76 +713,117 @@ export function AppShell({
 
 const SIDE_LABEL = 'group-data-[collapsed=true]/side:lg:hidden'
 
+type NavTone = 'rail' | 'sheet'
+
+
+
+function navItemStyle(active: boolean, tone: NavTone): CSSProperties {
+  if (tone === 'sheet') {
+    return {
+      color: active ? 'var(--qp-primary)' : 'var(--qp-text-primary)',
+      backgroundColor: active ? 'var(--qp-accent-bg)' : 'transparent',
+      borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
+      paddingLeft: '7px',
+    }
+  }
+  return {
+    color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
+    backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
+    borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
+    paddingLeft: '7px',
+  }
+}
+
 /* ─── NavItem ─────────────────────────────────────────────────────────────── */
-function NavItem({ href, label, code }: { href: string; label: string; code: MenuCode }) {
+function NavItem({
+  href,
+  label,
+  code,
+  onNavigate,
+  tone = 'rail',
+  active: activeProp,
+  icon: iconProp,
+}: {
+  href: string
+  label: string
+  code: MenuCode
+  onNavigate?: () => void
+  tone?: NavTone
+  active?: boolean
+  icon?: React.ReactNode
+}) {
   const pathname = usePathname()
-  const active = pathname === href || pathname.startsWith(`${href}/`)
-  const icon = NAV_ICONS[code]
+  const searchParams = useSearchParams()
+  const search = searchParams?.toString() ?? ''
+  const active = activeProp ?? hrefIsActive(href, pathname, search)
+  const icon = iconProp ?? NAV_ICONS[code]
 
   return (
     <Link
       href={href}
       data-active={active ? 'true' : 'false'}
+      onClick={() => onNavigate?.()}
       className="qp-nav-item flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
-      style={{
-        color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
-        backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
-        borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
-        paddingLeft: '7px',
-      }}
+      style={navItemStyle(active, tone)}
     >
       <span className="shrink-0 opacity-80">{icon}</span>
-      <span className={`truncate ${SIDE_LABEL}`}>{label}</span>
+      <span className={`truncate ${tone === 'rail' ? SIDE_LABEL : ''}`}>{label}</span>
+    </Link>
+  )
+}
+
+/* ─── Banker Master (in Banker sheet; reuse USERS gate, not a menu code) ───── */
+function BankerMasterNavItem({ onNavigate, tone = 'sheet' }: { onNavigate?: () => void; tone?: NavTone }) {
+  const pathname = usePathname()
+  const active = pathname === '/bankers' || pathname.startsWith('/bankers/')
+
+  return (
+    <Link
+      href="/bankers"
+      data-active={active ? 'true' : 'false'}
+      onClick={() => onNavigate?.()}
+      className="qp-nav-item flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
+      style={navItemStyle(active, tone)}
+      aria-label="Banker Master"
+    >
+      <span className="shrink-0 opacity-80">{NAV_ICONS.USERS}</span>
+      <span className="truncate">Banker Master</span>
     </Link>
   )
 }
 
 /* ─── LabNavItem ──────────────────────────────────────────────────────────── */
-function LabNavItem({ href, label }: { href: string; label: string }) {
+function LabNavItem({
+  href,
+  label,
+  onNavigate,
+  tone = 'rail',
+}: {
+  href: string
+  label: string
+  onNavigate?: () => void
+  tone?: NavTone
+}) {
   const pathname = usePathname()
   const active = pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <Link
       href={href}
+      onClick={() => onNavigate?.()}
       className="flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
-      style={{
-        color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
-        backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
-        borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
-        paddingLeft: '7px',
-      }}
+      style={navItemStyle(active, tone)}
       aria-label={label}
     >
       <span className="shrink-0 opacity-80">
         <FlaskConical size={16} strokeWidth={1.75} />
       </span>
-      <span className={`truncate ${SIDE_LABEL}`}>{label}</span>
+      <span className={`truncate ${tone === 'rail' ? SIDE_LABEL : ''}`}>{label}</span>
     </Link>
   )
 }
 
-/* ─── SubNavItem ──────────────────────────────────────────────────────────── */
-function SubNavItem({ href, label }: { href: string; label: string }) {
-  const pathname = usePathname()
-  const active = pathname === href
 
-  return (
-    <Link
-      href={href}
-      data-active={active ? 'true' : 'false'}
-      className={`qp-subnav-item flex h-7 items-center gap-2 rounded-qp pl-8 pr-2.5 text-xs font-medium transition-colors duration-150 group-data-[collapsed=true]/side:lg:hidden`}
-      style={{
-        color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
-        backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
-        opacity: active ? 1 : 0.8,
-      }}
-    >
-      <span className="shrink-0 text-center w-[18px]" style={{ color: 'var(--qp-primary)' }}>›</span>
-      <span className={`truncate ${SIDE_LABEL}`}>{label}</span>
-    </Link>
-  )
-}
 
 /* ─── Navigation (kept for backward compat if used elsewhere) ─────────────── */
 export function Navigation({ menus, role: _role }: { menus: MenuGrant[]; role: UserRole }) {
@@ -529,10 +833,6 @@ export function Navigation({ menus, role: _role }: { menus: MenuGrant[]; role: U
       href: HREF[row.menu_code] as string,
       label: LABELS[row.menu_code],
       code: row.menu_code,
-      extra:
-        row.menu_code === 'COMMISSION' && row.can_edit
-          ? [{ href: '/commission/config', label: 'Commission Config' }]
-          : [],
     }))
 
   return (

@@ -110,8 +110,8 @@ export default function PayoutDetailPage() {
   const upiPayee = row ? payoutIsUpiPayee(row) : false
 
   return (
-    <AppShell title="Pay-Out Detail" role={user.role} menus={menus}>
-      <PageHeader title="Pay-Out Detail" backHref="/payout" backLabel="Pay-Out" />
+    <AppShell title="Pending Withdrawal Detail" role={user.role} menus={menus}>
+      <PageHeader title="Pending Withdrawal Detail" backHref="/payout" backLabel="Pending Withdrawal" />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>

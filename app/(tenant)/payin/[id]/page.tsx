@@ -40,8 +40,8 @@ export default function PayinDetailPage() {
   if (!allowed) return Forbidden
 
   return (
-    <AppShell title="Pay-In Detail" role={user.role} menus={menus}>
-      <PageHeader title="Pay-In Detail" />
+    <AppShell title="Pending Deposit Detail" role={user.role} menus={menus}>
+      <PageHeader title="Pending Deposit Detail" />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>

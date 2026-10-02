@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MenuCode, Pagination, UserListItem } from '@quickerpay/shared-types'
-import { USER_ROLES, USER_STATUSES } from '@quickerpay/shared-types'
+import { USER_STATUSES } from '@quickerpay/shared-types'
 import { roleLabel } from '@/lib/labels'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
@@ -21,6 +22,9 @@ import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
+
+/** Staff roles on User Management — Bankers live on Banker Master. */
+const STAFF_FILTER_ROLES = ['ADMIN', 'OPERATOR', 'AUDITOR'] as const
 
 export default function UsersPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('USERS')
@@ -46,7 +50,8 @@ export default function UsersPage() {
   const [statusTarget, setStatusTarget] = useState<{ id: string; username: string; next: 'ACTIVE' | 'DISABLED' } | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
 
-  const isAdmin = user?.role === 'BANKER'
+  const isBanker = user?.role === 'BANKER'
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const offerableModules = menus.filter((grant) => grant.can_view && grant.menu_code !== 'USERS')
 
   const load = useCallback(async () => {
@@ -55,19 +60,28 @@ export default function UsersPage() {
     const query = new URLSearchParams()
     query.set('page', String(filters.page))
     query.set('page_size', String(filters.page_size))
-    if (filters.role) query.set('role', filters.role)
+    if (filters.role) {
+      query.set('role', filters.role)
+    } else if (isSuperAdmin) {
+      // Default list excludes Bankers (those live on Banker Master).
+      // API filters one role; fetch a larger page and drop BANKER client-side when unfiltered.
+    }
     if (filters.status) query.set('status', filters.status)
     if (filters.q) query.set('q', filters.q)
     try {
       const result = await apiListRequest<UserListItem>(`/api/v1/users?${query}`)
-      setRows(result.items)
+      const items =
+        isSuperAdmin && !filters.role
+          ? result.items.filter((row) => row.role !== 'BANKER')
+          : result.items
+      setRows(items)
       setPagination(result.pagination)
     } catch (caught) {
       setError(caught instanceof ApiClientError ? `${caught.message}${caught.requestId ? ` (${caught.requestId})` : ''}` : 'Could not load')
     } finally {
       setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.role, filters.status, filters.q])
+  }, [filters.page, filters.page_size, filters.role, filters.status, filters.q, isSuperAdmin])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -185,7 +199,7 @@ export default function UsersPage() {
         title="User Management"
         action={
           hasMenu(menus, 'USERS', 'can_create') ? (
-            isAdmin ? (
+            isBanker ? (
               <PrimaryButton onClick={() => setCreating(true)}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Create Operator
@@ -199,12 +213,21 @@ export default function UsersPage() {
           ) : null
         }
       />
+      {isSuperAdmin ? (
+        <p className="mb-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+          Staff accounts (Admin, Operator, Auditor). Bankers are managed under{' '}
+          <Link href="/bankers" className="font-medium underline underline-offset-2" style={{ color: 'var(--qp-primary)' }}>
+            Banker Master
+          </Link>
+          .
+        </p>
+      ) : null}
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ role: '', status: '', q: '', page: 1 })} onReload={() => void load()}>
-        {isAdmin ? null : (
+        {isBanker ? null : (
           <FormField label="Role">
             <Select value={filters.role} onChange={(event) => void setFilters({ role: event.target.value })} aria-label="Role">
-              <option value="">All roles</option>
-              {USER_ROLES.filter((role) => role !== 'SUPER_ADMIN').map((role) => (
+              <option value="">All staff roles</option>
+              {STAFF_FILTER_ROLES.map((role) => (
                 <option key={role} value={role}>{roleLabel(role)}</option>
               ))}
             </Select>
@@ -299,14 +322,14 @@ export default function UsersPage() {
       </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
-          columns={isAdmin ? adminColumns : saColumns}
+          columns={isBanker ? adminColumns : saColumns}
           rows={rows.map((row) => ({
             id: String(row.display_seq ?? '—'),
             username: row.username,
             display: row.display_name,
             role: roleLabel(row.role),
             supervisor: row.supervisor_username ?? '—',
-            menus: isAdmin
+            menus: isBanker
               ? row.menus.filter((grant) => grant.can_view).map((grant) => grant.menu_code).join(', ')
               : String(row.menus.filter((grant) => grant.can_view).length),
             scope: String(row.scope_grant_count),

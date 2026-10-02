@@ -44,6 +44,7 @@ export default function PayinPage() {
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
     banker_user_id: parseAsString.withDefault(''),
+    inject: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -260,9 +261,9 @@ export default function PayinPage() {
   }
 
   return (
-    <AppShell title="Pay-In Requests" role={user.role} menus={menus}>
+    <AppShell title={filters.inject === '1' ? 'Payin Injection' : 'Pending Deposit'} role={user.role} menus={menus}>
       <PageHeader
-        title="Pay-In Requests"
+        title={filters.inject === '1' ? 'Payin Injection' : 'Pending Deposit'}
         action={
           hasMenu(menus, 'PAYIN', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
             <PrimaryButton onClick={() => setCreating(true)}>

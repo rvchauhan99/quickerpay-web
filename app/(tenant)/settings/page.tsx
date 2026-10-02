@@ -192,12 +192,12 @@ export default function SettingsPage() {
 
   return (
     <AppShell title="Settings" role={user.role} menus={menus}>
-      <PageHeader title="Tenant Settings" />
+      <PageHeader title="Settings" />
       <div className="mb-qp-gap">
         {saved ? <ErrorAlert message="Settings saved successfully" type="success" /> : null}
         <ErrorAlert message={error} />
       </div>
-      <FormShell submitLabel="Save Settings" onSubmit={() => void handleSave()}>
+      <FormShell submitLabel="Save" onSubmit={() => void handleSave()}>
         <FormSection title="Configuration" description="General platform rules and limits.">
           <FormGrid>
             <FormField label="Require banking approval">

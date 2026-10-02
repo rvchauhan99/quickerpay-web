@@ -50,6 +50,7 @@ export const MENU_CODES = [
   'REPORTS',
   'AUDIT',
   'SETTINGS',
+  'GENERAL',
   'SUPPORT',
   'SUPAGO_BANKS',
   'CRICI_BANKS',

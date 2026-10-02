@@ -162,9 +162,9 @@ export default function UtrPage() {
   }
 
   return (
-    <AppShell title="UTR Entries" role={user.role} menus={menus}>
+    <AppShell title="Banker UTR Entries" role={user.role} menus={menus}>
       <PageHeader
-        title="UTR Entries"
+        title="Banker UTR Entries"
         action={
           hasMenu(menus, 'UTR', 'can_create') ? (
             <PrimaryButton onClick={() => setCreating(true)}>
