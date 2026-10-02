@@ -427,3 +427,27 @@ input[type='checkbox']:checked {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
 }
+
+/* ─── Sidebar nav hover (replaces onMouseEnter/Leave JS) ─────────────────── */
+.qp-nav-item:not([data-active='true']):hover {
+  background-color: var(--qp-sidebar-hover);
+}
+
+.qp-subnav-item:not([data-active='true']):hover {
+  background-color: var(--qp-sidebar-hover);
+  opacity: 1;
+}
+
+/* ─── Logout button hover ─────────────────────────────────────────────────── */
+.qp-logout-btn:hover {
+  background-color: var(--qp-danger-bg);
+  color: var(--qp-danger);
+}
+
+/* ─── Menu toggle pill hover ─────────────────────────────────────────────── */
+.qp-menu-pill[data-on='false']:hover {
+  border-color: var(--qp-primary);
+  color: var(--qp-primary-dark);
+  background-color: var(--qp-primary-light);
+}
+

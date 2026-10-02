@@ -1,0 +1,38 @@
+---
+description: Strict — every test uses this PC only (web, API, Redis, Postgres on loopback)
+alwaysApply: true
+---
+
+# Local-only testing (QuickerPay)
+
+**Hard rule.** Every test, smoke, browser session, seed, health check, and self-provision write uses **this machine only**. Loopback hosts only.
+
+## Allowed targets
+
+| Piece | Allowed |
+| --- | --- |
+| Web | `http://demo.quickerpay.local:3000` (or another `*.quickerpay.local` that resolves to `127.0.0.1`). Never a deployed URL. |
+| API | `http://127.0.0.1:4000` or `http://localhost:4000` only |
+| Postgres | `QP_CONTROL_DB_HOST` and `QP_TENANT_DB_HOST` are `localhost` or `127.0.0.1` only |
+| Redis | `REDIS_URL` host is `localhost` or `127.0.0.1` only |
+
+## Before the first request
+
+Prove all four pieces are local. Read the local `.env` for DB and Redis hosts — do **not** print secrets. Confirm Redis answers (`PING`) and Postgres accepts a connection on those local hosts.
+
+If any host, IP, or cloud URL is remote: **stop**. Report Blocked. Do **not** switch env files to a remote target to “make the test run.” Do **not** fall back to production, App Platform, staging, hosted Postgres, or hosted Redis.
+
+## Builds
+
+`pnpm run build`, API compile, and unit tests run on this machine. They do **not** deploy.
+
+## Forbidden
+
+- Any non-loopback API, web, database, or Redis
+- Committing `.env`, passwords, TOTP secrets, or scratch seeds
+- Using a remote stack because the local stack is down
+
+## Related
+
+- Browser self-provision: sibling API `.cursor/rules/local-browser-qa.mdc`
+- Sign-off: `.cursor/rules/strict-testing-signoff.mdc`

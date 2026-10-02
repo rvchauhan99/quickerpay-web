@@ -212,18 +212,10 @@ export function HeaderToggles() {
       <button
         type="button"
         onClick={() => void logout()}
-        className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+        className="qp-logout-btn flex h-7 w-7 items-center justify-center rounded-md transition-colors"
         style={{ color: 'var(--qp-text-muted)' }}
         aria-label="Logout"
         title="Logout"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--qp-danger-bg)'
-          e.currentTarget.style.color = 'var(--qp-danger)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent'
-          e.currentTarget.style.color = 'var(--qp-text-muted)'
-        }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

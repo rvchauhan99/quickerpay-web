@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LoginResponse } from '@quickerpay/shared-types'
-import { ApiClientError, apiRequest, bindApiSession, formError, refreshSession } from './api'
+import { ApiClientError, apiRequest, bindApiSession, formError, refreshSession, resetRedirectingFlag } from './api'
 
 const loginPayload = (accessToken: string): LoginResponse => ({
   access_token: accessToken,
@@ -11,9 +11,11 @@ const loginPayload = (accessToken: string): LoginResponse => ({
     display_name: 'Super Admin',
     role: 'SUPER_ADMIN',
     supervisor_banker_id: null,
+    merchant_id: null,
     operational_state: 'ONLINE',
     auto_accept_enabled: false,
     two_fa_enabled: false,
+    require_password_change: false,
     daily_deposit_limit_minor: null,
     daily_deposit_used_minor: null,
     daily_deposit_limit_reached: false,
@@ -32,6 +34,7 @@ function jsonResponse(status: number, body: unknown): Response {
 
 describe('apiRequest 401 refresh', () => {
   afterEach(() => {
+    resetRedirectingFlag()
     bindApiSession(null)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()

@@ -191,26 +191,13 @@ export default function NewUserPage() {
                 <button
                   key={code}
                   type="button"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150"
+                  data-on={on ? 'true' : 'false'}
+                  className="qp-menu-pill inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150"
                   style={{
-                    backgroundColor: on ? 'var(--qp-primary)' : '#fff',
+                    backgroundColor: on ? 'var(--qp-primary)' : 'var(--qp-card)',
                     color: on ? '#ffffff' : 'var(--qp-text-secondary)',
                     border: `1px solid ${on ? 'var(--qp-primary)' : 'var(--qp-border)'}`,
                     boxShadow: on ? '0 1px 3px 0 rgba(37, 99, 235, 0.2)' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!on) {
-                      e.currentTarget.style.borderColor = 'var(--qp-primary)'
-                      e.currentTarget.style.color = 'var(--qp-primary-dark)'
-                      e.currentTarget.style.backgroundColor = 'var(--qp-primary-light)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!on) {
-                      e.currentTarget.style.borderColor = 'var(--qp-border)'
-                      e.currentTarget.style.color = 'var(--qp-text-secondary)'
-                      e.currentTarget.style.backgroundColor = '#fff'
-                    }
                   }}
                   onClick={() =>
                     setSelected((prev) => (on ? prev.filter((row) => row !== code) : [...prev, code]))

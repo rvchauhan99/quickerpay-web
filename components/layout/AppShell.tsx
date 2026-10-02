@@ -459,23 +459,13 @@ function NavItem({ href, label, code }: { href: string; label: string; code: Men
   return (
     <Link
       href={href}
-      className="flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
+      data-active={active ? 'true' : 'false'}
+      className="qp-nav-item flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
       style={{
         color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
         borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
         paddingLeft: '7px',
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          e.currentTarget.style.backgroundColor = 'var(--qp-sidebar-hover)'
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          e.currentTarget.style.backgroundColor = 'transparent'
-          e.currentTarget.style.color = 'var(--qp-sidebar-text)'
-        }
       }}
     >
       <span className="shrink-0 opacity-80">{icon}</span>
@@ -517,24 +507,12 @@ function SubNavItem({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className={`flex h-7 items-center gap-2 rounded-qp pl-8 pr-2.5 text-xs font-medium transition-colors duration-150 group-data-[collapsed=true]/side:lg:hidden`}
+      data-active={active ? 'true' : 'false'}
+      className={`qp-subnav-item flex h-7 items-center gap-2 rounded-qp pl-8 pr-2.5 text-xs font-medium transition-colors duration-150 group-data-[collapsed=true]/side:lg:hidden`}
       style={{
         color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
         opacity: active ? 1 : 0.8,
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          e.currentTarget.style.backgroundColor = 'var(--qp-sidebar-hover)'
-          e.currentTarget.style.opacity = '1'
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          e.currentTarget.style.backgroundColor = 'transparent'
-          e.currentTarget.style.color = 'var(--qp-sidebar-text)'
-          e.currentTarget.style.opacity = '0.8'
-        }
       }}
     >
       <span className="shrink-0 text-center w-[18px]" style={{ color: 'var(--qp-primary)' }}>›</span>
