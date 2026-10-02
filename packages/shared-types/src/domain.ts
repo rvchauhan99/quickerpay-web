@@ -56,6 +56,13 @@ export const MENU_CODES = [
 ] as const
 export type MenuCode = (typeof MENU_CODES)[number]
 
+/**
+ * Supago Banks and Crici Banks consoles. False closes the pages, the sidebar,
+ * and `/api/v1/supago/banks` plus `/api/v1/crici/banks` with 404.
+ * Banker and Operator stay blocked even when this is true.
+ */
+export const PANEL_BANK_CONSOLE_ENABLED = false
+
 /** Merchant external panel — one panel per merchant. */
 export const MERCHANT_INTEGRATION_TYPES = ['NONE', 'SUPAGO', 'CRICI'] as const
 export type MerchantIntegrationType = (typeof MERCHANT_INTEGRATION_TYPES)[number]

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import type { CriciConnectionAlertItem, MenuCode, MenuGrant, UserRole } from '@quickerpay/shared-types'
+import { PANEL_BANK_CONSOLE_ENABLED, type CriciConnectionAlertItem, type MenuCode, type MenuGrant, type UserRole } from '@quickerpay/shared-types'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { HeaderToggles } from './HeaderToggles'
 import { apiRequest } from '@/lib/api'
@@ -160,6 +160,11 @@ const SECTION_GROUPS: { label: string; codes: MenuCode[] }[] = [
 
 const NAV_ORDER = SECTION_GROUPS.flatMap((g) => g.codes)
 
+function panelBankNavVisible(code: MenuCode): boolean {
+  if (PANEL_BANK_CONSOLE_ENABLED) return true
+  return code !== 'SUPAGO_BANKS' && code !== 'CRICI_BANKS'
+}
+
 /* ─── Role display label ──────────────────────────────────────────────────── */
 function formatRole(role: UserRole): string {
   return roleLabel(role)
@@ -230,7 +235,7 @@ export function AppShell({
   const items = forcePasswordChange
     ? []
     : [...menus]
-        .filter((row) => row.can_view && HREF[row.menu_code])
+        .filter((row) => row.can_view && HREF[row.menu_code] && panelBankNavVisible(row.menu_code))
         .sort((a, b) => order.indexOf(a.menu_code) - order.indexOf(b.menu_code))
         .map((row) => ({
           href: HREF[row.menu_code] as string,
@@ -504,7 +509,7 @@ function SubNavItem({ href, label }: { href: string; label: string }) {
 /* ─── Navigation (kept for backward compat if used elsewhere) ─────────────── */
 export function Navigation({ menus, role: _role }: { menus: MenuGrant[]; role: UserRole }) {
   const items = [...menus]
-    .filter((row) => row.can_view && HREF[row.menu_code])
+    .filter((row) => row.can_view && HREF[row.menu_code] && panelBankNavVisible(row.menu_code))
     .map((row) => ({
       href: HREF[row.menu_code] as string,
       label: LABELS[row.menu_code],

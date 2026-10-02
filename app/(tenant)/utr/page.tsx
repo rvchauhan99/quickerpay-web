@@ -108,6 +108,7 @@ export default function UtrPage() {
   }, [ready, allowed, accessToken, load])
 
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
+  const utrUpis = user?.role === 'BANKER' ? upis.filter((upi) => upi.owner_user_id === user.id) : upis
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -196,7 +197,7 @@ export default function UtrPage() {
         <FormField label="UPI">
           <Select value={filters.upi_account_id} onChange={(event) => void setFilters({ upi_account_id: event.target.value })} aria-label="UPI">
             <option value="">All UPIs</option>
-            {upis.map((upi) => (
+            {utrUpis.map((upi) => (
               <option key={upi.id} value={upi.id}>{upi.upi_address}</option>
             ))}
           </Select>
@@ -251,7 +252,7 @@ export default function UtrPage() {
                 <FormField label="Bank/UPI Account" required>
                   <Select value={upiId} onChange={(event) => setUpiId(event.target.value)}>
                     <option value="" disabled>Select account</option>
-                    {upis.map((upi) => (
+                    {utrUpis.map((upi) => (
                       <option key={upi.id} value={upi.id}>{upi.upi_address}</option>
                     ))}
                   </Select>
