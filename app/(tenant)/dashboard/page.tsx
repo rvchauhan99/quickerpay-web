@@ -24,7 +24,7 @@ const EMPTY: DashboardSummary = {
   payin: { amount_minor: 0, count: 0 },
   payout: { amount_minor: 0, count: 0 },
   commission: { amount_minor: 0, count: 0, margin_minor: 0 },
-  inter_transfer: { amount_minor: 0, count: 0 },
+  hawala: { amount_minor: 0, count: 0 },
   refunded_minor: 0,
   my_account_minor: null,
   banker_wise: [],
@@ -274,9 +274,9 @@ export default function DashboardPage() {
                 margin <MoneyDisplay amountMinor={data.commission.margin_minor} />
               </p>
             </StatCard>
-            <StatCard label="INTER TRANSFER" href={`/inter-transfers?${range}`}>
-              <MoneyDisplay amountMinor={data.inter_transfer.amount_minor} />
-              <p className="text-[10px] text-zinc-500">{data.inter_transfer.count} transfers</p>
+            <StatCard label="HAWALA" href={`/hawala?${range}`}>
+              <MoneyDisplay amountMinor={data.hawala.amount_minor} />
+              <p className="text-[10px] text-zinc-500">{data.hawala.count} transfers</p>
             </StatCard>
           </div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>{bankerLabel()}-wise performance</p>

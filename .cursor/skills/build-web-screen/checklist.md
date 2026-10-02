@@ -21,3 +21,15 @@ From `docs/03_MODULES_AND_SCREENS.md` section 6. A screen is not finished until 
 ```
 
 Phase 1 Admin screens also match heading, filter set, column set, default filters, empty-state wording and row actions from the corresponding `03` section.
+
+## Browser verification (local)
+
+```text
+[ ] API on 127.0.0.1:4000 and web on demo.quickerpay.local:3000 (hosts → 127.0.0.1)
+[ ] Local DB only — self-provision fixtures via API when needed (see local-browser-qa skill)
+[ ] Browser-MCP exercised for every role that can open the changed route
+[ ] No Inter Transfer product nav/routes remain when Hawala/Parties changed
+[ ] Session tabs closed after QA
+```
+
+Skill: `.cursor/skills/local-browser-qa/SKILL.md` (and API sibling).

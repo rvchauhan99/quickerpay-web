@@ -43,6 +43,8 @@ export const MENU_CODES = [
   'UTR',
   'TRANSACTIONS',
   'INTER_TRANSFER',
+  'HAWALA',
+  'PARTIES',
   'LEDGER',
   'COMMISSION',
   'REPORTS',
@@ -75,7 +77,7 @@ export const PHASE_1_BANKER_MENUS = [
   'PAYIN',
   'PAYOUT',
   'UTR',
-  'INTER_TRANSFER',
+  'HAWALA',
 ] as const satisfies readonly MenuCode[]
 
 /** @deprecated Use PHASE_1_BANKER_MENUS */
@@ -89,10 +91,31 @@ export const TRANSACTION_TYPES = [
   'PAYIN',
   'PAYOUT',
   'INTER_TRANSFER',
+  'HAWALA',
   'ADJUSTMENT',
   'REFUND',
 ] as const
 export type TransactionType = (typeof TRANSACTION_TYPES)[number]
+
+/** Hawala debit/credit counterparty kind. */
+export const HAWALA_PARTY_KINDS = ['PARTY', 'MERCHANT', 'BANKER'] as const
+export type HawalaPartyKind = (typeof HAWALA_PARTY_KINDS)[number]
+
+export const PARTY_STATUSES = ['ACTIVE', 'DISABLED', 'CLOSED'] as const
+export type PartyStatus = (typeof PARTY_STATUSES)[number]
+
+/** Same lifecycle as legacy inter_transfers. */
+export const HAWALA_STATUSES = [
+  'CREATED',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'PROCESSING',
+  'COMPLETED',
+  'FAILED',
+  'REJECTED',
+  'CANCELLED',
+] as const
+export type HawalaStatus = (typeof HAWALA_STATUSES)[number]
 
 export const PAYIN_STATUSES = [
   'INITIATE',
@@ -138,6 +161,7 @@ export const REFERENCE_PREFIX = {
   PAYIN: 'TXN',
   PAYOUT: 'PRT',
   INTER_TRANSFER: 'HAW',
+  HAWALA: 'HAW',
   ADJUSTMENT: 'ADJ',
   REFUND: 'REF',
 } as const satisfies Record<TransactionType, string>
