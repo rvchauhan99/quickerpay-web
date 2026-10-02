@@ -44,3 +44,53 @@ export interface DashboardSummary {
   processed_today: number
   commission_by_kind: DashboardKindCommission[]
 }
+
+/** Chart bucket size for `GET /dashboard/insights`. One-day ranges use HOUR. */
+export type DashboardGranularity = 'HOUR' | 'DAY'
+
+/** One trend bucket. `bucket` is IST: `YYYY-MM-DD` (DAY) or `YYYY-MM-DDTHH:00` (HOUR). COMPLETED only. */
+export interface DashboardTrendPoint {
+  bucket: string
+  payin_minor: number
+  payin_count: number
+  payout_minor: number
+  payout_count: number
+}
+
+export interface DashboardStatusSlice {
+  status: string
+  count: number
+  amount_minor: number
+}
+
+/** COMPLETED volume per Exchange Master. Empty for roles that cannot see merchants. */
+export interface DashboardMerchantRow {
+  merchant_id: string
+  merchant_code: string
+  merchant_name: string
+  payin_minor: number
+  payin_count: number
+  payout_minor: number
+  payout_count: number
+}
+
+/** COMPLETED Pay-In volume per bank account label. Empty for the Exchange Master portal. */
+export interface DashboardBankRow {
+  bank_account_id: string
+  label: string
+  payin_minor: number
+  payin_count: number
+  payout_minor: number
+  payout_count: number
+}
+
+/** `GET /dashboard/insights` — chart data, same filters and visibility as `/dashboard/summary`. */
+export interface DashboardInsights {
+  granularity: DashboardGranularity
+  timezone: string
+  trend: DashboardTrendPoint[]
+  payin_status: DashboardStatusSlice[]
+  payout_status: DashboardStatusSlice[]
+  by_merchant: DashboardMerchantRow[]
+  by_bank: DashboardBankRow[]
+}

@@ -221,7 +221,7 @@ export default function LedgerPage() {
         </div>
       </FilterBar>
       {adjustOpen ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell submitLabel="Create" onCancel={() => setAdjustOpen(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Adjust Ledger Balance" description="Manually insert an entry into the ledger.">
               <FormGrid>
@@ -253,7 +253,7 @@ export default function LedgerPage() {
           onCancel={() => setPending(null)}
         />
       ) : null}
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {loading ? <TableSkeleton /> : null}

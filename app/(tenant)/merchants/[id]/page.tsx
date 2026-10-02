@@ -461,7 +461,7 @@ export default function MerchantDetailPage() {
         backHref="/merchants"
         backLabel={merchantLabel({ plural: true })}
       />
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {loading || !merchant ? (
@@ -486,7 +486,7 @@ export default function MerchantDetailPage() {
               ) : null}
             </FormGrid>
             <div
-              className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
+              className="mt-qp-gap flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
               style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
               aria-label={`${merchantLabel()} status`}
             >
@@ -542,7 +542,7 @@ export default function MerchantDetailPage() {
                       <Input value={merchant.portal_username ?? merchant.merchant_code} readOnly />
                     </FormField>
                     <FormField label="Portal status">
-                      <div className="flex h-10 items-center px-3">
+                      <div className="flex min-h-8 items-center px-qp-ctl-x">
                         <StatusBadge status={merchant.portal_user_status} />
                       </div>
                     </FormField>
@@ -746,7 +746,7 @@ export default function MerchantDetailPage() {
             ) : null}
 
             {connectedPanel === 'supago' || (connectedPanel === 'none' && panelChoice === 'supago') ? (
-              <div className="mt-4">
+              <div className="mt-qp-gap">
                 {supagoStatus?.connected ? (
                   <>
                     <FormGrid>
@@ -911,7 +911,7 @@ export default function MerchantDetailPage() {
             ) : null}
 
             {connectedPanel === 'crici' || (connectedPanel === 'none' && panelChoice === 'crici') ? (
-              <div className="mt-4">
+              <div className="mt-qp-gap">
                 {criciStatus?.connected ? (
                   <>
                     <FormGrid>

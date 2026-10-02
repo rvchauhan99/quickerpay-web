@@ -336,7 +336,7 @@ export default function PayoutPage() {
         </div>
       </FilterBar>
       {isSuperAdmin && saUnassignedOnly && hasMenu(menus, 'PAYOUT', 'can_approve') ? (
-        <div className="mb-4 rounded border border-zinc-200 bg-white p-3">
+        <div className="mb-qp-gap rounded border border-zinc-200 bg-white p-3">
           <FormShell
             title="Bulk assign unassigned pay-outs"
             submitLabel={assigning ? 'Assigning…' : 'Assign by amount'}
@@ -363,7 +363,7 @@ export default function PayoutPage() {
         </div>
       ) : null}
       {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell title="Create Pay-Out" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
               <FormGrid>

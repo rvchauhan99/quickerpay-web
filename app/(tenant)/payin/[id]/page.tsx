@@ -42,7 +42,7 @@ export default function PayinDetailPage() {
   return (
     <AppShell title="Pay-In Detail" role={user.role} menus={menus}>
       <PageHeader title="Pay-In Detail" />
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {!row ? (
@@ -63,12 +63,12 @@ export default function PayinDetailPage() {
                 </FormField>
               ) : null}
               <FormField label="Amount">
-                <div className="flex h-10 items-center px-3 font-medium">
+                <div className="flex min-h-8 items-center px-qp-ctl-x font-medium">
                   <MoneyDisplay amountMinor={row.amount_minor} />
                 </div>
               </FormField>
               <FormField label="Status">
-                <div className="flex h-10 items-center px-3">
+                <div className="flex min-h-8 items-center px-qp-ctl-x">
                   <StatusBadge status={row.status} />
                 </div>
               </FormField>

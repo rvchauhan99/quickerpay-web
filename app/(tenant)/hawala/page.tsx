@@ -120,7 +120,7 @@ export default function HawalaPage() {
       .catch(() => setCreditBal(null))
   }, [accessToken, creditKind, creditId])
 
-  if (!ready) return <p className="p-4 text-sm text-zinc-500">Loading</p>
+  if (!ready) return <p className="p-qp-card text-sm text-zinc-500">Loading</p>
   if (!user) return null
   if (!hasMenu(menus, 'HAWALA')) return <ForbiddenPage permission="HAWALA.can_view" />
 
@@ -182,7 +182,7 @@ export default function HawalaPage() {
       <ErrorAlert message={error} />
 
       {canCreate ? (
-        <div className="mb-6">
+        <div className="mb-qp-gap">
           <FormShell
             title="Submit Hawala"
             submitLabel={submitting ? 'Submitting…' : 'Submit Hawala'}

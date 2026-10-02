@@ -21,23 +21,23 @@ export function PasswordInput({
         {...props}
         type={visible ? 'text' : 'password'}
         disabled={disabled}
-        className={['pr-10', className].join(' ')}
+        className={['pr-9', className].join(' ')}
         spellCheck={false}
         autoCorrect="off"
       />
       <button
         type="button"
         disabled={disabled}
-        className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+        className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
         style={{ color: 'var(--qp-text-muted)' }}
         aria-label={visible ? 'Hide password' : 'Show password'}
         aria-pressed={visible}
         onClick={handleToggle}
       >
         {visible ? (
-          <EyeOff size={16} strokeWidth={1.75} aria-hidden="true" />
+          <EyeOff size={14} strokeWidth={1.75} aria-hidden="true" />
         ) : (
-          <Eye size={16} strokeWidth={1.75} aria-hidden="true" />
+          <Eye size={14} strokeWidth={1.75} aria-hidden="true" />
         )}
       </button>
     </div>

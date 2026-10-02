@@ -170,7 +170,7 @@ export default function NewMerchantPage() {
   return (
     <AppShell title="Create merchant" role={user.role} menus={menus}>
       <PageHeader title={`Create ${merchantLabel()}`} backHref="/merchants" backLabel={merchantLabel({ plural: true })} />
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       <FormShell
@@ -238,7 +238,7 @@ export default function NewMerchantPage() {
           </FormGrid>
 
           {panelType === 'supago' ? (
-            <div className="mt-4">
+            <div className="mt-qp-gap">
               <FormGrid>
                 <FormField label="Supago Username" required error={fieldErrors.supago_username}>
                   <Input
@@ -270,7 +270,7 @@ export default function NewMerchantPage() {
           ) : null}
 
           {panelType === 'crici' ? (
-            <div className="mt-4">
+            <div className="mt-qp-gap">
               <FormGrid>
                 <FormField label="Crici Username" required error={fieldErrors.crici_username}>
                   <Input

@@ -2,7 +2,8 @@
 
 import { useEffect, type ReactNode } from 'react'
 
-const SIZE_MAX_WIDTH: Record<'md' | 'lg' | 'xl', string> = {
+const SIZE_MAX_WIDTH: Record<'sm' | 'md' | 'lg' | 'xl', string> = {
+  sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
@@ -25,7 +26,7 @@ export function Modal({
   children: ReactNode
   footer: ReactNode
   /** Panel max width. Default md keeps existing dialogs unchanged. */
-  size?: 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }) {
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -45,20 +46,20 @@ export function Modal({
     >
       <div className="flex min-h-[calc(100dvh-1.5rem)] items-center justify-center sm:min-h-[calc(100dvh-2rem)]">
         <div
-          className={`flex w-full ${SIZE_MAX_WIDTH[size]} max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden rounded-2xl border sm:max-h-[calc(100dvh-2rem)]`}
+          className={`flex w-full ${SIZE_MAX_WIDTH[size]} max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden rounded-qp-card border sm:max-h-[calc(100dvh-2rem)]`}
           style={{
             backgroundColor: 'var(--qp-card)',
             borderColor: 'var(--qp-border)',
             boxShadow: 'var(--qp-shadow-lg)',
           }}
         >
-          <div className="shrink-0 border-b px-4 pb-3 pt-5 sm:px-6 sm:pt-6" style={{ borderColor: 'var(--qp-border)' }}>
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>
+          <div className="shrink-0 border-b px-4 py-2.5" style={{ borderColor: 'var(--qp-border)' }}>
+            <h3 className="text-[13px] font-semibold" style={{ color: 'var(--qp-text-primary)' }}>
               {title}
             </h3>
           </div>
           <div
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
             style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
             tabIndex={0}
             aria-label={`${ariaLabel ?? title} content`}
@@ -66,7 +67,7 @@ export function Modal({
             {children}
           </div>
           <div
-            className="flex shrink-0 justify-end gap-2 border-t px-4 py-4 sm:px-6"
+            className="flex shrink-0 justify-end gap-1.5 border-t px-4 py-2.5"
             style={{ borderColor: 'var(--qp-border)' }}
           >
             {footer}

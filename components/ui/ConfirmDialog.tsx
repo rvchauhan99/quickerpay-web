@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from './Button'
+
 /* ─── ConfirmDialog ───────────────────────────────────────────────────────────
    Premium modal confirmation dialog.
    Usage:
@@ -29,14 +31,13 @@ export function ConfirmDialog({
   onCancel: () => void
   loading?: boolean
 }) {
-  const confirmBg = variant === 'danger' ? 'var(--qp-danger)' : 'var(--qp-primary)'
   const iconColor = variant === 'danger' ? 'var(--qp-danger)' : 'var(--qp-primary)'
   const iconBg = variant === 'danger' ? 'var(--qp-danger-bg)' : 'var(--qp-primary-light)'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }} role="dialog" aria-label={title}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }} role="dialog" aria-modal="true" aria-label={title}>
       <div
-        className="w-full max-w-sm rounded-2xl border p-6"
+        className="w-full max-w-sm rounded-qp-card border p-4"
         style={{
           backgroundColor: 'var(--qp-card)',
           borderColor: 'var(--qp-border)',
@@ -44,13 +45,13 @@ export function ConfirmDialog({
         }}
       >
         {/* Icon */}
-        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: iconBg }}>
+        <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: iconBg }}>
           {variant === 'danger' ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor }}>
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor }}>
               <circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/>
             </svg>
           )}
@@ -58,33 +59,16 @@ export function ConfirmDialog({
 
         <h3 className="mb-1 text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>{title}</h3>
         {subtitle ? (
-          <p className="mb-5 text-xs" style={{ color: 'var(--qp-text-muted)' }}>{subtitle}</p>
-        ) : <div className="mb-5" />}
+          <p className="mb-4 text-xs" style={{ color: 'var(--qp-text-muted)' }}>{subtitle}</p>
+        ) : <div className="mb-4" />}
 
-        {/* Actions */}
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium transition-colors"
-            style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
-          >
+        <div className="flex justify-end gap-1.5">
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            className="inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-white transition-all disabled:opacity-60"
-            style={{ backgroundColor: confirmBg }}
-          >
-            {loading ? (
-              <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-              </svg>
-            ) : null}
+          </Button>
+          <Button variant={variant === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} loading={loading}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

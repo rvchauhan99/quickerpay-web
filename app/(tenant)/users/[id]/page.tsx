@@ -143,11 +143,11 @@ export default function UserDetailPage() {
         backLabel="Users"
         action={statusActions}
       />
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {detail?.role === 'MERCHANT' ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <ErrorAlert
             message="Exchange Master portal login is managed from Merchants (enable/disable). Role, username, and menus cannot be changed here. You may activate, deactivate, or reset password."
           />
@@ -234,7 +234,7 @@ export default function UserDetailPage() {
             </FormGrid>
 
             <div
-              className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
+              className="mt-qp-gap flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
               style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
               aria-label="Account status"
             >

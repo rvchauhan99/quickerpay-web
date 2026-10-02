@@ -197,6 +197,58 @@ html[data-surface='contrast'] {
 /* soft surface: vars from JS */
 
 /* ─── Base Reset ─────────────────────────────────────────────────────────────── */
+/* ─── Density tokens — compact default; comfortable via [data-density] ──────── */
+:root,
+html[data-density='compact'] {
+  --qp-header-h: 44px;
+  --qp-sidebar-w: 200px;
+  --qp-sidebar-rail-w: 56px;
+  --qp-page-pad: 12px;
+  --qp-gap: 8px;
+  --qp-card-pad: 10px;
+  --qp-control-h: 32px;
+  --qp-control-h-sm: 26px;
+  --qp-control-px: 10px;
+  --qp-field-gap-x: 12px;
+  --qp-field-gap-y: 10px;
+  --qp-label-gap: 4px;
+  --qp-cell-py: 6px;
+  --qp-cell-px: 10px;
+  --qp-th-py: 7px;
+  --qp-font-body: 13px;
+  --qp-font-label: 11px;
+  --qp-font-th: 10.5px;
+  --qp-radius: 6px;
+  --qp-radius-card: 8px;
+}
+
+html[data-density='comfortable'] {
+  --qp-header-h: 52px;
+  --qp-page-pad: 16px;
+  --qp-gap: 12px;
+  --qp-card-pad: 14px;
+  --qp-control-h: 36px;
+  --qp-control-h-sm: 30px;
+  --qp-control-px: 12px;
+  --qp-field-gap-x: 16px;
+  --qp-field-gap-y: 14px;
+  --qp-label-gap: 6px;
+  --qp-cell-py: 9px;
+  --qp-cell-px: 14px;
+  --qp-th-py: 10px;
+  --qp-font-body: 13.5px;
+  --qp-font-th: 11px;
+  --qp-radius: 8px;
+  --qp-radius-card: 10px;
+}
+
+@media (pointer: coarse) {
+  :root,
+  html[data-density='compact'] {
+    --qp-control-h-sm: 32px;
+  }
+}
+
 *,
 *::before,
 *::after {
@@ -308,9 +360,10 @@ input[type='checkbox']:checked {
 /* ─── QP Table Utility Classes ───────────────────────────────────────────────── */
 .qp-table {
   width: 100%;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  border-collapse: collapse;
+  font-size: var(--qp-font-body);
+  line-height: 1.4;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .qp-table thead th {
@@ -318,22 +371,31 @@ input[type='checkbox']:checked {
   top: 0;
   z-index: 10;
   background-color: #f8fafc;
-  padding: 10px 16px;
+  padding: var(--qp-th-py) var(--qp-cell-px);
   text-align: left;
-  font-size: 0.6875rem;
+  font-size: var(--qp-font-th);
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #64748b;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--qp-border);
   white-space: nowrap;
 }
 
 .qp-table tbody td {
-  padding: 9px 16px;
+  padding: var(--qp-cell-py) var(--qp-cell-px);
   border-bottom: 1px solid #f1f5f9;
   color: #1e293b;
   vertical-align: middle;
+}
+
+.qp-table--bordered thead th + th,
+.qp-table--bordered tbody td + td {
+  border-left: 1px solid #eef2f6;
+}
+
+.qp-table--striped tbody tr:nth-child(even of :not(.qp-expanded-row)) td {
+  background-color: #fbfcfe;
 }
 
 .qp-table tbody tr {
@@ -341,11 +403,23 @@ input[type='checkbox']:checked {
 }
 
 .qp-table tbody tr:hover td {
-  background-color: #eff6ff;
+  background-color: var(--qp-primary-light);
 }
 
 .qp-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.qp-table .qp-cell-right {
+  text-align: right;
+}
+
+.qp-table .qp-cell-center {
+  text-align: center;
+}
+
+.qp-table .qp-cell-nowrap {
+  white-space: nowrap;
 }
 
 /* Tabular numbers */

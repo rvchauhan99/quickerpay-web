@@ -589,7 +589,7 @@ export default function BanksPage() {
       </FilterBar>
 
       {formOpen ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell
             submitLabel={editing ? 'Save' : 'Add'}
             onCancel={handleCloseForm}
@@ -658,7 +658,7 @@ export default function BanksPage() {
                   />
                 </FormField>
               </FormGrid>
-              <div className="mt-4">
+              <div className="mt-qp-gap">
                   <p className="mb-2 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
                     {merchantLabel({ plural: true })} {editing ? '(linked + eligible)' : '(default: all)'}
                   </p>

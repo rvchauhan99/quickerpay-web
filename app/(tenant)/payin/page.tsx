@@ -332,7 +332,7 @@ export default function PayinPage() {
       </FilterBar>
 
       {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell title="Create Pay-In" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
               <FormGrid>
@@ -382,7 +382,7 @@ export default function PayinPage() {
       ) : null}
 
       {assignFor ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell title={`Assign UPI for Pay-In ${assignFor}`} submitLabel="Assign" onCancel={() => setAssignFor(null)} onSubmit={() => void handleAssign()}>
             <FormField label="Target UPI Account" required>
               <Select value={assignUpi} onChange={(event) => handleUpiChange(event.target.value, 'assign')}>

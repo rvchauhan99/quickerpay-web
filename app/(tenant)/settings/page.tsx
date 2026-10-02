@@ -22,6 +22,8 @@ import {
   resetAppearance,
   type SurfaceStyleId,
   SURFACE_STYLE_OPTIONS,
+  DENSITY_OPTIONS,
+  DEFAULT_DENSITY,
   normalizeHex,
   DEFAULT_CUSTOM_HEX,
   DEFAULT_PANEL_HEX,
@@ -36,6 +38,7 @@ const emptyAppearance = (): AppearanceState => ({
   panelHex: DEFAULT_PANEL_HEX,
   surface: 'light',
   surfaceHex: DEFAULT_SURFACE_HEX,
+  density: DEFAULT_DENSITY,
 })
 
 export default function SettingsPage() {
@@ -190,7 +193,7 @@ export default function SettingsPage() {
   return (
     <AppShell title="Settings" role={user.role} menus={menus}>
       <PageHeader title="Tenant Settings" />
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         {saved ? <ErrorAlert message="Settings saved successfully" type="success" /> : null}
         <ErrorAlert message={error} />
       </div>
@@ -234,7 +237,7 @@ export default function SettingsPage() {
       </FormShell>
 
       <div
-        className="mt-6 rounded-lg border p-4"
+        className="mt-qp-gap rounded-lg border p-qp-card"
         style={{ borderColor: 'var(--qp-border)', backgroundColor: 'var(--qp-card)' }}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -255,6 +258,37 @@ export default function SettingsPage() {
           >
             Reset defaults
           </button>
+        </div>
+
+        <div className="mt-qp-gap">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>
+            Density
+          </p>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Layout density">
+            {DENSITY_OPTIONS.map((option) => {
+              const selected = appearance.density === option.id
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={option.label}
+                  onClick={() => commitAppearance({ density: option.id })}
+                  className="flex flex-col items-start rounded-md border px-3 py-1.5 text-left"
+                  style={{
+                    borderColor: selected ? 'var(--qp-primary)' : 'var(--qp-border)',
+                    backgroundColor: selected ? 'var(--qp-primary-light)' : 'var(--qp-card)',
+                    boxShadow: selected ? '0 0 0 2px var(--qp-primary-ring)' : undefined,
+                    color: 'var(--qp-text-primary)',
+                  }}
+                >
+                  <span className="text-xs font-medium">{option.label}</span>
+                  <span className="text-[10.5px]" style={{ color: 'var(--qp-text-muted)' }}>{option.hint}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="mt-5">
@@ -351,7 +385,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-qp-gap">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>
             Panel
           </p>
@@ -457,7 +491,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-qp-gap">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-text-muted)' }}>
             Surface
           </p>

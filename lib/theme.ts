@@ -6,6 +6,7 @@ export const PANEL_STYLE_STORAGE_KEY = 'qp.ui.panelStyle'
 export const PANEL_HEX_STORAGE_KEY = 'qp.ui.panelHex'
 export const SURFACE_STYLE_STORAGE_KEY = 'qp.ui.surfaceStyle'
 export const SURFACE_HEX_STORAGE_KEY = 'qp.ui.surfaceHex'
+export const DENSITY_STORAGE_KEY = 'qp.ui.density'
 
 export const COLOR_THEME_IDS = [
   'blue',
@@ -27,9 +28,13 @@ export type PanelStyleId = (typeof PANEL_STYLE_IDS)[number]
 export const SURFACE_STYLE_IDS = ['light', 'soft', 'contrast', 'custom'] as const
 export type SurfaceStyleId = (typeof SURFACE_STYLE_IDS)[number]
 
+export const DENSITY_IDS = ['compact', 'comfortable'] as const
+export type DensityId = (typeof DENSITY_IDS)[number]
+
 export const DEFAULT_COLOR_THEME: ColorThemeId = 'blue'
 export const DEFAULT_PANEL_STYLE: PanelStyleId = 'slate'
 export const DEFAULT_SURFACE_STYLE: SurfaceStyleId = 'light'
+export const DEFAULT_DENSITY: DensityId = 'compact'
 export const DEFAULT_CUSTOM_HEX = '#2563eb'
 export const DEFAULT_PANEL_HEX = '#0f172a'
 export const DEFAULT_SURFACE_HEX = '#f8fafc'
@@ -70,6 +75,11 @@ export const SURFACE_STYLE_OPTIONS: ReadonlyArray<{
   { id: 'contrast', label: 'Contrast' },
 ]
 
+export const DENSITY_OPTIONS: ReadonlyArray<{ id: DensityId; label: string; hint: string }> = [
+  { id: 'compact', label: 'Compact', hint: 'More rows and fields per screen' },
+  { id: 'comfortable', label: 'Comfortable', hint: 'Larger controls and spacing' },
+]
+
 export interface AppearanceState {
   theme: ColorThemeId
   primaryHex: string
@@ -77,6 +87,7 @@ export interface AppearanceState {
   panelHex: string
   surface: SurfaceStyleId
   surfaceHex: string
+  density: DensityId
 }
 
 export function isColorThemeId(value: string | null | undefined): value is ColorThemeId {
@@ -89,6 +100,10 @@ export function isPanelStyleId(value: string | null | undefined): value is Panel
 
 export function isSurfaceStyleId(value: string | null | undefined): value is SurfaceStyleId {
   return SURFACE_STYLE_IDS.includes(value as SurfaceStyleId)
+}
+
+export function isDensityId(value: string | null | undefined): value is DensityId {
+  return DENSITY_IDS.includes(value as DensityId)
 }
 
 export function normalizeHex(raw: string | null | undefined): string | null {
@@ -272,6 +287,7 @@ function defaultAppearance(): AppearanceState {
     panelHex: DEFAULT_PANEL_HEX,
     surface: DEFAULT_SURFACE_STYLE,
     surfaceHex: DEFAULT_SURFACE_HEX,
+    density: DEFAULT_DENSITY,
   }
 }
 
@@ -290,7 +306,9 @@ export function readAppearance(): AppearanceState {
     const surface = isSurfaceStyleId(surfaceRaw) ? surfaceRaw : DEFAULT_SURFACE_STYLE
     const surfaceHex =
       normalizeHex(window.localStorage.getItem(SURFACE_HEX_STORAGE_KEY)) ?? DEFAULT_SURFACE_HEX
-    return { theme, primaryHex, panel, panelHex, surface, surfaceHex }
+    const densityRaw = window.localStorage.getItem(DENSITY_STORAGE_KEY)
+    const density = isDensityId(densityRaw) ? densityRaw : DEFAULT_DENSITY
+    return { theme, primaryHex, panel, panelHex, surface, surfaceHex, density }
   } catch {
     return defaultAppearance()
   }
@@ -306,6 +324,7 @@ export function applyAppearance(state?: Partial<AppearanceState>): AppearanceSta
     panelHex: normalizeHex(state?.panelHex ?? current.panelHex) ?? DEFAULT_PANEL_HEX,
     surface: state?.surface ?? current.surface,
     surfaceHex: normalizeHex(state?.surfaceHex ?? current.surfaceHex) ?? DEFAULT_SURFACE_HEX,
+    density: state?.density ?? current.density,
   }
 
   if (typeof document === 'undefined') return next
@@ -315,6 +334,7 @@ export function applyAppearance(state?: Partial<AppearanceState>): AppearanceSta
   root.dataset.theme = next.theme
   root.dataset.panel = next.panel
   root.dataset.surface = next.surface
+  root.dataset.density = next.density
 
   const accentHex = accentHexForTheme(next.theme, next.primaryHex)
 
@@ -356,6 +376,7 @@ export function persistAppearance(partial: Partial<AppearanceState>): Appearance
     panelHex: normalizeHex(partial.panelHex ?? base.panelHex) ?? DEFAULT_PANEL_HEX,
     surface: partial.surface ?? base.surface,
     surfaceHex: normalizeHex(partial.surfaceHex ?? base.surfaceHex) ?? DEFAULT_SURFACE_HEX,
+    density: partial.density ?? base.density,
   }
   try {
     window.localStorage.setItem(COLOR_THEME_STORAGE_KEY, next.theme)
@@ -364,6 +385,7 @@ export function persistAppearance(partial: Partial<AppearanceState>): Appearance
     window.localStorage.setItem(PANEL_HEX_STORAGE_KEY, next.panelHex)
     window.localStorage.setItem(SURFACE_STYLE_STORAGE_KEY, next.surface)
     window.localStorage.setItem(SURFACE_HEX_STORAGE_KEY, next.surfaceHex)
+    window.localStorage.setItem(DENSITY_STORAGE_KEY, next.density)
   } catch {
     // Private mode — still apply for this session.
   }
@@ -378,6 +400,7 @@ export function resetAppearance(): AppearanceState {
     window.localStorage.removeItem(PANEL_HEX_STORAGE_KEY)
     window.localStorage.removeItem(SURFACE_STYLE_STORAGE_KEY)
     window.localStorage.removeItem(SURFACE_HEX_STORAGE_KEY)
+    window.localStorage.removeItem(DENSITY_STORAGE_KEY)
   } catch {
     // ignore
   }
@@ -411,6 +434,8 @@ export const THEME_BOOT_SCRIPT = `(function(){
     var panelHexKey=${JSON.stringify(PANEL_HEX_STORAGE_KEY)};
     var surfaceKey=${JSON.stringify(SURFACE_STYLE_STORAGE_KEY)};
     var surfaceHexKey=${JSON.stringify(SURFACE_HEX_STORAGE_KEY)};
+    var densityKey=${JSON.stringify(DENSITY_STORAGE_KEY)};
+    var densities=${JSON.stringify([...DENSITY_IDS])};
     var themes=${JSON.stringify([...COLOR_THEME_IDS])};
     var panels=${JSON.stringify([...PANEL_STYLE_IDS])};
     var surfaces=${JSON.stringify([...SURFACE_STYLE_IDS])};
@@ -432,6 +457,8 @@ export const THEME_BOOT_SCRIPT = `(function(){
     root.dataset.theme=theme;
     root.dataset.panel=panel;
     root.dataset.surface=surface;
+    var density=localStorage.getItem(densityKey); if(densities.indexOf(density)<0) density=${JSON.stringify(DEFAULT_DENSITY)};
+    root.dataset.density=density;
     function parse(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
     function toH(r,g,b){return "#"+[r,g,b].map(function(c){c=Math.max(0,Math.min(255,Math.round(c)));return c.toString(16).padStart(2,"0");}).join("");}
     function mix(a,b,t){return toH(a.r+(b.r-a.r)*t,a.g+(b.g-a.g)*t,a.b+(b.b-a.b)*t);}
@@ -492,5 +519,6 @@ export const THEME_BOOT_SCRIPT = `(function(){
     document.documentElement.dataset.theme=${JSON.stringify(DEFAULT_COLOR_THEME)};
     document.documentElement.dataset.panel=${JSON.stringify(DEFAULT_PANEL_STYLE)};
     document.documentElement.dataset.surface=${JSON.stringify(DEFAULT_SURFACE_STYLE)};
+    document.documentElement.dataset.density=${JSON.stringify(DEFAULT_DENSITY)};
   }
 })();`

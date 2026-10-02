@@ -102,7 +102,7 @@ export default function AuditPage() {
           />
         </div>
       </FilterBar>
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {loading ? <TableSkeleton /> : (
