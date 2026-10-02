@@ -10,7 +10,9 @@ import { apiRequest } from '@/lib/api'
 import { roleLabel } from '@/lib/labels'
 import { isLabConsole } from '@/lib/lab'
 import { useSession } from '@/lib/session'
-import { FlaskConical } from 'lucide-react'
+import { FlaskConical, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+
+const SIDEBAR_COLLAPSED_KEY = 'qp.ui.sidebarCollapsed'
 
 /* ─── Nav metadata ─────────────────────────────────────────────────────────── */
 const LABELS: Record<MenuCode, string> = {
@@ -184,10 +186,31 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const [criciAlerts, setCriciAlerts] = useState<CriciConnectionAlertItem[]>([])
   const { user, accessToken, refreshUser } = useSession()
   const pathname = usePathname()
   const router = useRouter()
+
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1')
+    } catch {
+      setCollapsed(false)
+    }
+  }, [])
+
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      const next = !current
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0')
+      } catch {
+        // Private mode — keep in-memory state only.
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     if (!user?.require_password_change) return
@@ -259,32 +282,33 @@ export function AppShell({
 
       {/* Sidebar */}
       <aside
-        className={`group fixed inset-y-0 left-0 z-30 flex flex-col transition-[width,transform] duration-300 ease-in-out lg:static lg:translate-x-0 overflow-hidden shrink-0 ${
+        data-collapsed={collapsed ? 'true' : 'false'}
+        className={`group/side fixed inset-y-0 left-0 z-30 flex w-qp-sidebar shrink-0 flex-col overflow-hidden transition-[width,transform] duration-200 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } w-[240px] lg:w-[68px] lg:hover:w-[240px]`}
+        } ${collapsed ? 'lg:w-qp-rail' : 'lg:w-qp-sidebar'}`}
         style={{ backgroundColor: 'var(--qp-sidebar-bg)', borderRight: '1px solid var(--qp-sidebar-border)' }}
       >
         {/* Logo */}
-        <div className="flex h-14 shrink-0 items-center px-4 overflow-hidden" style={{ borderBottom: '1px solid var(--qp-sidebar-border)' }}>
+        <div className="flex h-qp-header shrink-0 items-center overflow-hidden px-3" style={{ borderBottom: '1px solid var(--qp-sidebar-border)' }}>
           <BrandLockup
             size="sm"
             tone="dark"
             subtitle="Console"
-            copyClassName="transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100"
+            copyClassName={SIDE_LABEL}
           />
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-x-hidden overflow-y-auto py-3 px-3 scrollbar-hide">
+        <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 py-2 scrollbar-hide" aria-label="Main">
           {SECTION_GROUPS.map((group) => {
             const groupItems = items.filter((item) => (group.codes as string[]).includes(item.code))
             if (groupItems.length === 0) return null
             return (
-              <div key={group.label} className="mb-4">
-                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-70" style={{ color: 'var(--qp-sidebar-muted)' }}>
+              <div key={group.label} className="mb-2.5">
+                <p className={`mb-0.5 px-2.5 text-[9.5px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-70 ${SIDE_LABEL}`} style={{ color: 'var(--qp-sidebar-muted)' }}>
                   {group.label}
                 </p>
-                <ul className="space-y-0.5">
+                <ul className="space-y-px">
                   {groupItems.map((item) => (
                     <li key={item.href}>
                       <NavItem href={item.href} label={item.label} code={item.code} />
@@ -298,11 +322,11 @@ export function AppShell({
             )
           })}
           {isLabConsole() && role !== 'MERCHANT' && !forcePasswordChange ? (
-            <div className="mb-4">
-              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-70" style={{ color: 'var(--qp-sidebar-muted)' }}>
+            <div className="mb-2.5">
+              <p className={`mb-0.5 px-2.5 text-[9.5px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-70 ${SIDE_LABEL}`} style={{ color: 'var(--qp-sidebar-muted)' }}>
                 Lab
               </p>
-              <ul className="space-y-0.5">
+              <ul className="space-y-px">
                 <li>
                   <LabNavItem href="/mock/gpay" label="GPay mock" />
                 </li>
@@ -312,13 +336,24 @@ export function AppShell({
         </nav>
 
         {/* Role badge */}
-        <div className="px-4 py-3 overflow-hidden whitespace-nowrap" style={{ borderTop: '1px solid var(--qp-sidebar-border)' }}>
-          <div className="flex items-center gap-3 h-4">
-            <div className="h-1.5 w-1.5 shrink-0 rounded-full animate-pulse ml-0.5" style={{ backgroundColor: 'var(--qp-primary)' }} />
-            <span className="text-[11px] font-medium uppercase tracking-wide transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100" style={{ color: 'var(--qp-sidebar-muted)' }}>
+        <div className="flex items-center justify-between gap-2 overflow-hidden whitespace-nowrap px-3 py-1.5" style={{ borderTop: '1px solid var(--qp-sidebar-border)' }}>
+          <div className={`flex min-w-0 items-center gap-2 ${collapsed ? 'lg:hidden' : ''}`}>
+            <div className="h-1.5 w-1.5 shrink-0 rounded-full animate-pulse" style={{ backgroundColor: 'var(--qp-primary)' }} />
+            <span className="truncate text-[10.5px] font-medium uppercase tracking-wide" style={{ color: 'var(--qp-sidebar-muted)' }}>
               {formatRole(role)}
             </span>
           </div>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-qp transition-colors hover:bg-[var(--qp-sidebar-hover)] lg:flex"
+            style={{ color: 'var(--qp-sidebar-muted)' }}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-pressed={collapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen size={15} strokeWidth={1.75} /> : <PanelLeftClose size={15} strokeWidth={1.75} />}
+          </button>
         </div>
       </aside>
 
@@ -326,10 +361,10 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header
-          className="flex h-14 items-center justify-between px-4"
-          style={{ backgroundColor: 'var(--qp-card)', borderBottom: '1px solid var(--qp-border)', boxShadow: 'var(--qp-shadow-sm)' }}
+          className="sticky top-0 z-10 flex h-qp-header shrink-0 items-center justify-between px-qp-page"
+          style={{ backgroundColor: 'var(--qp-card)', borderBottom: '1px solid var(--qp-border)' }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Mobile hamburger */}
             <button
               type="button"
@@ -342,7 +377,7 @@ export function AppShell({
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
               </svg>
             </button>
-            <h1 className="text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>{title}</h1>
+            <h1 className="text-[13px] font-semibold" style={{ color: 'var(--qp-text-primary)' }}>{title}</h1>
           </div>
           <HeaderToggles />
         </header>
@@ -351,7 +386,7 @@ export function AppShell({
           <div
             role="alert"
             aria-live="polite"
-            className="px-4 py-2 text-xs font-medium"
+            className="px-qp-page py-1 text-xs font-medium"
             style={{
               backgroundColor: 'var(--qp-warning-bg)',
               color: 'var(--qp-warning)',
@@ -366,7 +401,7 @@ export function AppShell({
           <div
             role="status"
             aria-live="polite"
-            className="px-4 py-2 text-xs font-medium"
+            className="px-qp-page py-1 text-xs font-medium"
             style={{
               backgroundColor: 'var(--qp-danger-bg)',
               color: 'var(--qp-danger)',
@@ -381,7 +416,7 @@ export function AppShell({
           <div
             role="alert"
             aria-live="polite"
-            className="px-4 py-2 text-xs font-medium"
+            className="px-qp-page py-1 text-xs font-medium"
             style={{
               backgroundColor: 'var(--qp-warning-bg)',
               color: 'var(--qp-warning)',
@@ -407,11 +442,13 @@ export function AppShell({
         ) : null}
 
         {/* Page content */}
-        <main className="min-w-0 flex-1 overflow-y-auto p-4">{children}</main>
+        <main className="min-w-0 flex-1 p-qp-page">{children}</main>
       </div>
     </div>
   )
 }
+
+const SIDE_LABEL = 'group-data-[collapsed=true]/side:lg:hidden'
 
 /* ─── NavItem ─────────────────────────────────────────────────────────────── */
 function NavItem({ href, label, code }: { href: string; label: string; code: MenuCode }) {
@@ -422,12 +459,12 @@ function NavItem({ href, label, code }: { href: string; label: string; code: Men
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150"
+      className="flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
       style={{
         color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
         borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
-        paddingLeft: active ? '9px' : '9px',
+        paddingLeft: '7px',
       }}
       onMouseEnter={(e) => {
         if (!active) {
@@ -442,7 +479,7 @@ function NavItem({ href, label, code }: { href: string; label: string; code: Men
       }}
     >
       <span className="shrink-0 opacity-80">{icon}</span>
-      <span className="truncate transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">{label}</span>
+      <span className={`truncate ${SIDE_LABEL}`}>{label}</span>
     </Link>
   )
 }
@@ -455,19 +492,19 @@ function LabNavItem({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150"
+      className="flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
       style={{
         color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
         borderLeft: active ? '3px solid var(--qp-primary)' : '3px solid transparent',
-        paddingLeft: '9px',
+        paddingLeft: '7px',
       }}
       aria-label={label}
     >
       <span className="shrink-0 opacity-80">
-        <FlaskConical size={18} strokeWidth={1.75} />
+        <FlaskConical size={16} strokeWidth={1.75} />
       </span>
-      <span className="truncate transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">{label}</span>
+      <span className={`truncate ${SIDE_LABEL}`}>{label}</span>
     </Link>
   )
 }
@@ -480,7 +517,7 @@ function SubNavItem({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 rounded-md py-1.5 pl-10 pr-3 text-xs font-medium transition-all duration-150"
+      className={`flex h-7 items-center gap-2 rounded-qp pl-8 pr-2.5 text-xs font-medium transition-colors duration-150 group-data-[collapsed=true]/side:lg:hidden`}
       style={{
         color: active ? 'var(--qp-sidebar-active-text)' : 'var(--qp-sidebar-text)',
         backgroundColor: active ? 'var(--qp-sidebar-active)' : 'transparent',
@@ -501,7 +538,7 @@ function SubNavItem({ href, label }: { href: string; label: string }) {
       }}
     >
       <span className="shrink-0 text-center w-[18px]" style={{ color: 'var(--qp-primary)' }}>›</span>
-      <span className="truncate transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100">{label}</span>
+      <span className={`truncate ${SIDE_LABEL}`}>{label}</span>
     </Link>
   )
 }

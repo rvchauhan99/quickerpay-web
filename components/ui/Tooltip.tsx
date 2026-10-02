@@ -22,7 +22,7 @@ export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
       {children}
       {isVisible && (
         <div
-          className={`absolute z-50 whitespace-nowrap rounded bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white shadow-md animate-in fade-in zoom-in-95 duration-150
+          className={`absolute z-50 whitespace-nowrap rounded bg-zinc-900 px-1.5 py-0.5 text-[11px] font-medium text-white shadow-md animate-in fade-in zoom-in-95 duration-150
             ${position === 'top' ? 'bottom-full mb-1.5' : ''}
             ${position === 'bottom' ? 'top-full mt-1.5' : ''}
             ${position === 'left' ? 'right-full mr-1.5' : ''}

@@ -112,7 +112,7 @@ export default function PayoutDetailPage() {
   return (
     <AppShell title="Pay-Out Detail" role={user.role} menus={menus}>
       <PageHeader title="Pay-Out Detail" backHref="/payout" backLabel="Pay-Out" />
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {!row ? (
@@ -139,7 +139,7 @@ export default function PayoutDetailPage() {
         >
           <FormSection title="Overview" description="Amount, status, and gateway references.">
             <div
-              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
+              className="mb-qp-gap flex flex-wrap items-center justify-between gap-3 rounded-qp-card border px-4 py-3"
               style={{
                 borderColor: 'var(--qp-border)',
                 backgroundColor: 'var(--qp-primary-light)',
@@ -197,7 +197,7 @@ export default function PayoutDetailPage() {
 
           <FormSection title="Bank details" description="Full payee details for transfer. Copy each field or all at once.">
             <div
-              className="mb-3 rounded-xl border p-3"
+              className="mb-3 rounded-qp-card border p-3"
               style={{
                 borderColor: 'var(--qp-border)',
                 backgroundColor: 'var(--qp-card)',

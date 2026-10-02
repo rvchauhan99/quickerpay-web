@@ -108,7 +108,7 @@ export default function PartiesPage() {
         </FormField>
       </FilterBar>
       {showCreate ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell
             title="Create Party"
             submitLabel={submitting ? 'Saving…' : 'Save'}

@@ -226,7 +226,7 @@ export default function UsersPage() {
         </div>
       </FilterBar>
       {creating ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell
             submitLabel="Create"
             error={createError}
@@ -294,7 +294,7 @@ export default function UsersPage() {
           </FormShell>
         </div>
       ) : null}
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {loading ? <TableSkeleton /> : (

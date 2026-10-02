@@ -23,6 +23,28 @@ const config: Config = {
           accent: '#3b82f6',
         },
       },
+      spacing: {
+        'qp-page': 'var(--qp-page-pad)',
+        'qp-gap': 'var(--qp-gap)',
+        'qp-card': 'var(--qp-card-pad)',
+        'qp-ctl-x': 'var(--qp-control-px)',
+        'qp-field-x': 'var(--qp-field-gap-x)',
+        'qp-field-y': 'var(--qp-field-gap-y)',
+        'qp-label': 'var(--qp-label-gap)',
+        'qp-ctl': 'var(--qp-control-h)',
+        'qp-ctl-sm': 'var(--qp-control-h-sm)',
+        'qp-header': 'var(--qp-header-h)',
+        'qp-sidebar': 'var(--qp-sidebar-w)',
+        'qp-rail': 'var(--qp-sidebar-rail-w)',
+      },
+      borderRadius: {
+        qp: 'var(--qp-radius)',
+        'qp-card': 'var(--qp-radius-card)',
+      },
+      fontSize: {
+        'qp-body': 'var(--qp-font-body)',
+        'qp-label': 'var(--qp-font-label)',
+      },
       keyframes: {
         shimmer: {
           '0%': { backgroundPosition: '-600px 0' },

@@ -112,7 +112,7 @@ export default function CommissionPage() {
     void load()
   }, [ready, user, menus, load, router])
 
-  if (!ready) return <p className="p-4 text-sm text-zinc-500">Loading</p>
+  if (!ready) return <p className="p-qp-card text-sm text-zinc-500">Loading</p>
   if (!user) return null
   if (!hasMenu(menus, 'COMMISSION')) return <ForbiddenPage permission="COMMISSION.can_view" />
 
@@ -167,7 +167,7 @@ export default function CommissionPage() {
           />
         </div>
       </FilterBar>
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {loading ? <TableSkeleton /> : null}

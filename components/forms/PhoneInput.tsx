@@ -69,7 +69,7 @@ export function PhoneInput({
   }
 
   return (
-    <div className="grid w-full grid-cols-[7.5rem_minmax(0,1fr)] gap-2">
+    <div className="grid w-full grid-cols-[6.5rem_minmax(0,1fr)] gap-1.5">
       <Select
         value={iso}
         disabled={locked}

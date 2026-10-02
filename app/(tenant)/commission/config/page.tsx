@@ -62,7 +62,7 @@ export default function CommissionConfigPage() {
     void load()
   }, [ready, user, menus, load, router])
 
-  if (!ready) return <p className="p-4 text-sm text-zinc-500">Loading</p>
+  if (!ready) return <p className="p-qp-card text-sm text-zinc-500">Loading</p>
   if (!user) return null
   if (!hasMenu(menus, 'COMMISSION', 'can_edit')) return <ForbiddenPage permission="COMMISSION.can_edit" />
 
@@ -111,7 +111,7 @@ export default function CommissionConfigPage() {
   return (
     <AppShell title="Commission configuration" role={user.role} menus={menus}>
       {error ? <p className="mb-2 text-xs text-red-700">{error}</p> : null}
-      <section className="mb-4">
+      <section className="mb-qp-gap">
         <h2 className="mb-1 text-xs font-semibold uppercase text-zinc-500">{merchantLabel({ plural: true })}</h2>
         {merchants.length === 0 ? (
           <EmptyState message="No records match these filters" />

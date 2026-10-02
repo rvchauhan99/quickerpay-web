@@ -187,7 +187,7 @@ export default function UtrPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: '', upi_account_id: '', q: '', banker_user_id: '', extension_device_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'PENDING', upi_account_id: '', q: '', banker_user_id: '', extension_device_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -245,7 +245,7 @@ export default function UtrPage() {
       </FilterBar>
 
       {creating ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell submitLabel="Add" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Add Manual UTR" description="Manually record a UTR to force reconciliation.">
               <FormGrid>
