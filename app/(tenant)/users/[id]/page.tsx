@@ -149,7 +149,7 @@ export default function UserDetailPage() {
       {detail?.role === 'MERCHANT' ? (
         <div className="mb-qp-gap">
           <ErrorAlert
-            message="Exchange Master portal login is managed from Merchants (enable/disable). Role, username, and menus cannot be changed here. You may activate, deactivate, or reset password."
+            message="Exchange Master portal login is managed from Exchange Masters (enable/disable). Role, username, and menus cannot be changed here. You may activate, deactivate, or reset password."
           />
         </div>
       ) : null}

@@ -2,9 +2,9 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import type { BankAdminMode } from '@quickerpay/shared-types'
+import type { BankAdminMode, GatewaySecretReveal } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { PageHeader, ErrorAlert, PrimaryButton } from '@/components/ui/PageHeader'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
@@ -13,13 +13,15 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { RateInput } from '@/components/forms/RateInput'
 import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
+import { CopyButton } from '@/components/ui/CopyButton'
+import { Modal } from '@/components/ui/Modal'
 import { toast } from 'sonner'
 import { apiRequest, formError } from '@/lib/api'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
-type PanelIntegrationType = 'none' | 'supago' | 'crici'
+type PanelIntegrationType = 'none' | 'supago' | 'crici' | 'api'
 
 export default function NewMerchantPage() {
   const router = useRouter()
@@ -44,11 +46,14 @@ export default function NewMerchantPage() {
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [createdId, setCreatedId] = useState<string | null>(null)
+  const [reveal, setReveal] = useState<GatewaySecretReveal | null>(null)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
   const activeAdmins = admins.filter((row) => row.role === 'BANKER' && row.status === 'ACTIVE')
+  const label = merchantLabel()
 
   const handleToggleAdmin = (adminId: string) => {
     setBankAdminIds((prev) =>
@@ -70,6 +75,17 @@ export default function NewMerchantPage() {
       setCriciPassword('')
       setCriciTotpCode('')
     }
+  }
+
+  const goToDetail = (id: string) => {
+    router.replace(`/merchants/${id}`)
+  }
+
+  const handleRevealDone = () => {
+    const id = createdId
+    setReveal(null)
+    if (id) goToDetail(id)
+    else router.replace('/merchants')
   }
 
   const handleSubmit = async () => {
@@ -156,7 +172,20 @@ export default function NewMerchantPage() {
           },
         })
       }
-      toast.success(`${merchantLabel()} created`)
+      if (panelType === 'api') {
+        const enabled = await apiRequest<GatewaySecretReveal>(`/api/v1/merchants/${created.id}/gateway/enable`, {
+          method: 'POST',
+          token: accessToken,
+        })
+        setCreatedId(created.id)
+        setReveal({
+          ...(enabled.api_key ? { api_key: enabled.api_key } : {}),
+          ...(enabled.webhook_secret ? { webhook_secret: enabled.webhook_secret } : {}),
+        })
+        toast.success(`${label} created with Gateway API`)
+        return
+      }
+      toast.success(`${label} created`)
       router.replace('/merchants')
     } catch (caught) {
       const next = formError(caught, 'Could not create')
@@ -168,8 +197,8 @@ export default function NewMerchantPage() {
   }
 
   return (
-    <AppShell title="Create merchant" role={user.role} menus={menus}>
-      <PageHeader title={`Create ${merchantLabel()}`} backHref="/merchants" backLabel={merchantLabel({ plural: true })} />
+    <AppShell title={`Create ${label}`} role={user.role} menus={menus}>
+      <PageHeader title={`Create ${label}`} backHref="/merchants" backLabel={merchantLabel({ plural: true })} />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
@@ -179,7 +208,7 @@ export default function NewMerchantPage() {
         submitLabel={submitting ? 'Creating…' : 'Create'}
         onSubmit={() => void handleSubmit()}
       >
-        <FormSection title={merchantLabel()}>
+        <FormSection title={label}>
           <FormGrid>
             <FormField label="Legal Name" required error={fieldErrors.legal_name}>
               <Input value={legalName} onChange={(event) => setLegalName(event.target.value)} />
@@ -187,7 +216,7 @@ export default function NewMerchantPage() {
             <FormField label="Display Name" error={fieldErrors.display_name}>
               <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
             </FormField>
-            <FormField label={`${merchantLabel()} Code`} required error={fieldErrors.merchant_code}>
+            <FormField label={`${label} Code`} required error={fieldErrors.merchant_code}>
               <Input value={code} onChange={(event) => setCode(event.target.value)} />
             </FormField>
             <FormField label="Contact Email" error={fieldErrors.contact_email}>
@@ -218,8 +247,8 @@ export default function NewMerchantPage() {
         ) : null}
 
         <FormSection
-          title="Panel integration"
-          description="Optional. One panel per merchant — pick Supago or Crici to connect on create."
+          title="Integration"
+          description={`Optional. One integration per ${label} — Supago, Crici, or SafePay247 Gateway API.`}
         >
           <FormGrid>
             <FormField label="Integration">
@@ -227,15 +256,23 @@ export default function NewMerchantPage() {
                 id="create-panel-integration"
                 value={panelType}
                 onChange={(event) => handlePanelTypeChange(event.target.value as PanelIntegrationType)}
-                aria-label="Panel integration type"
+                aria-label="Integration type"
                 disabled={submitting}
               >
                 <option value="none">None</option>
                 <option value="supago">Supago</option>
                 <option value="crici">Crici</option>
+                <option value="api">SafePay247 Gateway API</option>
               </Select>
             </FormField>
           </FormGrid>
+
+          {panelType === 'api' ? (
+            <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+              Creates the {label} and enables the Gateway API immediately. The API key and webhook secret are shown
+              once — store them in the panel&apos;s secret store. Configure webhook URL on the detail page.
+            </p>
+          ) : null}
 
           {panelType === 'supago' ? (
             <div className="mt-qp-gap">
@@ -311,6 +348,40 @@ export default function NewMerchantPage() {
           ) : null}
         </FormSection>
       </FormShell>
+
+      {reveal ? (
+        <Modal
+          title="Copy these now"
+          size="lg"
+          footer={
+            <div className="flex justify-end">
+              <PrimaryButton onClick={handleRevealDone}>I have stored them</PrimaryButton>
+            </div>
+          }
+        >
+          <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+            These values are shown once and cannot be read again. Store them in the panel&apos;s secret store.
+          </p>
+          {reveal.api_key ? (
+            <FormField label="API key (x-api-key header)">
+              <div className="flex items-center gap-1">
+                <Input value={reveal.api_key} readOnly className="font-mono" aria-label="API key" />
+                <CopyButton value={reveal.api_key} label="Copy API key" />
+              </div>
+            </FormField>
+          ) : null}
+          {reveal.webhook_secret ? (
+            <div className="mt-3">
+              <FormField label="Webhook secret (verifies x-sp-signature)">
+                <div className="flex items-center gap-1">
+                  <Input value={reveal.webhook_secret} readOnly className="font-mono" aria-label="Webhook secret" />
+                  <CopyButton value={reveal.webhook_secret} label="Copy webhook secret" />
+                </div>
+              </FormField>
+            </div>
+          ) : null}
+        </Modal>
+      ) : null}
     </AppShell>
   )
 }

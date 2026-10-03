@@ -713,7 +713,7 @@ export function AppShell({
                 {alert.requires_2fa ? ' (2FA)' : null}
               </span>
             ))}
-            . Paste a fresh Google Authenticator code on the merchant.
+            . Paste a fresh Google Authenticator code on the Exchange Master.
           </div>
         ) : null}
 

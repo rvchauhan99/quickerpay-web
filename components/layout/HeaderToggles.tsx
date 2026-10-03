@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ApiClientError, apiRequest } from '@/lib/api'
-import { roleLabel } from '@/lib/labels'
+import { merchantLabel, roleLabel } from '@/lib/labels'
 import { useSession } from '@/lib/session'
 
 /* ─── Toggle chip: pill-style with coloured dot indicator ─────────────────── */
@@ -118,7 +118,7 @@ export function HeaderToggles() {
       await refreshUser()
       setOfflineConfirmOpen(false)
       if (next === 'OFFLINE') {
-        toast.success('You are offline. Your banks and merchant links are disabled.')
+        toast.success(`You are offline. Your banks and ${merchantLabel()} links are disabled.`)
       }
     } catch (caught) {
       setError(
@@ -145,7 +145,7 @@ export function HeaderToggles() {
       {offlineConfirmOpen ? (
         <ConfirmDialog
           title="Go offline?"
-          subtitle="All ACTIVE banks you own will be disabled, including their UPIs and every merchant link. Linked Supago banks will sync to inactive. Other Admins' banks are not affected. Going Online again will not re-enable them — turn banks (and merchants) back on from Bank Details."
+          subtitle={`All ACTIVE banks you own will be disabled, including their UPIs and every ${merchantLabel()} link. Linked Supago banks will sync to inactive. Other Admins' banks are not affected. Going Online again will not re-enable them — turn banks (and ${merchantLabel({ plural: true })}) back on from Bank Details.`}
           confirmLabel="Go offline"
           loading={onlineSubmitting}
           onCancel={() => setOfflineConfirmOpen(false)}

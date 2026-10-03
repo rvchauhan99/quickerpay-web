@@ -125,7 +125,9 @@ export default function BanksPage() {
       setEligibleMerchants([])
       setSelectedMerchantIds([])
       toast.error(
-        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load eligible merchants',
+        caught instanceof ApiClientError
+          ? caught.displayMessage()
+          : `Could not load eligible ${merchantLabel({ plural: true })}`,
       )
     }
   }, [accessToken])
@@ -143,7 +145,9 @@ export default function BanksPage() {
         return true
       } catch (caught) {
         toast.error(
-          caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchant links',
+          caught instanceof ApiClientError
+            ? caught.displayMessage()
+            : `Could not load ${merchantLabel()} links`,
         )
         return false
       } finally {
@@ -235,7 +239,9 @@ export default function BanksPage() {
       setEligibleMerchants([])
       setSelectedMerchantIds([])
       toast.error(
-        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load eligible merchants',
+        caught instanceof ApiClientError
+          ? caught.displayMessage()
+          : `Could not load eligible ${merchantLabel({ plural: true })}`,
       )
     }
   }
@@ -270,7 +276,7 @@ export default function BanksPage() {
 
     if (editing) {
       if (selectedMerchantIds.length === 0) {
-        toast.error('Select at least one merchant')
+        toast.error(`Select at least one ${merchantLabel()}`)
         return
       }
       await apiRequest(`/api/v1/bank-accounts/${editing.id}`, {
@@ -289,10 +295,10 @@ export default function BanksPage() {
           ...otpFields,
         },
       })
-      toast.success('Bank updated on panel merchants and CRM')
+      toast.success(`Bank updated on panel ${merchantLabel({ plural: true })} and CRM`)
     } else {
       if (selectedMerchantIds.length === 0) {
-        toast.error('Select at least one merchant')
+        toast.error(`Select at least one ${merchantLabel()}`)
         return
       }
       const created = await apiRequest<BankAccountListItem>('/api/v1/bank-accounts', {
@@ -425,7 +431,11 @@ export default function BanksPage() {
       toast.success(parts.length > 0 ? `Linked: ${parts.join(', ')}` : 'Resync complete')
       await load()
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not resync merchants')
+      toast.error(
+        caught instanceof ApiClientError
+          ? caught.displayMessage()
+          : `Could not resync ${merchantLabel({ plural: true })}`,
+      )
     } finally {
       setSubmitting(null)
     }
@@ -527,10 +537,14 @@ export default function BanksPage() {
         },
       )
       setMerchantLinks(links)
-      toast.success(status === 'ACTIVE' ? 'Enabled for merchant' : 'Disabled for merchant')
+      toast.success(status === 'ACTIVE' ? `Enabled for ${merchantLabel()}` : `Disabled for ${merchantLabel()}`)
       await load()
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update merchant link')
+      toast.error(
+        caught instanceof ApiClientError
+          ? caught.displayMessage()
+          : `Could not update ${merchantLabel()} link`,
+      )
     } finally {
       setSubmitting(null)
     }
@@ -599,8 +613,8 @@ export default function BanksPage() {
               title={editing ? 'Edit Bank' : 'Add Bank'}
               description={
                 editing
-                  ? 'Updates this UPI on the merchants you select (Supago and/or Crici), writes merchant links, then saves CRM.'
-                  : 'Creates the UPI on the merchants you select (Deposit Managed By). Defaults to all eligible. Crici selections go live immediately (ACTIVE). Supago still starts disabled until Enable. Bank row is Active when any merchant link is enabled.'
+                  ? `Updates this UPI on the ${merchantLabel({ plural: true })} you select (Supago and/or Crici), writes ${merchantLabel()} links, then saves CRM.`
+                  : `Creates the UPI on the ${merchantLabel({ plural: true })} you select (Deposit Managed By). Defaults to all eligible. Crici selections go live immediately (ACTIVE). Supago still starts disabled until Enable. Bank row is Active when any ${merchantLabel()} link is enabled.`
               }
             >
               <FormGrid>
@@ -684,7 +698,7 @@ export default function BanksPage() {
                               }
                             />
                             <label htmlFor={`merchant-${merchant.id}`} className="cursor-pointer">
-                              {merchant.display_name ?? 'Linked merchant'}{' '}
+                              {merchant.display_name ?? `Linked ${merchantLabel()}`}{' '}
                               <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
                                 {merchant.integration_type}
                               </span>
@@ -782,7 +796,7 @@ export default function BanksPage() {
                       '—'
                     ),
                   }))}
-                  empty={<EmptyState message="No merchants" />}
+                  empty={<EmptyState message={`No ${merchantLabel({ plural: true })}`} />}
                 />
               )}
             </div>
@@ -819,7 +833,7 @@ export default function BanksPage() {
                 {canEdit && row.status !== 'CLOSED' && row.status !== 'REJECTED' ? (
                   <IconButton
                     icon={<RefreshCw size={15} strokeWidth={1.75} />}
-                    tooltip="Resync & link merchants"
+                    tooltip={`Resync & link ${merchantLabel({ plural: true })}`}
                     onClick={() => void handleResyncSupago(row.id)}
                   />
                 ) : null}

@@ -151,7 +151,11 @@ export default function PayinPage() {
     })
       .then((result) => setMerchants(result.items))
       .catch((caught) => {
-        setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
+        setError(
+          caught instanceof ApiClientError
+            ? caught.displayMessage()
+            : `Could not load ${merchantLabel({ plural: true })}`,
+        )
       })
   }, [accessToken, allowed, menus, user?.role])
 
@@ -332,7 +336,7 @@ export default function PayinPage() {
     const utr = createUtr.trim()
     if (!accessToken || amountMinor <= 0 || !createUpi || !/^\d{6,32}$/.test(utr) || submitting) return
     if (!merchantId) {
-      toast.error('Select a merchant')
+      toast.error(`Select an ${merchantLabel()}`)
       return
     }
     setSubmitting('create')
@@ -522,7 +526,7 @@ export default function PayinPage() {
               <FormGrid>
                 <FormField label={merchantLabel()} required>
                   <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label={merchantLabel()}>
-                    <option value="">Select merchant</option>
+                    <option value="">{`Select ${merchantLabel()}`}</option>
                     {createMerchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>
                         {merchant.merchant_code} — {merchant.display_name}

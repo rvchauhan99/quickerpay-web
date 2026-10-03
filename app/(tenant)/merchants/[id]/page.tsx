@@ -535,7 +535,7 @@ export default function MerchantDetailPage() {
           {canEdit ? (
             <FormSection
               title="Portal access"
-              description="One Exchange Master login (username = merchant code). View-only Dashboard, Pay-In, Pay-Out, and Transactions."
+              description={`One ${merchantLabel()} login (username = ${merchantLabel()} code). View-only Dashboard, Pay-In, Pay-Out, and Transactions.`}
             >
               {merchant.portal_user_id && merchant.portal_user_status === 'ACTIVE' ? (
                 <div className="space-y-3">
@@ -562,7 +562,7 @@ export default function MerchantDetailPage() {
                 <div className="space-y-3">
                   <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
                     Portal user <span className="font-mono">{merchant.portal_username}</span> is disabled.
-                    Set a temporary password to re-enable (merchant must be ACTIVE).
+                    Set a temporary password to re-enable ({merchantLabel()} must be ACTIVE).
                   </p>
                   {merchant.status === 'ACTIVE' ? (
                     <>
@@ -1134,7 +1134,7 @@ export default function MerchantDetailPage() {
       {confirmDisconnect ? (
         <ConfirmDialog
           title="Clear Supago credentials?"
-          subtitle="The cached token will be evicted and credentials removed. This merchant stays locked to Supago — you can reconnect the same panel, but cannot switch to Crici."
+          subtitle={`The cached token will be evicted and credentials removed. This ${merchantLabel()} stays locked to Supago — you can reconnect the same panel, but cannot switch to Crici.`}
           confirmLabel="Clear credentials"
           variant="danger"
           loading={supagoLoading}
@@ -1146,7 +1146,7 @@ export default function MerchantDetailPage() {
       {confirmCriciDisconnect ? (
         <ConfirmDialog
           title="Clear Crici credentials?"
-          subtitle="The cached session will be cleared and credentials removed. This merchant stays locked to Crici — you can reconnect the same panel, but cannot switch to Supago."
+          subtitle={`The cached session will be cleared and credentials removed. This ${merchantLabel()} stays locked to Crici — you can reconnect the same panel, but cannot switch to Supago.`}
           confirmLabel="Clear credentials"
           variant="danger"
           loading={criciLoading}
@@ -1157,8 +1157,8 @@ export default function MerchantDetailPage() {
 
       {statusConfirm === 'SUSPENDED' ? (
         <ConfirmDialog
-          title={`Suspend ${merchant?.legal_name ?? 'merchant'}?`}
-          subtitle="All banks synced with this merchant will be disabled (panel + CRM). Panel credentials are cleared. Polls stop until you Activate and reconnect."
+          title={`Suspend ${merchant?.legal_name ?? merchantLabel()}?`}
+          subtitle={`All banks synced with this ${merchantLabel()} will be disabled (panel + CRM). Panel credentials are cleared. Polls stop until you Activate and reconnect.`}
           confirmLabel="Suspend"
           loading={statusSubmitting}
           onConfirm={() => void handleMerchantStatus()}
@@ -1168,8 +1168,8 @@ export default function MerchantDetailPage() {
 
       {statusConfirm === 'ACTIVE' ? (
         <ConfirmDialog
-          title={`Activate ${merchant?.legal_name ?? 'merchant'}?`}
-          subtitle="Sets the merchant ACTIVE only. Reconnect panel credentials here, then re-enable banks from Bank Details. Banks are not restored automatically."
+          title={`Activate ${merchant?.legal_name ?? merchantLabel()}?`}
+          subtitle={`Sets the ${merchantLabel()} ACTIVE only. Reconnect panel credentials here, then re-enable banks from Bank Details. Banks are not restored automatically.`}
           confirmLabel="Activate"
           variant="primary"
           loading={statusSubmitting}

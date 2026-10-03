@@ -145,7 +145,11 @@ export default function PayoutPage() {
       })
         .then((result) => setMerchants(result.items))
         .catch((caught) => {
-          setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
+          setError(
+            caught instanceof ApiClientError
+              ? caught.displayMessage()
+              : `Could not load ${merchantLabel({ plural: true })}`,
+          )
         })
     }
     if (hasMenu(menus, 'PAYOUT', 'can_create') || hasMenu(menus, 'PAYOUT', 'can_edit')) {
@@ -223,7 +227,7 @@ export default function PayoutPage() {
   const handleCreate = async () => {
     if (!accessToken || amountMinor <= 0 || !beneficiaryName || !beneficiaryAccount || !sourceBankId || createSubmitting) return
     if (!merchantId) {
-      toast.error('Select a merchant')
+      toast.error(`Select an ${merchantLabel()}`)
       return
     }
     setCreateSubmitting(true)
@@ -391,7 +395,7 @@ export default function PayoutPage() {
               <FormGrid>
                 <FormField label={merchantLabel()} required>
                   <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label={merchantLabel()}>
-                    <option value="">Select merchant</option>
+                    <option value="">{`Select ${merchantLabel()}`}</option>
                     {createMerchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>
                         {merchant.merchant_code} — {merchant.display_name}
