@@ -638,7 +638,7 @@ export default function PayinPage() {
                     }}
                   />
                 ) : null}
-                {!row.is_injection && hasMenu(menus, 'PAYIN', 'can_edit') && (row.status === 'INITIATE' || row.status === 'IN_PROCESS') ? (
+                {!row.is_injection && !row.assigned_upi_id && hasMenu(menus, 'PAYIN', 'can_edit') && (row.status === 'INITIATE' || row.status === 'IN_PROCESS') ? (
                   <IconButton
                     icon={<Link2 size={15} strokeWidth={1.75} />}
                     tooltip="Assign UPI"

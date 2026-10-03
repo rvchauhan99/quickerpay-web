@@ -38,6 +38,19 @@ export interface PayinListItem {
   action_at: string | null
 }
 
+export interface PayinDetail extends PayinListItem {
+  /** VPA of the assigned UPI. Null when the pay-in has no UPI yet. */
+  assigned_upi_address: string | null
+  /** True when a UTR proof image is stored for this pay-in. */
+  has_utr_proof: boolean
+}
+
+export interface PayinProofView {
+  url: string
+  filename: string
+  mime_type: string
+}
+
 export interface PayinAcceptResult {
   transaction: {
     reference: string
