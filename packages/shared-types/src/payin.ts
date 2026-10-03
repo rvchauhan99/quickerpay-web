@@ -19,10 +19,16 @@ export interface PayinListItem {
   amount_minor: number
   status: PayinStatus
   auto_accepted: boolean
+  /** True when created via Pay-In Injection (manual SA/Admin create; never panel-linked). */
+  is_injection: boolean
+  /** When the Exchange Master portal submitted the UTR on an injection row. */
+  utr_submitted_at: string | null
   /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
   merchant_id?: string
   /** Merchant display name when joined; omitted when actor cannot see merchants. */
   merchant_display_name?: string | null
+  /** Banker owning the injection (set at create); useful for UPI filtering on accept. */
+  banker_user_id?: string | null
   assigned_upi_id: string | null
   assigned_operator_id: string | null
   created_at: string

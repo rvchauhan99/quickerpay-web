@@ -9,7 +9,7 @@ import { HeaderToggles } from './HeaderToggles'
 import { apiRequest } from '@/lib/api'
 import { roleLabel } from '@/lib/labels'
 import { isLabConsole } from '@/lib/lab'
-import { useSession } from '@/lib/session'
+import { hasMenu, useSession } from '@/lib/session'
 import { FlaskConical, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 const SIDEBAR_COLLAPSED_KEY = 'qp.ui.sidebarCollapsed'
@@ -170,6 +170,10 @@ type PrimaryLink = {
   code: MenuCode
   label: string
   href: string
+  /** When set, only these roles see the link (still requires menu can_view). */
+  roles?: UserRole[]
+  /** Extra menu action beyond can_view. */
+  requireCreate?: boolean
 }
 
 const PRIMARY_LINKS: PrimaryLink[] = [
@@ -177,6 +181,14 @@ const PRIMARY_LINKS: PrimaryLink[] = [
   { key: 'exchange', code: 'MERCHANTS', label: 'Exchange Master', href: '/merchants' },
   { key: 'parties', code: 'PARTIES', label: 'Party Master', href: '/parties' },
   { key: 'pending-deposit', code: 'PAYIN', label: 'Pending Deposit', href: '/payin' },
+  {
+    key: 'payin-injection',
+    code: 'PAYIN',
+    label: 'Payin Injection',
+    href: '/payin?inject=1',
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+    requireCreate: true,
+  },
   { key: 'pending-withdrawal', code: 'PAYOUT', label: 'Pending Withdrawal', href: '/payout?status=INITIATE' },
   { key: 'in-process-withdrawal', code: 'PAYOUT', label: 'In Process Withdrawal', href: '/payout?status=INITIATE&assigned=true' },
   { key: 'hawala', code: 'HAWALA', label: 'Hawala', href: '/hawala' },
@@ -431,6 +443,8 @@ export function AppShell({
 
   const renderPrimaryLink = (link: PrimaryLink, onNavigate?: () => void) => {
     if (!canView(link.code)) return null
+    if (link.roles && !link.roles.includes(role)) return null
+    if (link.requireCreate && !hasMenu(menus, link.code, 'can_create')) return null
     const icon = PRIMARY_LINK_ICONS[link.key]
     return (
       <li key={link.key}>
