@@ -43,7 +43,7 @@ export interface MerchantDetail extends MerchantListItem {
    * Permanent panel lock after first connect. Credential clear does not reset to NONE.
    * Cross-panel switch is rejected by the API.
    */
-  integration_type: 'NONE' | 'SUPAGO' | 'CRICI'
+  integration_type: 'NONE' | 'SUPAGO' | 'CRICI' | 'API'
   /** Exchange Master portal login (`users.role = MERCHANT`), if enabled. */
   portal_user_id: string | null
   portal_username: string | null

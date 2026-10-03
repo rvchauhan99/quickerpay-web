@@ -437,7 +437,17 @@ export default function PayoutPage() {
             { key: 'actions', heading: 'ACTION' },
           ]}
           rows={rows.map((row) => ({
-            created: new Date(row.created_at).toLocaleString(),
+            created:
+              row.source === 'API' ? (
+                <span className="flex flex-col">
+                  <span>{new Date(row.created_at).toLocaleString()}</span>
+                  <span className="text-[11px] font-semibold" style={{ color: 'var(--qp-primary)' }}>
+                    API
+                  </span>
+                </span>
+              ) : (
+                new Date(row.created_at).toLocaleString()
+              ),
             ...(showPanelUsername
               ? {
                   username: row.supago_username ?? '—',

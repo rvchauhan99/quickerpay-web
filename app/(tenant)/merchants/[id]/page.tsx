@@ -14,6 +14,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
+import { GatewayIntegrationSection } from '@/components/forms/GatewayIntegrationSection'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from 'sonner'
 import { apiRequest, ApiClientError } from '@/lib/api'
@@ -124,9 +125,9 @@ export default function MerchantDetailPage() {
     setBankAdminIds(detail.bank_banker_user_ids ?? [])
   }
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!accessToken || !params.id) return
-    setLoading(true)
+    if (!options?.silent) setLoading(true)
     setError(null)
     try {
       const detail = await apiRequest<MerchantDetail>(`/api/v1/merchants/${params.id}`, { token: accessToken })
@@ -429,6 +430,7 @@ export default function MerchantDetailPage() {
         : criciStatus?.connected
           ? 'crici'
           : 'none'
+  const gatewayLocked = merchant?.integration_type === 'API'
   const panelSelectValue = connectedPanel !== 'none' ? connectedPanel : panelChoice
   const panelBusy = supagoLoading || criciLoading
   const panelError =
@@ -630,7 +632,7 @@ export default function MerchantDetailPage() {
           ) : null}
 
           {canEditRouting ? (
-            <FormSection title="Withdraw routing" description="Applies to new panel withdraw polls only.">
+            <FormSection title="Withdraw routing" description="Applies to new panel withdraw polls and Gateway API withdrawals.">
               <FormGrid>
                 <FormField label="Routing" required>
                   <Select
@@ -728,7 +730,7 @@ export default function MerchantDetailPage() {
                 <Select
                   id="panel-integration-type"
                   value={panelSelectValue}
-                  disabled={!canEdit || lockedPanel !== 'none' || panelBusy}
+                  disabled={!canEdit || lockedPanel !== 'none' || gatewayLocked || panelBusy}
                   onChange={(event) => handlePanelChoiceChange(event.target.value as PanelIntegrationType)}
                   aria-label="Panel integration type"
                 >
@@ -1095,10 +1097,21 @@ export default function MerchantDetailPage() {
 
             {connectedPanel === 'none' && panelChoice === 'none' ? (
               <p className="mt-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                No panel selected. Choose Supago or Crici to connect credentials.
+                {gatewayLocked
+                  ? `This exchange master uses the Gateway API${isSuperAdmin ? ' below' : ''}. Panel integrations are not available.`
+                  : 'No panel selected. Choose Supago or Crici to connect credentials.'}
               </p>
             ) : null}
           </FormSection>
+
+          {isSuperAdmin ? (
+            <GatewayIntegrationSection
+              merchantId={merchant.id}
+              panelLocked={connectedPanel !== 'none'}
+              canEdit={canEdit}
+              onChanged={() => void load({ silent: true })}
+            />
+          ) : null}
 
           <FormSection title="Rate history">
             <DataTable

@@ -87,8 +87,8 @@ export interface BankMerchantLink {
   status: 'ACTIVE' | 'DISABLED'
   /** False when the bank owner Admin is not on this merchant's Deposit Managed By allowlist. */
   allowed: boolean
-  /** Panel used for this merchant link. */
-  integration_type: 'SUPAGO' | 'CRICI'
+  /** Panel used for this merchant link; API links are local, with no remote slot. */
+  integration_type: 'SUPAGO' | 'CRICI' | 'API'
   supago_linked: boolean
   supago_payment_method_id: number | null
   crici_linked: boolean
@@ -100,5 +100,5 @@ export interface EligibleBankMerchant {
   id: string
   /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
   display_name?: string
-  integration_type: 'SUPAGO' | 'CRICI'
+  integration_type: 'SUPAGO' | 'CRICI' | 'API'
 }

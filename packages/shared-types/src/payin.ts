@@ -4,7 +4,7 @@
  */
 
 import type { CommissionSnapshot } from './commission'
-import type { PayinStatus } from './domain'
+import type { PayinStatus, TxnSource } from './domain'
 
 export interface PayinListItem {
   id: string
@@ -21,8 +21,10 @@ export interface PayinListItem {
   auto_accepted: boolean
   /** True when created via Pay-In Injection (manual SA/Admin create; never panel-linked). */
   is_injection: boolean
-  /** When the Exchange Master portal submitted the UTR on an injection row. */
+  /** When the UTR was submitted (Exchange portal injection, or gateway / hosted pay page). */
   utr_submitted_at: string | null
+  /** Where the row came from: MANUAL, SUPAGO, CRICI, API (gateway) or INJECTION. */
+  source: TxnSource
   /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
   merchant_id?: string
   /** Merchant display name when joined; omitted when actor cannot see merchants. */

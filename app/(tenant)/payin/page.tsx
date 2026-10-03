@@ -372,6 +372,7 @@ export default function PayinPage() {
 
   const payinTypeLabel = (row: PayinListItem) => {
     if (row.is_injection) return 'INJECTION'
+    if (row.source === 'API') return row.auto_accepted ? 'API BOT' : 'API'
     if (row.auto_accepted) return 'PAYIN BOT'
     return 'PAYIN'
   }
