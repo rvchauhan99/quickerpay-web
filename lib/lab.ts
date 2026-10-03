@@ -6,9 +6,8 @@
  * - NODE_ENV is production (a production Next build — even if NEXT_PUBLIC_QP_ENV
  *   was left as "local" by mistake)
  *
- * /mock/gpay uses isMockGpayAllowed. That page stays available on a production
- * Next build when NEXT_PUBLIC_QP_ENV is local or test, and stays hidden when
- * the named env is production or unset on a production build.
+ * /mock/gpay does not use this. The page asks GET /health/mock-gpay, which
+ * follows the API QP_ENV.
  */
 const LAB_ENVS = new Set(['local', 'development', 'dev', 'testing', 'test'])
 const PROD_ENVS = new Set(['production', 'prod'])
@@ -27,12 +26,4 @@ export function isLabConsole(): boolean {
 
   if (named.length > 0) return LAB_ENVS.has(named)
   return true
-}
-
-export function isMockGpayAllowed(): boolean {
-  const named = namedEnv()
-  if (PROD_ENVS.has(named)) return false
-  if (LAB_ENVS.has(named)) return true
-  if (named.length > 0) return false
-  return process.env.NODE_ENV !== 'production'
 }

@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { brandName } from '@/lib/brand'
-import { isMockGpayAllowed } from '@/lib/lab'
 import { SessionProvider } from '@/lib/session'
 import { RedirectLoopbackToLocalhost } from './redirect-loopback'
 
@@ -11,8 +10,16 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function MockGpayLayout({ children }: { children: ReactNode }) {
-  if (!isMockGpayAllowed()) notFound()
+export default async function MockGpayLayout({ children }: { children: ReactNode }) {
+  const origin = process.env.QP_API_ORIGIN ?? 'http://127.0.0.1:4000'
+  let allowed = false
+  try {
+    const response = await fetch(`${origin}/health/mock-gpay`, { cache: 'no-store' })
+    allowed = response.ok
+  } catch {
+    allowed = false
+  }
+  if (!allowed) notFound()
   return (
     <SessionProvider>
       <RedirectLoopbackToLocalhost />
