@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { brandName } from '@/lib/brand'
-import { isLabConsole } from '@/lib/lab'
+import { isMockGpayAllowed } from '@/lib/lab'
 import { SessionProvider } from '@/lib/session'
 import { RedirectLoopbackToLocalhost } from './redirect-loopback'
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 }
 
 export default function MockGpayLayout({ children }: { children: ReactNode }) {
-  if (!isLabConsole()) notFound()
+  if (!isMockGpayAllowed()) notFound()
   return (
     <SessionProvider>
       <RedirectLoopbackToLocalhost />

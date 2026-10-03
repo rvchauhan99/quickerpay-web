@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isLabConsole } from './lab'
+import { isLabConsole, isMockGpayAllowed } from './lab'
 
 describe('isLabConsole', () => {
   afterEach(() => {
@@ -40,5 +40,47 @@ describe('isLabConsole', () => {
     vi.stubEnv('NODE_ENV', 'development')
     vi.stubEnv('NEXT_PUBLIC_QP_ENV', '')
     expect(isLabConsole()).toBe(true)
+  })
+})
+
+describe('isMockGpayAllowed', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('is true for test on a production Next build', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('NEXT_PUBLIC_QP_ENV', 'test')
+    expect(isMockGpayAllowed()).toBe(true)
+  })
+
+  it('is true for local on a production Next build', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('NEXT_PUBLIC_QP_ENV', 'local')
+    expect(isMockGpayAllowed()).toBe(true)
+  })
+
+  it('is false when NEXT_PUBLIC_QP_ENV is production', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('NEXT_PUBLIC_QP_ENV', 'production')
+    expect(isMockGpayAllowed()).toBe(false)
+  })
+
+  it('is false when NEXT_PUBLIC_QP_ENV is prod', () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('NEXT_PUBLIC_QP_ENV', 'prod')
+    expect(isMockGpayAllowed()).toBe(false)
+  })
+
+  it('is false when the env name is unset on a production build', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('NEXT_PUBLIC_QP_ENV', '')
+    expect(isMockGpayAllowed()).toBe(false)
+  })
+
+  it('is true when the env name is unset under development', () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('NEXT_PUBLIC_QP_ENV', '')
+    expect(isMockGpayAllowed()).toBe(true)
   })
 })

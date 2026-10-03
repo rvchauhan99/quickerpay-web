@@ -8,7 +8,7 @@ import { BrandLockup } from '@/components/brand/BrandLockup'
 import { HeaderToggles } from './HeaderToggles'
 import { apiRequest } from '@/lib/api'
 import { roleLabel } from '@/lib/labels'
-import { isLabConsole } from '@/lib/lab'
+import { isLabConsole, isMockGpayAllowed } from '@/lib/lab'
 import { hasMenu, useSession } from '@/lib/session'
 import { FlaskConical, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
@@ -404,7 +404,8 @@ export function AppShell({
 
   const moreItems = items.filter((item) => MORE_CODES.has(item.code))
   const showLabInMore = isLabConsole() && role !== 'MERCHANT' && !forcePasswordChange
-  const showMoreButton = !forcePasswordChange && (moreItems.length > 0 || showLabInMore)
+  const showMockGpay = isMockGpayAllowed() && role !== 'MERCHANT' && !forcePasswordChange
+  const showMoreButton = !forcePasswordChange && (moreItems.length > 0 || showLabInMore || showMockGpay)
   const moreActive = isMorePath(pathname)
   const bankerActive = isBankerPath(pathname)
   const canView = (code: MenuCode) =>
@@ -556,7 +557,7 @@ export function AppShell({
                   ...(onNavigate ? { onNavigate } : {}),
                   tone: 'rail',
                 })}
-                {showLabInMore ? (
+                {showMockGpay ? (
                   <ul className="space-y-px">
                     <li>
                       <LabNavItem
