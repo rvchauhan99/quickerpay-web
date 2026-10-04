@@ -23,6 +23,7 @@ alwaysApply: true
 Do **not** use any of these for smokes, browser MCP, agentic QA, seeds, or health proofs:
 
 - `*.safepay247.com` — including `test.`, `testapi.`, `exchange.`, production CRM
+- `sandbox.safepay247.com`
 - VPS IP `178.94.251.176` (SSH/`curl` for testing)
 - App Platform / DigitalOcean / Vercel production or preview as a QA API/DB
 - Any non-loopback host for web, API, Postgres, or Redis
