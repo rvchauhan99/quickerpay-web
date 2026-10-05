@@ -102,6 +102,8 @@ export function PayoutActionDialogs({
       return
     }
     setSubmitting(true)
+    // Stable per pay-out so Accept retries / double-clicks replay instead of colliding.
+    const successIdempotencyKey = `payout-success:${acceptFor.id}`
     try {
       if (acceptFile) {
         const form = new FormData()
@@ -112,7 +114,7 @@ export function PayoutActionDialogs({
           method: 'POST',
           token: accessToken,
           body: form,
-          headers: { 'Idempotency-Key': crypto.randomUUID() },
+          headers: { 'Idempotency-Key': successIdempotencyKey },
         })
       } else {
         await apiRequest(`/api/v1/payout/${acceptFor.id}/success`, {
@@ -122,7 +124,7 @@ export function PayoutActionDialogs({
             utr: utr.trim(),
             source_bank_account_id: acceptBankId,
           },
-          headers: { 'Idempotency-Key': crypto.randomUUID() },
+          headers: { 'Idempotency-Key': successIdempotencyKey },
         })
       }
       toast.success('Pay-out accepted')
