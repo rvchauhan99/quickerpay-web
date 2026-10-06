@@ -9,6 +9,7 @@
 export * from './envelope'
 export * from './domain'
 export * from './auth'
+export * from './role-matrix'
 export * from './users'
 export * from './banking'
 export * from './ledger'

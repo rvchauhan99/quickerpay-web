@@ -28,6 +28,11 @@ export interface BankAccountListItem {
   created_at: string
   approved_at: string | null
   upi_address: string | null
+  /**
+   * Primary UPI status for this bank. Gateway allocation requires both bank and UPI ACTIVE.
+   * Null when no non-closed UPI exists.
+   */
+  upi_status: BankingStatus | null
   /** True when bank_accounts.supago_payment_method_id is set. */
   supago_linked: boolean
   supago_payment_method_id: number | null

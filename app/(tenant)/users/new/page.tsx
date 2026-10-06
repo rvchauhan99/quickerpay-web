@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { MENU_CODES } from '@quickerpay/shared-types'
+import { useEffect, useMemo, useState } from 'react'
+import type { MenuCode } from '@quickerpay/shared-types'
+import { menusForRole, preferredGrantForMenu } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
@@ -18,7 +19,11 @@ import { useTenantScreen } from '@/lib/useTenantScreen'
 
 type StaffCreatableRole = 'ADMIN' | 'OPERATOR' | 'AUDITOR'
 
-const STAFF_DEFAULT_MENUS = ['DASHBOARD', 'USERS', 'LEDGER', 'PAYIN', 'PAYOUT', 'UTR', 'HAWALA'] as const
+const STAFF_DEFAULT_MENUS: Record<StaffCreatableRole, MenuCode[]> = {
+  ADMIN: ['DASHBOARD', 'USERS', 'LEDGER', 'PAYIN', 'PAYOUT', 'UTR', 'HAWALA'],
+  OPERATOR: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR'],
+  AUDITOR: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'TRANSACTIONS', 'LEDGER', 'AUDIT'],
+}
 
 export default function NewUserPage() {
   const router = useRouter()
@@ -28,10 +33,17 @@ export default function NewUserPage() {
   const [mobile, setMobile] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<StaffCreatableRole>('ADMIN')
-  const [selected, setSelected] = useState<string[]>([...STAFF_DEFAULT_MENUS])
+  const [selected, setSelected] = useState<MenuCode[]>([...STAFF_DEFAULT_MENUS.ADMIN])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  const offerableMenus = useMemo(() => menusForRole(role), [role])
+
+  useEffect(() => {
+    const defaults = STAFF_DEFAULT_MENUS[role].filter((code) => offerableMenus.includes(code))
+    setSelected(defaults.length > 0 ? defaults : offerableMenus.slice(0, 1))
+  }, [role, offerableMenus])
 
   if (!ready || !user) return <p className="p-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>Loading</p>
   if (!allowed) return Forbidden
@@ -57,11 +69,7 @@ export default function NewUserPage() {
           mobile: splitE164(mobile).national ? mobile.trim() : undefined,
           menus: selected.map((code) => ({
             menu_code: code,
-            can_view: true,
-            can_create: code === 'PAYIN' || code === 'PAYOUT' || code === 'UTR' || code === 'BANKS' || code === 'USERS',
-            can_edit: code === 'PAYIN' || code === 'PAYOUT' || code === 'UTR' || code === 'BANKS',
-            can_approve: code === 'PAYIN',
-            can_export: false,
+            ...preferredGrantForMenu(role, code),
           })),
         },
       })
@@ -143,9 +151,16 @@ export default function NewUserPage() {
           </FormGrid>
         </FormSection>
 
-        <FormSection title="Menus">
+        <FormSection
+          title="Menus"
+          {...(role === 'AUDITOR'
+            ? { description: 'Auditor menus are view and export only — write actions are not offered.' }
+            : role === 'OPERATOR'
+              ? { description: 'Operator menus follow the Operator ceiling (no Banks or Hawala).' }
+              : {})}
+        >
           <div className="flex flex-wrap gap-2">
-            {MENU_CODES.map((code) => {
+            {offerableMenus.map((code) => {
               const on = selected.includes(code)
               return (
                 <button

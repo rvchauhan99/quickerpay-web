@@ -5,7 +5,6 @@ import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type {
   BankAccountListItem,
   BankMerchantLink,
-  EligibleBankMerchant,
   Pagination,
   UpiAccountListItem,
   UpiStatusHistoryItem,
@@ -106,31 +105,10 @@ export default function BanksPage() {
   const [merchantLinksFor, setMerchantLinksFor] = useState<string | null>(null)
   const [merchantLinks, setMerchantLinks] = useState<BankMerchantLink[]>([])
   const [loadingLinks, setLoadingLinks] = useState(false)
-  const [eligibleMerchants, setEligibleMerchants] = useState<EligibleBankMerchant[]>([])
-  const [selectedMerchantIds, setSelectedMerchantIds] = useState<string[]>([])
   const merchantLinksForRef = useRef<string | null>(null)
   merchantLinksForRef.current = merchantLinksFor
 
   const canEdit = hasMenu(menus, 'BANKS', 'can_edit')
-
-  const loadEligibleMerchants = useCallback(async () => {
-    if (!accessToken) return
-    try {
-      const list = await apiRequest<EligibleBankMerchant[]>('/api/v1/bank-accounts/eligible-merchants', {
-        token: accessToken,
-      })
-      setEligibleMerchants(list)
-      setSelectedMerchantIds(list.map((m) => m.id))
-    } catch (caught) {
-      setEligibleMerchants([])
-      setSelectedMerchantIds([])
-      toast.error(
-        caught instanceof ApiClientError
-          ? caught.displayMessage()
-          : `Could not load eligible ${merchantLabel({ plural: true })}`,
-      )
-    }
-  }, [accessToken])
 
   const refreshMerchantLinks = useCallback(
     async (bankId: string): Promise<boolean> => {
@@ -203,53 +181,18 @@ export default function BanksPage() {
     setForm(emptyCreateForm())
     setOtpChallenge(null)
     setOtpCode('')
-    setEligibleMerchants([])
-    setSelectedMerchantIds([])
   }
 
   const handleOpenCreate = () => {
     setEditing(null)
     setForm(emptyCreateForm())
     setCreating(true)
-    void loadEligibleMerchants()
   }
 
-  const handleOpenEdit = async (row: BankAccountListItem) => {
+  const handleOpenEdit = (row: BankAccountListItem) => {
     setCreating(false)
     setEditing(row)
     setForm(formFromRow(row))
-    if (!accessToken) return
-    try {
-      const [list, links] = await Promise.all([
-        apiRequest<EligibleBankMerchant[]>('/api/v1/bank-accounts/eligible-merchants', {
-          token: accessToken,
-        }),
-        apiRequest<BankMerchantLink[]>(`/api/v1/bank-accounts/${row.id}/merchant-links`, {
-          token: accessToken,
-        }),
-      ])
-      setEligibleMerchants(list)
-      // Prefer linked merchants that are still eligible, then include remaining eligible
-      // so Edit can add Crici/Supago links the same way Create defaults to all.
-      const linkedIds = new Set(links.map((link) => link.merchant_id))
-      const linkedEligible = list.filter((m) => linkedIds.has(m.id)).map((m) => m.id)
-      const remainingEligible = list.filter((m) => !linkedIds.has(m.id)).map((m) => m.id)
-      setSelectedMerchantIds([...linkedEligible, ...remainingEligible])
-    } catch (caught) {
-      setEligibleMerchants([])
-      setSelectedMerchantIds([])
-      toast.error(
-        caught instanceof ApiClientError
-          ? caught.displayMessage()
-          : `Could not load eligible ${merchantLabel({ plural: true })}`,
-      )
-    }
-  }
-
-  const handleToggleMerchant = (merchantId: string) => {
-    setSelectedMerchantIds((prev) =>
-      prev.includes(merchantId) ? prev.filter((id) => id !== merchantId) : [...prev, merchantId],
-    )
   }
 
   const buildSupagoBody = () => {
@@ -275,10 +218,6 @@ export default function BanksPage() {
       : {}
 
     if (editing) {
-      if (selectedMerchantIds.length === 0) {
-        toast.error(`Select at least one ${merchantLabel()}`)
-        return
-      }
       await apiRequest(`/api/v1/bank-accounts/${editing.id}`, {
         method: 'PATCH',
         token: accessToken,
@@ -291,20 +230,15 @@ export default function BanksPage() {
           minval: base.minval,
           maxval: base.maxval,
           regex_pattern: base.regex_pattern,
-          merchant_ids: selectedMerchantIds,
           ...otpFields,
         },
       })
       toast.success(`Bank updated on panel ${merchantLabel({ plural: true })} and CRM`)
     } else {
-      if (selectedMerchantIds.length === 0) {
-        toast.error(`Select at least one ${merchantLabel()}`)
-        return
-      }
       const created = await apiRequest<BankAccountListItem>('/api/v1/bank-accounts', {
         method: 'POST',
         token: accessToken,
-        body: { ...base, merchant_ids: selectedMerchantIds, ...otpFields },
+        body: { ...base, ...otpFields },
       })
       toast.success(
         created.status === 'ACTIVE'
@@ -672,43 +606,11 @@ export default function BanksPage() {
                   />
                 </FormField>
               </FormGrid>
-              <div className="mt-qp-gap">
-                  <p className="mb-2 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
-                    {merchantLabel({ plural: true })} {editing ? '(linked + eligible)' : '(default: all)'}
-                  </p>
-                  {eligibleMerchants.length === 0 ? (
-                    <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                      No eligible {merchantLabel({ plural: true }).toLowerCase()} for this {bankerLabel()} under Deposit Managed By.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2" aria-label={`Eligible ${merchantLabel({ plural: true }).toLowerCase()}`}>
-                      {eligibleMerchants.map((merchant) => {
-                        const checked = selectedMerchantIds.includes(merchant.id)
-                        return (
-                          <li key={merchant.id} className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              id={`merchant-${merchant.id}`}
-                              checked={checked}
-                              onChange={() => handleToggleMerchant(merchant.id)}
-                              aria-label={
-                                merchant.display_name
-                                  ? `${merchant.display_name} (${merchant.integration_type})`
-                                  : `${merchant.integration_type} link`
-                              }
-                            />
-                            <label htmlFor={`merchant-${merchant.id}`} className="cursor-pointer">
-                              {merchant.display_name ?? `Linked ${merchantLabel()}`}{' '}
-                              <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-                                {merchant.integration_type}
-                              </span>
-                            </label>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </div>
+              <p className="mt-qp-gap text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                Exchange Masters are provisioned from Deposit Managed By on each Exchange Master — every
+                eligible {merchantLabel().toLowerCase()} for this {bankerLabel().toLowerCase()} is linked
+                automatically. There is no per-bank Exchange Master picker.
+              </p>
             </FormSection>
           </FormShell>
         </div>
@@ -721,7 +623,8 @@ export default function BanksPage() {
             { key: 'label', heading: 'LABEL' },
             { key: 'upi', heading: 'UPI ID' },
             { key: 'supago', heading: 'SUPAGO' },
-            { key: 'status', heading: 'STATUS' },
+            { key: 'status', heading: 'BANK' },
+            { key: 'upiStatus', heading: 'UPI' },
             { key: 'actions', heading: 'ACTION' },
           ]}
           onRowClick={(index) => {
@@ -817,6 +720,11 @@ export default function BanksPage() {
               <span className="text-[11px] text-zinc-400">—</span>
             ),
             status: <StatusBadge status={row.status} />,
+            upiStatus: row.upi_status ? (
+              <StatusBadge status={row.upi_status} />
+            ) : (
+              <span className="text-[11px] text-zinc-400">—</span>
+            ),
             actions: (
               <span
                 className="flex items-center gap-1"

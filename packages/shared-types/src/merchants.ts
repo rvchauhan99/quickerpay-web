@@ -8,6 +8,8 @@ import type { MerchantStatus, RateKind } from './domain'
 export type BankBankerMode = 'ALL' | 'SELECTED'
 /** @deprecated Use BankBankerMode */
 export type BankAdminMode = BankBankerMode
+/** Withdrawal routing mode — mirrors Deposit Managed By at Banker level. */
+export type PayoutBankerMode = 'ALL' | 'SELECTED'
 
 export interface MerchantRate {
   rate_kind: RateKind
@@ -35,6 +37,10 @@ export interface MerchantDetail extends MerchantListItem {
    */
   default_payout_banker_user_id: string | null
   default_payout_banker_username: string | null
+  /** Who may take / be routed withdrawals. */
+  payout_banker_mode: PayoutBankerMode
+  /** Populated when payout_banker_mode is SELECTED; empty when ALL. */
+  payout_banker_user_ids: string[]
   /** Who may sync/enable banks on this Exchange Master's panel. */
   bank_banker_mode: BankBankerMode
   /** Populated when bank_banker_mode is SELECTED; empty when ALL. */

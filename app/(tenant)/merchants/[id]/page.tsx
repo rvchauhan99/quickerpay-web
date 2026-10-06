@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import type { BankAdminMode, MerchantDetail, MerchantRate } from '@quickerpay/shared-types'
+import type { BankAdminMode, MerchantDetail, MerchantRate, PayoutBankerMode } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { RateInput } from '@/components/forms/RateInput'
@@ -14,6 +14,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
+import { PayoutBankersFormSection } from '@/components/forms/PayoutBankersFormSection'
 import { GatewayIntegrationSection } from '@/components/forms/GatewayIntegrationSection'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from 'sonner'
@@ -59,6 +60,8 @@ export default function MerchantDetailPage() {
   const [savingRate, setSavingRate] = useState<'PAYIN' | 'PAYOUT' | null>(null)
   const [routingMode, setRoutingMode] = useState<WithdrawRoutingMode>('queue')
   const [routingAdminId, setRoutingAdminId] = useState('')
+  const [payoutBankerMode, setPayoutBankerMode] = useState<PayoutBankerMode>('ALL')
+  const [payoutBankerIds, setPayoutBankerIds] = useState<string[]>([])
   const [savingRouting, setSavingRouting] = useState(false)
   const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
   const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
@@ -111,6 +114,8 @@ export default function MerchantDetailPage() {
   }, [])
 
   const applyRoutingFromDetail = (detail: MerchantDetail) => {
+    setPayoutBankerMode(detail.payout_banker_mode ?? 'ALL')
+    setPayoutBankerIds(detail.payout_banker_user_ids ?? [])
     if (detail.default_payout_banker_user_id) {
       setRoutingMode('direct')
       setRoutingAdminId(detail.default_payout_banker_user_id)
@@ -292,8 +297,21 @@ export default function MerchantDetailPage() {
 
   const handleSaveRouting = async () => {
     if (!accessToken || !params.id || savingRouting) return
+    if (payoutBankerMode === 'SELECTED' && payoutBankerIds.length === 0) {
+      toast.error(`Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`)
+      return
+    }
     if (routingMode === 'direct' && !routingAdminId) {
       toast.error(`Select a ${bankerLabel()} for direct assign`)
+      return
+    }
+    if (
+      payoutBankerMode === 'SELECTED' &&
+      routingMode === 'direct' &&
+      routingAdminId &&
+      !payoutBankerIds.includes(routingAdminId)
+    ) {
+      toast.error(`Default payout ${bankerLabel()} must be in the Selected ${bankerLabel({ plural: true })} allowlist.`)
       return
     }
     setSavingRouting(true)
@@ -302,17 +320,25 @@ export default function MerchantDetailPage() {
         method: 'PATCH',
         token: accessToken,
         body: {
+          payout_banker_mode: payoutBankerMode,
+          banker_user_ids: payoutBankerMode === 'SELECTED' ? payoutBankerIds : [],
           default_payout_banker_user_id: routingMode === 'direct' ? routingAdminId : null,
         },
       })
       setMerchant(detail)
       applyRoutingFromDetail(detail)
-      toast.success('Withdraw routing updated')
+      toast.success('Withdrawal routing updated')
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.message : 'Could not save routing')
     } finally {
       setSavingRouting(false)
     }
+  }
+
+  const handleTogglePayoutAdmin = (adminId: string) => {
+    setPayoutBankerIds((prev) =>
+      prev.includes(adminId) ? prev.filter((id) => id !== adminId) : [...prev, adminId],
+    )
   }
 
   const handleToggleBankAdmin = (adminId: string) => {
@@ -632,65 +658,57 @@ export default function MerchantDetailPage() {
           ) : null}
 
           {canEditRouting ? (
-            <FormSection title="Withdraw routing" description="Applies to new panel withdraw polls and Gateway API withdrawals.">
-              <FormGrid>
-                <FormField label="Routing" required>
-                  <Select
-                    id="withdraw-routing-mode"
-                    value={routingMode}
-                    onChange={(event) => {
-                      const next = event.target.value as WithdrawRoutingMode
-                      setRoutingMode(next)
-                      if (next === 'queue') setRoutingAdminId('')
-                    }}
-                    aria-label="Withdraw routing mode"
-                  >
-                    <option value="queue">Super Admin queue (assign later)</option>
-                    <option value="direct">Direct to {bankerLabel()}</option>
-                  </Select>
-                </FormField>
-                {routingMode === 'direct' ? (
-                  <FormField label={bankerLabel()} required>
-                    <Select
-                      id="withdraw-routing-admin"
-                      value={routingAdminId}
-                      onChange={(event) => setRoutingAdminId(event.target.value)}
-                      aria-label={`Default payout ${bankerLabel()}`}
-                    >
-                      <option value="">Select {bankerLabel()}</option>
-                      {activeAdmins.map((admin) => (
-                        <option key={admin.id} value={admin.id}>
-                          {admin.username}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormField>
-                ) : (
-                  <FormField label="Current">
-                    <Input value="Unassigned until Super Admin bulk-assigns" readOnly />
-                  </FormField>
-                )}
-              </FormGrid>
-              <div className="mt-3 flex justify-end">
+            <>
+              <PayoutBankersFormSection
+                mode={payoutBankerMode}
+                selectedIds={payoutBankerIds}
+                admins={activeAdmins}
+                defaultRoutingMode={routingMode}
+                defaultAdminId={routingAdminId}
+                onModeChange={setPayoutBankerMode}
+                onToggleAdmin={handleTogglePayoutAdmin}
+                onDefaultRoutingModeChange={setRoutingMode}
+                onDefaultAdminChange={setRoutingAdminId}
+                disabled={savingRouting}
+              />
+              <div className="-mt-1 flex justify-end">
                 <PrimaryButton
                   type="button"
-                  disabled={savingRouting || (routingMode === 'direct' && !routingAdminId)}
+                  disabled={
+                    savingRouting ||
+                    (payoutBankerMode === 'SELECTED' && payoutBankerIds.length === 0) ||
+                    (routingMode === 'direct' && !routingAdminId)
+                  }
                   onClick={() => void handleSaveRouting()}
                 >
                   {savingRouting ? 'Saving…' : 'Save routing'}
                 </PrimaryButton>
               </div>
-            </FormSection>
-          ) : merchant.default_payout_banker_user_id ? (
-            <FormSection title="Withdraw routing">
-              <FormField label={`Direct ${bankerLabel()}`}>
+            </>
+          ) : (
+            <FormSection title="Withdrawal routing">
+              <FormField label="Who may take withdrawals">
                 <Input
-                  value={merchant.default_payout_banker_username ?? merchant.default_payout_banker_user_id}
+                  value={
+                    (merchant.payout_banker_mode ?? 'ALL') === 'ALL'
+                      ? `All ${bankerLabel({ plural: true })}`
+                      : `Selected ${bankerLabel({ plural: true })} (${(merchant.payout_banker_user_ids ?? []).length})`
+                  }
+                  readOnly
+                />
+              </FormField>
+              <FormField label={`Default ${bankerLabel()}`}>
+                <Input
+                  value={
+                    merchant.default_payout_banker_username ??
+                    merchant.default_payout_banker_user_id ??
+                    'Super Admin queue'
+                  }
                   readOnly
                 />
               </FormField>
             </FormSection>
-          ) : null}
+          )}
 
           {canEditBankAdmins ? (
             <>

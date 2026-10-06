@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { MENU_CODES, PHASE_1_BANKER_MENUS } from '@quickerpay/shared-types'
+import { menusForRole, PHASE_1_BANKER_MENUS, preferredGrantForMenu } from '@quickerpay/shared-types'
+import type { MenuCode } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
@@ -27,7 +28,10 @@ export default function NewBankerPage() {
   const [payinBp, setPayinBp] = useState(350)
   const [payoutBp, setPayoutBp] = useState(150)
   const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
-  const [selected, setSelected] = useState<string[]>([...PHASE_1_BANKER_MENUS])
+  const offerableMenus = menusForRole('BANKER')
+  const [selected, setSelected] = useState<MenuCode[]>(
+    PHASE_1_BANKER_MENUS.filter((code) => offerableMenus.includes(code)),
+  )
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -75,11 +79,7 @@ export default function NewBankerPage() {
           ],
           menus: selected.map((code) => ({
             menu_code: code,
-            can_view: true,
-            can_create: code === 'PAYIN' || code === 'PAYOUT' || code === 'UTR' || code === 'BANKS' || code === 'USERS',
-            can_edit: code === 'PAYIN' || code === 'PAYOUT' || code === 'UTR' || code === 'BANKS',
-            can_approve: code === 'PAYIN',
-            can_export: false,
+            ...preferredGrantForMenu('BANKER', code),
           })),
         },
       })
@@ -168,9 +168,9 @@ export default function NewBankerPage() {
           </FormGrid>
         </FormSection>
 
-        <FormSection title="Menus">
+        <FormSection title="Menus" description="Menus follow the Banker role ceiling.">
           <div className="flex flex-wrap gap-2">
-            {MENU_CODES.map((code) => {
+            {offerableMenus.map((code) => {
               const on = selected.includes(code)
               return (
                 <button

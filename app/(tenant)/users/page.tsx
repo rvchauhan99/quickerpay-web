@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MenuCode, Pagination, UserListItem } from '@quickerpay/shared-types'
-import { USER_STATUSES } from '@quickerpay/shared-types'
+import { clampMenuGrant, menusForRole, USER_STATUSES } from '@quickerpay/shared-types'
 import { roleLabel } from '@/lib/labels'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
@@ -52,7 +52,13 @@ export default function UsersPage() {
 
   const isBanker = user?.role === 'BANKER'
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
-  const offerableModules = menus.filter((grant) => grant.can_view && grant.menu_code !== 'USERS')
+  const operatorCeiling = menusForRole('OPERATOR')
+  const offerableModules = menus.filter(
+    (grant) =>
+      grant.can_view &&
+      grant.menu_code !== 'USERS' &&
+      operatorCeiling.includes(grant.menu_code),
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -100,6 +106,14 @@ export default function UsersPage() {
     setFieldErrors({})
   }
 
+  const handleOpenCreateOperator = () => {
+    const defaultModules = offerableModules
+      .map((grant) => grant.menu_code)
+      .filter((code) => code === 'PAYIN')
+    setSelectedModules(defaultModules.length > 0 ? defaultModules : offerableModules.slice(0, 1).map((g) => g.menu_code))
+    setCreating(true)
+  }
+
   const handleToggleModule = (code: MenuCode) => {
     setSelectedModules((current) =>
       current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
@@ -129,8 +143,18 @@ export default function UsersPage() {
             const grantor = menus.find((grant) => grant.menu_code === code)
             return {
               menu_code: code,
-              can_view: true,
-              can_create: Boolean(grantor?.can_create),
+              ...clampMenuGrant(
+                'OPERATOR',
+                code,
+                {
+                  can_view: true,
+                  can_create: Boolean(grantor?.can_create),
+                  can_edit: Boolean(grantor?.can_edit),
+                  can_approve: Boolean(grantor?.can_approve),
+                  can_export: Boolean(grantor?.can_export),
+                },
+                grantor,
+              ),
             }
           }),
         },
@@ -200,7 +224,7 @@ export default function UsersPage() {
         action={
           hasMenu(menus, 'USERS', 'can_create') ? (
             isBanker ? (
-              <PrimaryButton onClick={() => setCreating(true)}>
+              <PrimaryButton onClick={handleOpenCreateOperator}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Create Operator
               </PrimaryButton>

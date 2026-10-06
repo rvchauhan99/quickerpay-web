@@ -1,9 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Button'
 
 /* ─── ConfirmDialog ───────────────────────────────────────────────────────────
-   Premium modal confirmation dialog.
+   Premium modal confirmation dialog. Portaled to document.body so sticky
+   AppShell header / DataTable thead cannot paint over Cancel / Confirm.
    Usage:
      <ConfirmDialog
        title="Reject this Pay-In?"
@@ -31,11 +34,22 @@ export function ConfirmDialog({
   onCancel: () => void
   loading?: boolean
 }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const iconColor = variant === 'danger' ? 'var(--qp-danger)' : 'var(--qp-primary)'
   const iconBg = variant === 'danger' ? 'var(--qp-danger-bg)' : 'var(--qp-primary-light)'
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }} role="dialog" aria-modal="true" aria-label={title}>
+  const dialog = (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <div
         className="w-full max-w-sm rounded-qp-card border p-4"
         style={{
@@ -44,7 +58,6 @@ export function ConfirmDialog({
           boxShadow: 'var(--qp-shadow-lg)',
         }}
       >
-        {/* Icon */}
         <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: iconBg }}>
           {variant === 'danger' ? (
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor }}>
@@ -73,4 +86,7 @@ export function ConfirmDialog({
       </div>
     </div>
   )
+
+  if (!mounted || typeof document === 'undefined') return null
+  return createPortal(dialog, document.body)
 }
