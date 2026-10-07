@@ -31,6 +31,14 @@ const config: NextConfig = {
       { source: '/health/:path*', destination: `${apiOrigin}/health/:path*` },
     ]
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      },
+    ]
+  },
   poweredByHeader: false,
 }
 

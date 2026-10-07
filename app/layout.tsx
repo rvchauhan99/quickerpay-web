@@ -8,6 +8,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: brandName(),
   description: 'Secure multi-tenant payment operations platform',
+  robots: { index: false, follow: false },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
