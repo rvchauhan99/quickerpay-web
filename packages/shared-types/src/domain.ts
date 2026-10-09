@@ -23,7 +23,15 @@ export const READABLE_TENANT_STATUSES = ['ACTIVE', 'READ_ONLY', 'DEGRADED'] as c
 /** Tenant statuses that may create new financial operations. Non-negotiable 12. */
 export const WRITABLE_TENANT_STATUSES = ['ACTIVE'] as const
 
-export const USER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BANKER', 'OPERATOR', 'AUDITOR', 'MERCHANT'] as const
+export const USER_ROLES = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'BANKER',
+  'OPERATOR',
+  'AUDITOR',
+  'MERCHANT',
+  'AGENT',
+] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 export const USER_STATUSES = ['ACTIVE', 'DISABLED', 'SUSPENDED'] as const
@@ -50,15 +58,27 @@ export const MENU_CODES = [
   'REPORTS',
   'AUDIT',
   'SETTINGS',
+  'GENERAL',
   'SUPPORT',
   'SUPAGO_BANKS',
   'CRICI_BANKS',
 ] as const
 export type MenuCode = (typeof MENU_CODES)[number]
 
+/**
+ * Supago Banks and Crici Banks consoles. False closes the pages, the sidebar,
+ * and `/api/v1/supago/banks` plus `/api/v1/crici/banks` with 404.
+ * Banker and Operator stay blocked even when this is true.
+ */
+export const PANEL_BANK_CONSOLE_ENABLED = false
+
 /** Merchant external panel — one panel per merchant. */
-export const MERCHANT_INTEGRATION_TYPES = ['NONE', 'SUPAGO', 'CRICI'] as const
+export const MERCHANT_INTEGRATION_TYPES = ['NONE', 'SUPAGO', 'CRICI', 'API'] as const
 export type MerchantIntegrationType = (typeof MERCHANT_INTEGRATION_TYPES)[number]
+
+/** Origin of a pay-in / pay-out row. API = SafePay247 Gateway API. */
+export const TXN_SOURCES = ['MANUAL', 'SUPAGO', 'CRICI', 'API', 'INJECTION'] as const
+export type TxnSource = (typeof TXN_SOURCES)[number]
 
 export interface MenuActions {
   can_view: boolean

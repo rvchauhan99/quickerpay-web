@@ -8,6 +8,8 @@ import type { MerchantStatus, RateKind } from './domain'
 export type BankBankerMode = 'ALL' | 'SELECTED'
 /** @deprecated Use BankBankerMode */
 export type BankAdminMode = BankBankerMode
+/** Withdrawal routing mode — mirrors Deposit Managed By at Banker level. */
+export type PayoutBankerMode = 'ALL' | 'SELECTED'
 
 export interface MerchantRate {
   rate_kind: RateKind
@@ -35,6 +37,10 @@ export interface MerchantDetail extends MerchantListItem {
    */
   default_payout_banker_user_id: string | null
   default_payout_banker_username: string | null
+  /** Who may take / be routed withdrawals. */
+  payout_banker_mode: PayoutBankerMode
+  /** Populated when payout_banker_mode is SELECTED; empty when ALL. */
+  payout_banker_user_ids: string[]
   /** Who may sync/enable banks on this Exchange Master's panel. */
   bank_banker_mode: BankBankerMode
   /** Populated when bank_banker_mode is SELECTED; empty when ALL. */
@@ -43,11 +49,16 @@ export interface MerchantDetail extends MerchantListItem {
    * Permanent panel lock after first connect. Credential clear does not reset to NONE.
    * Cross-panel switch is rejected by the API.
    */
-  integration_type: 'NONE' | 'SUPAGO' | 'CRICI'
+  integration_type: 'NONE' | 'SUPAGO' | 'CRICI' | 'API'
   /** Exchange Master portal login (`users.role = MERCHANT`), if enabled. */
   portal_user_id: string | null
   portal_username: string | null
   portal_user_status: 'ACTIVE' | 'DISABLED' | 'SUSPENDED' | null
+  /** Upper-line Agent introducer (at most one per Exchange). */
+  agent_user_id: string | null
+  agent_username: string | null
+  /** Open agent brokerage rates for this Exchange (empty when no Agent). */
+  agent_rates: MerchantRate[]
 }
 
 export interface MerchantPortalEnableResult {

@@ -16,8 +16,8 @@ import { Select } from '@/components/forms/Select'
 import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from 'sonner'
-import { apiRequest, ApiClientError } from '@/lib/api'
-import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -68,6 +68,11 @@ export default function MerchantDetailPage() {
   const [portalBusy, setPortalBusy] = useState(false)
   const [portalOncePassword, setPortalOncePassword] = useState<string | null>(null)
   const [portalDisableConfirm, setPortalDisableConfirm] = useState(false)
+  const [agentOptions, setAgentOptions] = useState<Array<{ id: string; username: string }>>([])
+  const [agentUserId, setAgentUserId] = useState('')
+  const [agentPayinBp, setAgentPayinBp] = useState(0)
+  const [agentPayoutBp, setAgentPayoutBp] = useState(0)
+  const [savingAgent, setSavingAgent] = useState(false)
 
   // Supago state
   const [supagoStatus, setSupagoStatus] = useState<SupagoStatus | null>(null)
@@ -137,8 +142,20 @@ export default function MerchantDetailPage() {
       setHistory(rates)
       setPayinBp(detail.rates.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
       setPayoutBp(detail.rates.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
+      setAgentUserId(detail.agent_user_id ?? '')
+      setAgentPayinBp(detail.agent_rates?.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
+      setAgentPayoutBp(detail.agent_rates?.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
       void loadSupagoStatus(accessToken, params.id)
       void loadCriciStatus(accessToken, params.id)
+      try {
+        const agents = await apiListRequest<{ id: string; username: string; status: string }>(
+          '/api/v1/agents?page_size=100&status=ACTIVE',
+          { token: accessToken },
+        )
+        setAgentOptions(agents.items.map((a) => ({ id: a.id, username: a.username })))
+      } catch {
+        setAgentOptions([])
+      }
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not load')
     } finally {
@@ -168,6 +185,39 @@ export default function MerchantDetailPage() {
       toast.error(caught instanceof ApiClientError ? caught.message : 'Save failed')
     } finally {
       setSavingRate(null)
+    }
+  }
+
+  const handleSaveAgent = async () => {
+    if (!accessToken || !params.id || savingAgent) return
+    setSavingAgent(true)
+    try {
+      if (!agentUserId) {
+        await apiRequest(`/api/v1/merchants/${params.id}/agent`, {
+          method: 'POST',
+          token: accessToken,
+          body: { agent_user_id: null },
+        })
+        toast.success(`${agentLabel()} cleared`)
+      } else {
+        await apiRequest(`/api/v1/merchants/${params.id}/agent`, {
+          method: 'POST',
+          token: accessToken,
+          body: {
+            agent_user_id: agentUserId,
+            rates: [
+              { rate_kind: 'PAYIN', rate_bp: agentPayinBp },
+              { rate_kind: 'PAYOUT', rate_bp: agentPayoutBp },
+            ],
+          },
+        })
+        toast.success(`${agentLabel()} assigned`)
+      }
+      await load()
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save Agent')
+    } finally {
+      setSavingAgent(false)
     }
   }
 
@@ -626,6 +676,55 @@ export default function MerchantDetailPage() {
                   </div>
                 </FormField>
               </FormGrid>
+            </FormSection>
+          ) : null}
+
+          {canEdit ? (
+            <FormSection
+              title={agentLabel()}
+              description="Upper-line brokerage carved from Exchange commission. Banker rates must stay ≤ Exchange − Agent."
+            >
+              <FormGrid>
+                <FormField label={agentLabel()}>
+                  <Select
+                    id="merchant-agent"
+                    value={agentUserId}
+                    onChange={(event) => setAgentUserId(event.target.value)}
+                    aria-label={agentLabel()}
+                  >
+                    <option value="">None</option>
+                    {agentOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.username}
+                      </option>
+                    ))}
+                    {agentUserId && !agentOptions.some((o) => o.id === agentUserId) && merchant?.agent_username ? (
+                      <option value={agentUserId}>{merchant.agent_username}</option>
+                    ) : null}
+                  </Select>
+                </FormField>
+                {agentUserId ? (
+                  <>
+                    <FormField label="Agent PAY-IN brokerage">
+                      <RateInput id="agent-payin" valueBp={agentPayinBp} onChangeBp={setAgentPayinBp} />
+                    </FormField>
+                    <FormField label="Agent PAY-OUT brokerage">
+                      <RateInput id="agent-payout" valueBp={agentPayoutBp} onChangeBp={setAgentPayoutBp} />
+                    </FormField>
+                    <FormField label="Residual ceiling (PAY-IN)">
+                      <p className="text-sm text-zinc-600">
+                        Exchange {payinBp} bp − Agent {agentPayinBp} bp ={' '}
+                        <strong>{Math.max(0, payinBp - agentPayinBp)} bp</strong> max for Bankers
+                      </p>
+                    </FormField>
+                  </>
+                ) : null}
+              </FormGrid>
+              <div className="mt-3">
+                <PrimaryButton disabled={savingAgent} onClick={() => void handleSaveAgent()}>
+                  {savingAgent ? 'Saving…' : `Save ${agentLabel()}`}
+                </PrimaryButton>
+              </div>
             </FormSection>
           ) : null}
 

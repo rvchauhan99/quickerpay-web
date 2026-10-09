@@ -5,7 +5,7 @@
  */
 
 import type { CommissionSnapshot } from './commission'
-import type { PayoutStatus } from './domain'
+import type { PayoutStatus, TxnSource } from './domain'
 
 export interface PayoutListItem {
   id: string
@@ -38,6 +38,8 @@ export interface PayoutListItem {
   beneficiary_upi: string | null
   failure_reason: string | null
   merchant_order_id: string | null
+  /** Where the row came from: MANUAL, SUPAGO, CRICI or API (gateway). */
+  source: TxnSource
   has_attachment: boolean
   attachment_filename: string | null
   created_at: string

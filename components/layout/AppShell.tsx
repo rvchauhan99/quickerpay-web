@@ -31,6 +31,7 @@ const LABELS: Record<MenuCode, string> = {
   REPORTS: 'Reports',
   AUDIT: 'Audit',
   SETTINGS: 'Settings',
+  GENERAL: 'General',
   SUPPORT: 'Support',
   SUPAGO_BANKS: 'Supago Banks',
   CRICI_BANKS: 'Crici Banks',
@@ -239,7 +240,11 @@ export function AppShell({
           extra:
             row.menu_code === 'COMMISSION' && row.can_edit
               ? [{ href: '/commission/config', label: 'Commission Config' }]
-              : [],
+              : row.menu_code === 'USERS' &&
+                  (role === 'SUPER_ADMIN' || role === 'ADMIN') &&
+                  row.can_view
+                ? [{ href: '/agents', label: 'Agents Master' }]
+                : [],
         }))
 
   return (

@@ -4,7 +4,7 @@
  */
 
 import type { CommissionSnapshot } from './commission'
-import type { PayinStatus } from './domain'
+import type { PayinStatus, TxnSource } from './domain'
 
 export interface PayinListItem {
   id: string
@@ -19,15 +19,36 @@ export interface PayinListItem {
   amount_minor: number
   status: PayinStatus
   auto_accepted: boolean
+  /** True when created via Pay-In Injection (manual SA/Admin create; never panel-linked). */
+  is_injection: boolean
+  /** When the UTR was submitted (Exchange portal injection, or gateway / hosted pay page). */
+  utr_submitted_at: string | null
+  /** Where the row came from: MANUAL, SUPAGO, CRICI, API (gateway) or INJECTION. */
+  source: TxnSource
   /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
   merchant_id?: string
   /** Merchant display name when joined; omitted when actor cannot see merchants. */
   merchant_display_name?: string | null
+  /** Banker owning the injection (set at create); useful for UPI filtering on accept. */
+  banker_user_id?: string | null
   assigned_upi_id: string | null
   assigned_operator_id: string | null
   created_at: string
   in_progress_at: string | null
   action_at: string | null
+}
+
+export interface PayinDetail extends PayinListItem {
+  /** VPA of the assigned UPI. Null when the pay-in has no UPI yet. */
+  assigned_upi_address: string | null
+  /** True when a UTR proof image is stored for this pay-in. */
+  has_utr_proof: boolean
+}
+
+export interface PayinProofView {
+  url: string
+  filename: string
+  mime_type: string
 }
 
 export interface PayinAcceptResult {

@@ -1,5 +1,5 @@
 ---
-description: Require pnpm run build before marking QuickerPay-Web work done — matches Vercel
+description: One pnpm run build after UI QA — never mid-QA; matches Vercel
 alwaysApply: true
 ---
 
@@ -7,10 +7,11 @@ alwaysApply: true
 
 After changes under this repo (App Router pages, components, eslint, package scripts), **before** declaring done:
 
-1. Run `pnpm run build` (Next lint + typecheck + compile — same as Vercel).
-2. Mid-loop `pnpm lint` is fine; finish with a full `pnpm run build`.
+1. **Order:** finish UI QA on `dev` first (API-first → one Playwright primary-role flow → Agent360 only if tier requires). Then run **one** `pnpm run build`.
+2. Mid-loop `pnpm lint` is fine; finish with a full `pnpm run build` once.
 3. Report **Build verification**: command, pass/fail, non-blocking warnings only if present.
 4. Never claim build-ok without running the command.
+5. Never run production `build` before or during Playwright as a QA blocker.
 
 ## Hard checks
 

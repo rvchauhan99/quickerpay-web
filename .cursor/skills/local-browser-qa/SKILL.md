@@ -1,6 +1,8 @@
 # Local browser QA (QuickerPay-Web)
 
-Follow the API sibling skill: `../QuickerPay/.cursor/skills/local-browser-qa/SKILL.md`.
+Follow the API sibling skill: `../QuickerPay/.cursor/skills/local-browser-qa/SKILL.md` (tiered L2/L3, API-first, one Playwright role, Agent360 conditional, standard report block).
+
+Lean Playwright recipe: `../QuickerPay/.cursor/skills/local-browser-qa/lean-web-qa-recipe.md`.
 
 Policy: `../QuickerPay/.cursor/rules/local-browser-qa.mdc`.
 

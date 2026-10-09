@@ -13,6 +13,8 @@ const ROLE_LABELS: Record<UserRole, string> = {
   AUDITOR: 'Auditor',
   /** Exchange Master portal login. */
   MERCHANT: 'Exchange Master',
+  /** Upper-line introducer — read-only on linked Exchanges. */
+  AGENT: 'Agent',
 }
 
 export function roleLabel(role: string | null | undefined): string {
@@ -29,4 +31,9 @@ export function merchantLabel(opts?: { plural?: boolean }): string {
 /** Banking owner filter / column. */
 export function bankerLabel(opts?: { plural?: boolean }): string {
   return opts?.plural ? 'Bankers' : 'Banker'
+}
+
+/** Upper-line Exchange introducer. */
+export function agentLabel(opts?: { plural?: boolean }): string {
+  return opts?.plural ? 'Agents' : 'Agent'
 }
