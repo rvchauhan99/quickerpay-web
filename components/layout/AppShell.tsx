@@ -19,7 +19,7 @@ const LABELS: Record<MenuCode, string> = {
   DASHBOARD: 'Dashboard',
   USERS: 'User Management',
   MERCHANTS: 'Exchange Master',
-  BANKS: 'Bank Account',
+  BANKS: 'Payment Methods',
   UPI: 'UPI',
   PAYIN: 'Pending Deposit',
   PAYOUT: 'Pending Withdrawal',
@@ -216,7 +216,7 @@ const BANKER_PARENT_ICON = (
 )
 
 const BANKER_CHILD_LINKS: PrimaryLink[] = [
-  { key: 'bank-account', code: 'BANKS', label: 'Bank Account', href: '/banks' },
+  { key: 'bank-account', code: 'BANKS', label: 'Payment Methods', href: '/banks' },
   { key: 'banker-utr', code: 'UTR', label: 'Banker UTR Entries', href: '/utr' },
 ]
 

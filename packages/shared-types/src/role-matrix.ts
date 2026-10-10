@@ -62,6 +62,14 @@ const MERCHANT_CEILING: MenuCeiling = {
   TRANSACTIONS: VIEW_ONLY,
 }
 
+/** Agent: read-only across Exchanges where merchants.agent_user_id = me. */
+const AGENT_CEILING: MenuCeiling = {
+  DASHBOARD: VIEW_ONLY,
+  TRANSACTIONS: VIEW_EXPORT,
+  COMMISSION: VIEW_EXPORT,
+  REPORTS: VIEW_EXPORT,
+}
+
 const CEILINGS: Record<UserRole, MenuCeiling> = {
   SUPER_ADMIN: SUPER_ADMIN_CEILING,
   ADMIN: ADMIN_CEILING,
@@ -69,15 +77,18 @@ const CEILINGS: Record<UserRole, MenuCeiling> = {
   OPERATOR: OPERATOR_CEILING,
   AUDITOR: AUDITOR_CEILING,
   MERCHANT: MERCHANT_CEILING,
+  AGENT: AGENT_CEILING,
 }
 
 const CREATABLE_ROLES: Record<UserRole, readonly UserRole[]> = {
-  SUPER_ADMIN: ['BANKER', 'ADMIN', 'OPERATOR', 'AUDITOR'],
+  SUPER_ADMIN: ['BANKER', 'ADMIN', 'OPERATOR', 'AUDITOR', 'AGENT'],
   BANKER: ['OPERATOR'],
-  ADMIN: [],
+  /** Agents Master: Admin may mint Agents (read-only introducers), not Bankers. */
+  ADMIN: ['AGENT'],
   OPERATOR: [],
   AUDITOR: [],
   MERCHANT: [],
+  AGENT: [],
 }
 
 export function isTenantWideRole(role: UserRole): boolean {

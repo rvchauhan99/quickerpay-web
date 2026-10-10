@@ -23,7 +23,15 @@ export const READABLE_TENANT_STATUSES = ['ACTIVE', 'READ_ONLY', 'DEGRADED'] as c
 /** Tenant statuses that may create new financial operations. Non-negotiable 12. */
 export const WRITABLE_TENANT_STATUSES = ['ACTIVE'] as const
 
-export const USER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BANKER', 'OPERATOR', 'AUDITOR', 'MERCHANT'] as const
+export const USER_ROLES = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'BANKER',
+  'OPERATOR',
+  'AUDITOR',
+  'MERCHANT',
+  'AGENT',
+] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 export const USER_STATUSES = ['ACTIVE', 'DISABLED', 'SUSPENDED'] as const
@@ -183,6 +191,7 @@ export type UtrSource = (typeof UTR_SOURCES)[number]
 
 export const UTR_STATUSES = [
   'PENDING',
+  'UNCLAIMED',
   'COMPLETED',
   'DELETED',
 ] as const
@@ -205,6 +214,10 @@ export type BankAccountType = (typeof BANK_ACCOUNT_TYPES)[number]
 
 export const BANK_PURPOSES = ['COLLECTION', 'DISTRIBUTION', 'BOTH'] as const
 export type BankPurpose = (typeof BANK_PURPOSES)[number]
+
+/** Gateway / CRM collection instrument kind. UPI stays on bank+upi tables; others are sibling rows. */
+export const PAYMENT_METHODS = ['UPI', 'MANUAL_BANK', 'USDT_TRC20'] as const
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
 export const LEDGER_DIRECTIONS = ['DEBIT', 'CREDIT'] as const
 export type LedgerDirection = (typeof LEDGER_DIRECTIONS)[number]

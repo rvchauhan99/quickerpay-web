@@ -99,27 +99,52 @@ describe('splitCommission', () => {
     const split = splitCommission(10_000_000n, 400, 350)
     expect(split.merchantCommissionMinor).toBe(400_000n)
     expect(split.bankerCommissionMinor).toBe(350_000n)
+    expect(split.agentCommissionMinor).toBe(0n)
     expect(split.marginMinor).toBe(50_000n)
-    expect(split.merchantCommissionMinor).toBe(split.bankerCommissionMinor + split.marginMinor)
+    expect(split.merchantCommissionMinor).toBe(
+      split.bankerCommissionMinor + split.agentCommissionMinor + split.marginMinor,
+    )
   })
 
   it('holds the identity on the worked Pay-Out example', () => {
     const split = splitCommission(10_000_000n, 200, 150)
     expect(split.merchantCommissionMinor).toBe(200_000n)
     expect(split.bankerCommissionMinor).toBe(150_000n)
+    expect(split.agentCommissionMinor).toBe(0n)
     expect(split.marginMinor).toBe(50_000n)
   })
 
-  it('keeps merchant = admin + margin exact on 333 paise at 4.00% and 3.50%', () => {
+  it('keeps merchant = banker + agent + margin exact on 333 paise at 4.00% and 3.50%', () => {
     const split = splitCommission(333n, 400, 350)
-    expect(split.merchantCommissionMinor).toBe(split.bankerCommissionMinor + split.marginMinor)
+    expect(split.merchantCommissionMinor).toBe(
+      split.bankerCommissionMinor + split.agentCommissionMinor + split.marginMinor,
+    )
   })
 
   it('absorbs a HALF_UP remainder into the margin on 333 rupees', () => {
     const split = splitCommission(33_300n, 400, 350)
     expect(split.merchantCommissionMinor).toBe(applyRateBp(33_300n, 400))
     expect(split.bankerCommissionMinor).toBe(applyRateBp(33_300n, 350))
-    expect(split.merchantCommissionMinor).toBe(split.bankerCommissionMinor + split.marginMinor)
+    expect(split.merchantCommissionMinor).toBe(
+      split.bankerCommissionMinor + split.agentCommissionMinor + split.marginMinor,
+    )
+  })
+
+  it('carves agent brokerage from the margin (6% merchant, 1% agent, 3.5% banker)', () => {
+    const split = splitCommission(10_000_000n, 600, 350, 100)
+    expect(split.merchantCommissionMinor).toBe(600_000n)
+    expect(split.bankerCommissionMinor).toBe(350_000n)
+    expect(split.agentCommissionMinor).toBe(100_000n)
+    expect(split.marginMinor).toBe(150_000n)
+    expect(split.merchantCommissionMinor).toBe(
+      split.bankerCommissionMinor + split.agentCommissionMinor + split.marginMinor,
+    )
+  })
+
+  it('matches the no-agent path when agentRateBp is 0', () => {
+    const withZero = splitCommission(10_000_000n, 600, 350, 0)
+    const legacy = splitCommission(10_000_000n, 600, 350)
+    expect(withZero).toEqual(legacy)
   })
 })
 

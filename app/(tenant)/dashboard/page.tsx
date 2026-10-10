@@ -43,6 +43,8 @@ const EMPTY: DashboardSummary = {
   pending_approvals: 0,
   failed_transactions: 0,
   unmatched_utrs: 0,
+  unclaimed_utrs: 0,
+  unclaimed_amount_minor: 0,
   operators_online: 0,
   pending_utrs: 0,
   assigned_queue_depth: 0,
@@ -471,6 +473,10 @@ export default function DashboardPage() {
               </StatCard>
               <StatCard label="Operators online" tone="info" href={canView('USERS') ? '/users?role=OPERATOR' : undefined}>{data.operators_online}</StatCard>
               <StatCard label="Pending UTRs" tone="warning" href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.pending_utrs}</StatCard>
+              <StatCard label="Unclaimed UTRs" tone="warning" href={canView('UTR') ? '/utr?status=UNCLAIMED' : undefined}>
+                <MoneyDisplay amountMinor={data.unclaimed_amount_minor} />
+                <p className="text-[10px] text-zinc-500">{data.unclaimed_utrs} entries</p>
+              </StatCard>
               <StatCard label="Failed" tone="danger" href={failedHref}>{data.failed_transactions}</StatCard>
             </div>
           </>
@@ -578,10 +584,14 @@ export default function DashboardPage() {
         ) : null}
 
         {isSuperView ? (
-          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-4 lg:grid-cols-5">
             <StatCard label="Pending approvals" tone="warning" href={payoutHref('status=INITIATE')}>{data.pending_approvals}</StatCard>
             <StatCard label="Failed transactions" tone="danger" href={failedHref}>{data.failed_transactions}</StatCard>
             <StatCard label="Unmatched UTRs" tone="warning" href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.unmatched_utrs}</StatCard>
+            <StatCard label="Unclaimed UTRs" tone="warning" href={canView('UTR') ? '/utr?status=UNCLAIMED' : undefined}>
+              <MoneyDisplay amountMinor={data.unclaimed_amount_minor} />
+              <p className="text-[10px] text-zinc-500">{data.unclaimed_utrs} entries</p>
+            </StatCard>
             <StatCard label="Operators online" tone="info" href={canView('USERS') ? '/users?role=OPERATOR' : undefined}>{data.operators_online}</StatCard>
           </div>
         ) : null}

@@ -5,7 +5,7 @@
  * Money is integer paise named `_minor`.
  */
 
-import type { BankAccountType, BankingStatus, BankPurpose, UserRole } from './domain'
+import type { BankAccountType, BankingStatus, BankPurpose, PaymentMethod, UserRole } from './domain'
 
 export interface BankAccountListItem {
   id: string
@@ -106,4 +106,50 @@ export interface EligibleBankMerchant {
   /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
   display_name?: string
   integration_type: 'SUPAGO' | 'CRICI' | 'API'
+}
+
+/** Unified Payment Methods list row (`GET /payment-methods`). */
+export interface PaymentMethodListItem {
+  id: string
+  method_kind: PaymentMethod
+  owner_user_id: string
+  owner_username: string
+  owner_display_name: string
+  label: string
+  status: BankingStatus
+  /** UPI address, masked account, or TRC20 address — for list display. */
+  detail_masked: string
+  daily_limit_minor: number | null
+  per_txn_limit_minor: number | null
+  created_at: string
+  /** Present for UPI rows only. */
+  bank_account_id?: string
+  auto_accept?: boolean
+}
+
+export interface ManualBankMethodDetail {
+  id: string
+  owner_user_id: string
+  label: string
+  account_holder_name: string
+  account_number_masked: string
+  ifsc: string
+  bank_name: string | null
+  status: BankingStatus
+  daily_limit_minor: number | null
+  per_txn_limit_minor: number | null
+  created_at: string
+  /** After audited reveal only. */
+  account_number?: string
+}
+
+export interface UsdtTrc20MethodDetail {
+  id: string
+  owner_user_id: string
+  label: string
+  wallet_address: string
+  status: BankingStatus
+  daily_limit_minor: number | null
+  per_txn_limit_minor: number | null
+  created_at: string
 }

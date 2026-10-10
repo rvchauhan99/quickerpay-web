@@ -54,6 +54,11 @@ export interface MerchantDetail extends MerchantListItem {
   portal_user_id: string | null
   portal_username: string | null
   portal_user_status: 'ACTIVE' | 'DISABLED' | 'SUSPENDED' | null
+  /** Upper-line Agent introducer (at most one per Exchange). */
+  agent_user_id: string | null
+  agent_username: string | null
+  /** Open agent brokerage rates for this Exchange (empty when no Agent). */
+  agent_rates: MerchantRate[]
 }
 
 export interface MerchantPortalEnableResult {

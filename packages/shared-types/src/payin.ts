@@ -4,13 +4,15 @@
  */
 
 import type { CommissionSnapshot } from './commission'
-import type { PayinStatus, TxnSource } from './domain'
+import type { PayinStatus, PaymentMethod, TxnSource } from './domain'
 
 export interface PayinListItem {
   id: string
   transaction_id: string
   reference: string
   utr: string | null
+  /** Collection method for this pay-in (UPI / MANUAL_BANK / USDT_TRC20). */
+  payment_method: PaymentMethod
   /**
    * Panel party username (Supago/Crici depositor wusername).
    * Omitted for Banker / Operator / Auditor (canSeeMerchants); null when SA/Admin and not ingested.

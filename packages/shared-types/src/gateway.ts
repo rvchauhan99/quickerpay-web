@@ -4,7 +4,20 @@
  * Money is integer paise named `_minor`.
  */
 
-import type { PayinStatus, PayoutStatus } from './domain'
+import type { PayinStatus, PaymentMethod, PayoutStatus } from './domain'
+
+/** Pay-to instructions returned on gateway create / status (method-specific). */
+export interface GatewayPayInstructions {
+  upi?: string
+  account_holder_name?: string
+  account_number?: string
+  ifsc?: string
+  bank_name?: string | null
+  network?: 'TRC20'
+  address?: string
+  /** CRM transaction reference; shown for USDT so the player/support can match the pay-in. */
+  deposit_ref?: string
+}
 
 export const GATEWAY_WEBHOOK_EVENTS = [
   'payin.created',
@@ -28,6 +41,11 @@ export interface GatewayPayin {
   merchant_order_id: string
   amount_minor: number
   status: PayinStatus
+  /** Required on create; echoed on status. */
+  payment_method: PaymentMethod
+  /** Method-specific pay-to details for the player. */
+  pay_instructions: GatewayPayInstructions
+  /** Filled when payment_method is UPI; null otherwise (prefer pay_instructions). */
   upi: string | null
   reference_number: string | null
   customer_ref: string | null
@@ -64,6 +82,8 @@ export interface GatewayPayout {
 export interface GatewayPayPageView {
   transaction_number: string
   amount_minor: number
+  payment_method: PaymentMethod
+  pay_instructions: GatewayPayInstructions
   upi: string | null
   payee_name: string
   status: PayinStatus

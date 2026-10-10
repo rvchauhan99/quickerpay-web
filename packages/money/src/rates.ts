@@ -54,35 +54,47 @@ export function assertRateBp(rateBp: number): void {
 export interface CommissionSplit {
   merchantCommissionMinor: bigint
   bankerCommissionMinor: bigint
+  agentCommissionMinor: bigint
   marginMinor: bigint
 }
 
 /**
- * Compute merchant, banker and margin independently, then force the identity
- * by assigning the remainder to the margin, per docs/02_DATA_MODEL.md 4.20:
+ * Compute merchant, banker, agent and margin independently, then force the
+ * identity by assigning the remainder to the margin, per docs/02_DATA_MODEL.md 4.20:
  *
  *   merchant = roundHalfUp(eligible * merchantRate / 10000)
  *   banker   = roundHalfUp(eligible * bankerRate / 10000)
- *   margin   = merchant - banker
+ *   agent    = roundHalfUp(eligible * agentRate / 10000)
+ *   margin   = merchant - banker - agent
+ *
+ * `agentRateBp` defaults to 0 so Exchanges without an Agent keep the old two-way split.
  */
 export function splitCommission(
   eligibleMinor: bigint,
   merchantRateBp: number,
   bankerRateBp: number,
+  agentRateBp = 0,
 ): CommissionSplit {
   if (eligibleMinor <= 0n) {
     throw new MoneyError('INVALID_AMOUNT', 'Eligible amount must be positive')
   }
   assertRateBp(merchantRateBp)
   assertRateBp(bankerRateBp)
+  assertRateBp(agentRateBp)
 
   const merchantCommissionMinor = applyRateBp(eligibleMinor, merchantRateBp)
   const bankerCommissionMinor = applyRateBp(eligibleMinor, bankerRateBp)
-  const marginMinor = merchantCommissionMinor - bankerCommissionMinor
+  const agentCommissionMinor = applyRateBp(eligibleMinor, agentRateBp)
+  const marginMinor = merchantCommissionMinor - bankerCommissionMinor - agentCommissionMinor
 
-  if (merchantCommissionMinor !== bankerCommissionMinor + marginMinor) {
-    throw new MoneyError('COMMISSION_IDENTITY', 'merchant must equal banker + margin')
+  if (merchantCommissionMinor !== bankerCommissionMinor + agentCommissionMinor + marginMinor) {
+    throw new MoneyError('COMMISSION_IDENTITY', 'merchant must equal banker + agent + margin')
   }
 
-  return { merchantCommissionMinor, bankerCommissionMinor, marginMinor }
+  return {
+    merchantCommissionMinor,
+    bankerCommissionMinor,
+    agentCommissionMinor,
+    marginMinor,
+  }
 }

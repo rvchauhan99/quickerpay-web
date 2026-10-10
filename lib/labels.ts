@@ -13,6 +13,8 @@ const ROLE_LABELS: Record<UserRole, string> = {
   AUDITOR: 'Auditor',
   /** Exchange Master portal login. */
   MERCHANT: 'Exchange Master',
+  /** Upper-line brokerage role (API may return AGENT). */
+  AGENT: 'Agent',
 }
 
 export function roleLabel(role: string | null | undefined): string {

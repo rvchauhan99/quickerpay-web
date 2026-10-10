@@ -17,7 +17,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { IconButton } from '@/components/ui/IconButton'
-import { X } from 'lucide-react'
+import { Unlock, X } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
@@ -48,7 +48,8 @@ export default function UtrPage() {
   const [amountMinor, setAmountMinor] = useState(0)
   const [utr, setUtr] = useState('')
   const [upiId, setUpiId] = useState('')
-  const [confirm, setConfirm] = useState<{ id: string; action: 'reject' } | null>(null)
+  const [confirm, setConfirm] = useState<{ id: string; action: 'reject' | 'release' } | null>(null)
+  const [unclaimedBanner, setUnclaimedBanner] = useState<{ count: number; amount_minor: number } | null>(null)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -107,11 +108,34 @@ export default function UtrPage() {
       })
   }, [ready, allowed, accessToken, load])
 
+  useEffect(() => {
+    if (!ready || !allowed || !accessToken) return
+    if (user?.role !== 'SUPER_ADMIN' && user?.role !== 'ADMIN') {
+      setUnclaimedBanner(null)
+      return
+    }
+    void apiRequest<{ unclaimed_utrs: number; unclaimed_amount_minor: number }>(
+      '/api/v1/dashboard/summary',
+      { token: accessToken },
+    )
+      .then((summary) => {
+        if (summary.unclaimed_utrs > 0) {
+          setUnclaimedBanner({ count: summary.unclaimed_utrs, amount_minor: summary.unclaimed_amount_minor })
+        } else {
+          setUnclaimedBanner(null)
+        }
+      })
+      .catch(() => setUnclaimedBanner(null))
+  }, [ready, allowed, accessToken, user?.role, load])
+
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
   const utrUpis = user?.role === 'BANKER' ? upis.filter((upi) => upi.owner_user_id === user.id) : upis
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
+
+  const canRelease =
+    (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && hasMenu(menus, 'UTR', 'can_edit')
 
   const addedBy = (row: UtrListItem) => {
     if (row.source !== 'EXTENSION') return row.added_by_username ?? '—'
@@ -146,12 +170,17 @@ export default function UtrPage() {
     if (!confirm || !accessToken || submitting) return
     setSubmitting(confirm.id)
     try {
+      const headers =
+        confirm.action === 'release'
+          ? { 'Idempotency-Key': `utr-release-${confirm.id}-${Date.now()}` }
+          : undefined
       await apiRequest(`/api/v1/utr/${confirm.id}/${confirm.action}`, {
         method: 'POST',
         token: accessToken,
+        headers,
       })
       setConfirm(null)
-      toast.success(`UTR ${confirm.action}ed`)
+      toast.success(confirm.action === 'release' ? 'UTR released for Manual Accept' : 'UTR rejected')
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update UTR')
@@ -174,6 +203,21 @@ export default function UtrPage() {
           ) : null
         }
       />
+      {unclaimedBanner ? (
+        <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          {unclaimedBanner.count} unclaimed UTR{unclaimedBanner.count === 1 ? '' : 's'} (
+          <MoneyDisplay amountMinor={unclaimedBanner.amount_minor} />
+          ). Release on this screen before Manual Accept on Pay-In.{' '}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void setFilters({ status: 'UNCLAIMED', page: 1 })}
+            aria-label="Filter unclaimed UTRs"
+          >
+            Show unclaimed
+          </button>
+        </div>
+      ) : null}
       {pendingOnPage1 > 0 && filters.page > 1 ? (
         <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {pendingOnPage1} new UTR entr{pendingOnPage1 === 1 ? 'y' : 'ies'} on page 1.{' '}
@@ -290,12 +334,34 @@ export default function UtrPage() {
             added: addedBy(row),
             entry: new Date(row.entry_time).toLocaleString(),
             actionTime: row.action_time ? new Date(row.action_time).toLocaleString() : '—',
-            status: <StatusBadge status={row.status} />,
-            actions: hasMenu(menus, 'UTR', 'can_edit') && row.status === 'PENDING' ? (
-              <span className="flex items-center gap-1">
-                <IconButton variant="danger" icon={<X size={15} strokeWidth={1.75} />} tooltip="Reject" onClick={() => setConfirm({ id: row.id, action: 'reject' })} />
+            status: (
+              <span className="flex flex-col gap-0.5">
+                <StatusBadge status={row.status} />
+                {row.status === 'UNCLAIMED' && row.released_at ? (
+                  <span className="text-[10px] text-zinc-500">Released — Manual Accept on Pay-In</span>
+                ) : null}
               </span>
-            ) : null,
+            ),
+            actions:
+              row.status === 'PENDING' && hasMenu(menus, 'UTR', 'can_edit') ? (
+                <span className="flex items-center gap-1">
+                  <IconButton
+                    variant="danger"
+                    icon={<X size={15} strokeWidth={1.75} />}
+                    tooltip="Reject"
+                    onClick={() => setConfirm({ id: row.id, action: 'reject' })}
+                  />
+                </span>
+              ) : row.status === 'UNCLAIMED' && !row.released_at && canRelease ? (
+                <span className="flex items-center gap-1">
+                  <IconButton
+                    variant="primary"
+                    icon={<Unlock size={15} strokeWidth={1.75} />}
+                    tooltip="Release"
+                    onClick={() => setConfirm({ id: row.id, action: 'release' })}
+                  />
+                </span>
+              ) : null,
           }))}
           empty={<EmptyState message="No UTR entries found" />}
           pagination={pagination ?? undefined}
@@ -303,7 +369,15 @@ export default function UtrPage() {
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
         />
       )}
-      {confirm ? <ConfirmDialog title={`${confirm.action} this UTR?`} confirmLabel={confirm.action} loading={submitting === confirm.id} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} /> : null}
+      {confirm ? (
+        <ConfirmDialog
+          title={confirm.action === 'release' ? 'Release this unclaimed UTR?' : 'Reject this UTR?'}
+          confirmLabel={confirm.action === 'release' ? 'Release' : 'Reject'}
+          loading={submitting === confirm.id}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => void handleAction()}
+        />
+      ) : null}
     </AppShell>
   )
 }

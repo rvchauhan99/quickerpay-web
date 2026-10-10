@@ -55,7 +55,13 @@ export default function PayinPage() {
   const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
-  const [confirm, setConfirm] = useState<{ id: string; action: 'accept' | 'reject' | 'cancel' | 'refund' } | null>(null)
+  const [confirm, setConfirm] = useState<{
+    id: string
+    action: 'accept' | 'reject' | 'cancel' | 'refund'
+    paymentMethod?: PayinListItem['payment_method']
+    pinnedUtr?: string | null
+  } | null>(null)
+  const [acceptChainTx, setAcceptChainTx] = useState('')
   const [assignFor, setAssignFor] = useState<string | null>(null)
   const [assignUpi, setAssignUpi] = useState('')
   const [assignOperator, setAssignOperator] = useState('')
@@ -202,20 +208,38 @@ export default function PayinPage() {
 
   const handleAction = async () => {
     if (!confirm || !accessToken || submitting) return
+    const needsChainTx =
+      confirm.action === 'accept' &&
+      confirm.paymentMethod === 'USDT_TRC20' &&
+      !confirm.pinnedUtr
+    const chainTx = acceptChainTx.trim().toLowerCase()
+    if (needsChainTx && !/^[a-f0-9]{64}$/.test(chainTx)) {
+      toast.error('Enter the 64-character TRON transaction hash')
+      return
+    }
     setSubmitting(confirm.id)
     try {
+      const acceptBody =
+        confirm.action === 'accept' && confirm.paymentMethod === 'USDT_TRC20'
+          ? { utr: confirm.pinnedUtr ?? chainTx }
+          : undefined
       await apiRequest(`/api/v1/payin/${confirm.id}/${confirm.action}`, {
         method: 'POST',
         token: accessToken,
-        body: confirm.action === 'reject' ? { reason: 'Rejected' } : undefined,
+        body:
+          confirm.action === 'reject'
+            ? { reason: 'Rejected' }
+            : acceptBody,
         headers: confirm.action === 'accept' || confirm.action === 'refund' ? { 'Idempotency-Key': crypto.randomUUID() } : undefined,
       })
       setConfirm(null)
+      setAcceptChainTx('')
       toast.success(`Pay-in ${confirm.action}ed`)
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-in')
       setConfirm(null)
+      setAcceptChainTx('')
     } finally {
       setSubmitting(null)
     }
@@ -227,7 +251,13 @@ export default function PayinPage() {
       setAcceptUpiId('')
       return
     }
-    setConfirm({ id: row.id, action: 'accept' })
+    setAcceptChainTx('')
+    setConfirm({
+      id: row.id,
+      action: 'accept',
+      paymentMethod: row.payment_method,
+      pinnedUtr: row.utr,
+    })
   }
 
   const handleInjectionAccept = async () => {
@@ -597,6 +627,7 @@ export default function PayinPage() {
           columns={[
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
+            { key: 'method', heading: 'METHOD' },
             ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
@@ -609,6 +640,7 @@ export default function PayinPage() {
           rows={rows.map((row) => ({
             ref: row.reference,
             utr: row.utr ?? '—',
+            method: row.payment_method ?? 'UPI',
             ...(showPanelUsername
               ? {
                   username: row.customer_ref?.trim() || '—',
@@ -670,8 +702,69 @@ export default function PayinPage() {
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
         />
       )}
-      {confirm ? (
-        <ConfirmDialog title={`${confirm.action} this pay-in?`} confirmLabel={confirm.action} loading={submitting === confirm.id} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} />
+      {confirm &&
+      confirm.action === 'accept' &&
+      confirm.paymentMethod === 'USDT_TRC20' &&
+      !confirm.pinnedUtr ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          role="dialog"
+          aria-label="Accept USDT pay-in"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border p-6"
+            style={{ backgroundColor: 'var(--qp-card)', borderColor: 'var(--qp-border)' }}
+          >
+            <h3 className="mb-1 text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>
+              Accept USDT/TRC20 pay-in?
+            </h3>
+            <p className="mb-4 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+              Enter the TRON transaction hash (64 hex). One hash can complete only one pay-in.
+            </p>
+            <FormField label="TRON chain_tx_hash" required>
+              <Input
+                value={acceptChainTx}
+                onChange={(event) => setAcceptChainTx(event.target.value.trim())}
+                placeholder="64-character hex"
+                autoComplete="off"
+              />
+            </FormField>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-lg border px-4 text-sm"
+                style={{ borderColor: 'var(--qp-border)' }}
+                onClick={() => {
+                  setConfirm(null)
+                  setAcceptChainTx('')
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submitting === confirm.id}
+                className="inline-flex h-9 items-center rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: 'var(--qp-primary)' }}
+                onClick={() => void handleAction()}
+              >
+                {submitting === confirm.id ? 'Accepting…' : 'Accept'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : confirm ? (
+        <ConfirmDialog
+          title={`${confirm.action} this pay-in?`}
+          confirmLabel={confirm.action}
+          loading={submitting === confirm.id}
+          onCancel={() => {
+            setConfirm(null)
+            setAcceptChainTx('')
+          }}
+          onConfirm={() => void handleAction()}
+        />
       ) : null}
       {acceptInjection ? (
         <Modal
