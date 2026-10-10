@@ -28,6 +28,10 @@ export default function NewBankerPage() {
   const [payinBp, setPayinBp] = useState(350)
   const [payoutBp, setPayoutBp] = useState(150)
   const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
+  const [minDepositMinor, setMinDepositMinor] = useState(0)
+  const [maxDepositMinor, setMaxDepositMinor] = useState(0)
+  const [minWithdrawalMinor, setMinWithdrawalMinor] = useState(0)
+  const [maxWithdrawalMinor, setMaxWithdrawalMinor] = useState(0)
   const offerableMenus = menusForRole('BANKER')
   const [selected, setSelected] = useState<MenuCode[]>(
     PHASE_1_BANKER_MENUS.filter((code) => offerableMenus.includes(code)),
@@ -54,9 +58,25 @@ export default function NewBankerPage() {
     if (!dailyDepositLimitMinor || dailyDepositLimitMinor <= 0) {
       nextErrors.daily_deposit_limit_minor = `Required when creating a ${bankerLabel()}`
     }
+    if (!minDepositMinor || minDepositMinor <= 0) {
+      nextErrors.min_deposit_minor = `Required when creating a ${bankerLabel()}`
+    }
+    if (!maxDepositMinor || maxDepositMinor <= 0) {
+      nextErrors.max_deposit_minor = `Required when creating a ${bankerLabel()}`
+    } else if (minDepositMinor > 0 && maxDepositMinor < minDepositMinor) {
+      nextErrors.max_deposit_minor = 'Must be greater than or equal to min deposit'
+    }
+    if (!minWithdrawalMinor || minWithdrawalMinor <= 0) {
+      nextErrors.min_withdrawal_minor = `Required when creating a ${bankerLabel()}`
+    }
+    if (!maxWithdrawalMinor || maxWithdrawalMinor <= 0) {
+      nextErrors.max_withdrawal_minor = `Required when creating a ${bankerLabel()}`
+    } else if (minWithdrawalMinor > 0 && maxWithdrawalMinor < minWithdrawalMinor) {
+      nextErrors.max_withdrawal_minor = 'Must be greater than or equal to min withdrawal'
+    }
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors)
-      setError(`Contact number and daily deposit limit are required for a ${bankerLabel()}`)
+      setError(`Contact number, daily deposit limit, and per-transaction limits are required for a ${bankerLabel()}`)
       return
     }
 
@@ -73,6 +93,10 @@ export default function NewBankerPage() {
           role: 'BANKER',
           mobile: mobile.trim(),
           daily_deposit_limit_minor: dailyDepositLimitMinor,
+          min_deposit_minor: minDepositMinor,
+          max_deposit_minor: maxDepositMinor,
+          min_withdrawal_minor: minWithdrawalMinor,
+          max_withdrawal_minor: maxWithdrawalMinor,
           rates: [
             { rate_kind: 'PAYIN', rate_bp: payinBp },
             { rate_kind: 'PAYOUT', rate_bp: payoutBp },
@@ -163,6 +187,54 @@ export default function NewBankerPage() {
                 id="daily-deposit-limit"
                 valueMinor={dailyDepositLimitMinor}
                 onChangeMinor={setDailyDepositLimitMinor}
+              />
+            </FormField>
+            <FormField
+              label="Min deposit (per txn)"
+              required
+              error={fieldErrors.min_deposit_minor}
+              hint="Gateway Pay-In: Banker instruments only for amounts ≥ this"
+            >
+              <MoneyInput
+                id="min-deposit"
+                valueMinor={minDepositMinor}
+                onChangeMinor={setMinDepositMinor}
+              />
+            </FormField>
+            <FormField
+              label="Max deposit (per txn)"
+              required
+              error={fieldErrors.max_deposit_minor}
+              hint="Gateway Pay-In: Banker instruments only for amounts ≤ this"
+            >
+              <MoneyInput
+                id="max-deposit"
+                valueMinor={maxDepositMinor}
+                onChangeMinor={setMaxDepositMinor}
+              />
+            </FormField>
+            <FormField
+              label="Min withdrawal (per txn)"
+              required
+              error={fieldErrors.min_withdrawal_minor}
+              hint="Gateway Pay-Out: default Banker only when amount ≥ this"
+            >
+              <MoneyInput
+                id="min-withdrawal"
+                valueMinor={minWithdrawalMinor}
+                onChangeMinor={setMinWithdrawalMinor}
+              />
+            </FormField>
+            <FormField
+              label="Max withdrawal (per txn)"
+              required
+              error={fieldErrors.max_withdrawal_minor}
+              hint="Gateway Pay-Out: out of range → Super Admin queue"
+            >
+              <MoneyInput
+                id="max-withdrawal"
+                valueMinor={maxWithdrawalMinor}
+                onChangeMinor={setMaxWithdrawalMinor}
               />
             </FormField>
           </FormGrid>

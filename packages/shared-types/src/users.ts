@@ -3,6 +3,7 @@
  *
  * Rates are integer basis points, never a percentage. Banker daily deposit limit is
  * integer paise (`daily_deposit_limit_minor`); enforced on IST-day COMPLETED Pay-In volume.
+ * Per-txn deposit/withdrawal floors and ceilings (`min_*` / `max_*_minor`) gate gateway allocation.
  */
 
 import type { BankingScope, MenuGrant } from './auth'
@@ -33,6 +34,14 @@ export interface UserListItem {
   user_code: string | null
   /** Banker daily deposit ceiling in paise. Null for non-Banker roles. */
   daily_deposit_limit_minor: number | null
+  /** Banker inclusive gateway Pay-In floor (paise). Null for non-Banker. */
+  min_deposit_minor: number | null
+  /** Banker inclusive gateway Pay-In ceiling (paise). Null for non-Banker. */
+  max_deposit_minor: number | null
+  /** Banker inclusive gateway Pay-Out floor for default banker (paise). Null for non-Banker. */
+  min_withdrawal_minor: number | null
+  /** Banker inclusive gateway Pay-Out ceiling for default banker (paise). Null for non-Banker. */
+  max_withdrawal_minor: number | null
   status: UserStatus
   operational_state: OperationalState
   auto_accept_enabled: boolean

@@ -191,12 +191,15 @@ export default function BanksPage() {
   }
 
   const handleOpenCreate = () => {
+    setAltCreate(null)
     setEditing(null)
     setForm(emptyCreateForm())
     setCreating(true)
   }
 
   const openAltCreate = (kind: 'MANUAL_BANK' | 'USDT_TRC20') => {
+    setCreating(false)
+    setEditing(null)
     setAltCreate(kind)
     setAltLabel('')
     setAltHolder('')
@@ -249,6 +252,7 @@ export default function BanksPage() {
   const handleOpenEdit = async (row: PaymentMethodListItem) => {
     if (row.method_kind !== 'UPI' || !row.bank_account_id || !accessToken) return
     const bankId = row.bank_account_id
+    setAltCreate(null)
     setCreating(false)
     try {
       const bank = await apiRequest<BankAccountListItem>(`/api/v1/bank-accounts/${bankId}`, {
@@ -265,17 +269,16 @@ export default function BanksPage() {
   }
 
   const buildSupagoBody = () => {
-    const minval = Number.parseInt(form.minval, 10)
-    const maxval = Number.parseInt(form.maxval, 10)
+    // Min/Max/Regex are fixed defaults — not shown in the UI.
     return {
       upi_address: form.upiAddress.trim().toLowerCase(),
       display_name: form.displayName.trim(),
       bank_name: form.displayName.trim(),
       description: form.description.trim() || DEFAULT_DESCRIPTION,
       remark: form.remark.trim() || DEFAULT_REMARK,
-      minval: Number.isFinite(minval) ? minval : Number(DEFAULT_MINVAL),
-      maxval: Number.isFinite(maxval) ? maxval : Number(DEFAULT_MAXVAL),
-      regex_pattern: form.regexPattern.trim() || DEFAULT_REGEX,
+      minval: Number(DEFAULT_MINVAL),
+      maxval: Number(DEFAULT_MAXVAL),
+      regex_pattern: DEFAULT_REGEX,
     }
   }
 
@@ -667,31 +670,83 @@ export default function BanksPage() {
                     aria-label="Remark"
                   />
                 </FormField>
-                <FormField label="Min amount (₹)">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={form.minval}
-                    onChange={(event) => handleFormChange({ minval: event.target.value })}
-                    aria-label="Min amount"
-                  />
+              </FormGrid>
+            </FormSection>
+          </FormShell>
+        </div>
+      ) : null}
+
+      {altCreate ? (
+        <div className="mb-4">
+          <FormShell
+            submitLabel={submitting === 'alt-create' ? 'Saving…' : 'Add'}
+            onCancel={() => setAltCreate(null)}
+            onSubmit={() => void submitAltCreate()}
+          >
+            <FormSection
+              title={altCreate === 'MANUAL_BANK' ? 'Add Manual bank' : 'Add USDT/TRC20'}
+              description={
+                altCreate === 'MANUAL_BANK'
+                  ? 'Creates a Manual bank collection instrument for the Banker (no panel slot).'
+                  : 'Creates a USDT/TRC20 wallet instrument for the Banker (no panel slot).'
+              }
+            >
+              <FormGrid>
+                <FormField label="Label" required>
+                  <Input value={altLabel} onChange={(e) => setAltLabel(e.target.value)} aria-label="Label" />
                 </FormField>
-                <FormField label="Max amount (₹)">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={form.maxval}
-                    onChange={(event) => handleFormChange({ maxval: event.target.value })}
-                    aria-label="Max amount"
-                  />
-                </FormField>
-                <FormField label="Regex pattern">
-                  <Input
-                    value={form.regexPattern}
-                    onChange={(event) => handleFormChange({ regexPattern: event.target.value })}
-                    aria-label="Regex pattern"
-                  />
-                </FormField>
+                {user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? (
+                  <FormField label={`${bankerLabel()} owner`} required>
+                    <Select
+                      value={altOwnerId}
+                      onChange={(e) => setAltOwnerId(e.target.value)}
+                      aria-label={`${bankerLabel()} owner`}
+                    >
+                      <option value="">Select owner</option>
+                      {ownerOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.username}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+                ) : null}
+                {altCreate === 'MANUAL_BANK' ? (
+                  <>
+                    <FormField label="Account holder" required>
+                      <Input
+                        value={altHolder}
+                        onChange={(e) => setAltHolder(e.target.value)}
+                        aria-label="Account holder"
+                      />
+                    </FormField>
+                    <FormField label="Account number" required>
+                      <Input
+                        value={altAccount}
+                        onChange={(e) => setAltAccount(e.target.value)}
+                        aria-label="Account number"
+                      />
+                    </FormField>
+                    <FormField label="IFSC" required>
+                      <Input value={altIfsc} onChange={(e) => setAltIfsc(e.target.value)} aria-label="IFSC" />
+                    </FormField>
+                    <FormField label="Bank name">
+                      <Input
+                        value={altBankName}
+                        onChange={(e) => setAltBankName(e.target.value)}
+                        aria-label="Bank name"
+                      />
+                    </FormField>
+                  </>
+                ) : (
+                  <FormField label="TRC20 wallet address" required>
+                    <Input
+                      value={altWallet}
+                      onChange={(e) => setAltWallet(e.target.value)}
+                      aria-label="Wallet address"
+                    />
+                  </FormField>
+                )}
               </FormGrid>
             </FormSection>
           </FormShell>
@@ -902,75 +957,6 @@ export default function BanksPage() {
           onCancel={() => setCloseTarget(null)}
           onConfirm={() => void handleClose()}
         />
-      ) : null}
-      {altCreate ? (
-        <Modal
-          title={altCreate === 'MANUAL_BANK' ? 'Add Manual bank' : 'Add USDT/TRC20'}
-          ariaLabel={altCreate === 'MANUAL_BANK' ? 'Add Manual bank' : 'Add USDT/TRC20'}
-          footer={
-            <>
-              <button
-                type="button"
-                className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium"
-                style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
-                onClick={() => setAltCreate(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-9 items-center rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
-                style={{ backgroundColor: 'var(--qp-primary)' }}
-                disabled={submitting === 'alt-create'}
-                onClick={() => void submitAltCreate()}
-              >
-                {submitting === 'alt-create' ? 'Saving…' : 'Create'}
-              </button>
-            </>
-          }
-        >
-          <FormGrid>
-            <FormField label="Label" required>
-              <Input value={altLabel} onChange={(e) => setAltLabel(e.target.value)} aria-label="Label" />
-            </FormField>
-            {user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? (
-              <FormField label={`${bankerLabel()} owner`} required>
-                <Select
-                  value={altOwnerId}
-                  onChange={(e) => setAltOwnerId(e.target.value)}
-                  aria-label={`${bankerLabel()} owner`}
-                >
-                  <option value="">Select owner</option>
-                  {ownerOptions.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.username}
-                    </option>
-                  ))}
-                </Select>
-              </FormField>
-            ) : null}
-            {altCreate === 'MANUAL_BANK' ? (
-              <>
-                <FormField label="Account holder" required>
-                  <Input value={altHolder} onChange={(e) => setAltHolder(e.target.value)} aria-label="Account holder" />
-                </FormField>
-                <FormField label="Account number" required>
-                  <Input value={altAccount} onChange={(e) => setAltAccount(e.target.value)} aria-label="Account number" />
-                </FormField>
-                <FormField label="IFSC" required>
-                  <Input value={altIfsc} onChange={(e) => setAltIfsc(e.target.value)} aria-label="IFSC" />
-                </FormField>
-                <FormField label="Bank name">
-                  <Input value={altBankName} onChange={(e) => setAltBankName(e.target.value)} aria-label="Bank name" />
-                </FormField>
-              </>
-            ) : (
-              <FormField label="TRC20 wallet address" required>
-                <Input value={altWallet} onChange={(e) => setAltWallet(e.target.value)} aria-label="Wallet address" />
-              </FormField>
-            )}
-          </FormGrid>
-        </Modal>
       ) : null}
       {otpChallenge ? (
         <Modal

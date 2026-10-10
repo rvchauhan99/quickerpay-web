@@ -31,6 +31,10 @@ export default function UserDetailPage() {
   const [email, setEmail] = useState('')
   const [mobile, setMobile] = useState('')
   const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
+  const [minDepositMinor, setMinDepositMinor] = useState(0)
+  const [maxDepositMinor, setMaxDepositMinor] = useState(0)
+  const [minWithdrawalMinor, setMinWithdrawalMinor] = useState(0)
+  const [maxWithdrawalMinor, setMaxWithdrawalMinor] = useState(0)
   const [savingIdentity, setSavingIdentity] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<'ACTIVE' | 'DISABLED' | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
@@ -49,6 +53,10 @@ export default function UserDetailPage() {
       setEmail(next.email ?? '')
       setMobile(next.mobile ?? '')
       setDailyDepositLimitMinor(next.daily_deposit_limit_minor ?? 0)
+      setMinDepositMinor(next.min_deposit_minor ?? 0)
+      setMaxDepositMinor(next.max_deposit_minor ?? 0)
+      setMinWithdrawalMinor(next.min_withdrawal_minor ?? 0)
+      setMaxWithdrawalMinor(next.max_withdrawal_minor ?? 0)
       setError(null)
       setFieldErrors({})
     } catch (caught) {
@@ -82,12 +90,22 @@ export default function UserDetailPage() {
           email: email.trim() ? email.trim() : null,
           mobile: splitE164(mobile).national ? mobile.trim() : null,
           ...(canEditDepositLimit && detail?.role === 'BANKER'
-            ? { daily_deposit_limit_minor: dailyDepositLimitMinor }
+            ? {
+                daily_deposit_limit_minor: dailyDepositLimitMinor,
+                min_deposit_minor: minDepositMinor,
+                max_deposit_minor: maxDepositMinor,
+                min_withdrawal_minor: minWithdrawalMinor,
+                max_withdrawal_minor: maxWithdrawalMinor,
+              }
             : {}),
         },
       })
       setDetail(next)
       setDailyDepositLimitMinor(next.daily_deposit_limit_minor ?? 0)
+      setMinDepositMinor(next.min_deposit_minor ?? 0)
+      setMaxDepositMinor(next.max_deposit_minor ?? 0)
+      setMinWithdrawalMinor(next.min_withdrawal_minor ?? 0)
+      setMaxWithdrawalMinor(next.max_withdrawal_minor ?? 0)
       toast.success('User updated')
     } catch (caught) {
       const next = formError(caught, 'Could not update user')
@@ -167,6 +185,10 @@ export default function UserDetailPage() {
             setEmail(detail.email ?? '')
             setMobile(detail.mobile ?? '')
             setDailyDepositLimitMinor(detail.daily_deposit_limit_minor ?? 0)
+            setMinDepositMinor(detail.min_deposit_minor ?? 0)
+            setMaxDepositMinor(detail.max_deposit_minor ?? 0)
+            setMinWithdrawalMinor(detail.min_withdrawal_minor ?? 0)
+            setMaxWithdrawalMinor(detail.max_withdrawal_minor ?? 0)
             setFieldErrors({})
             setError(null)
           } : undefined}
@@ -207,29 +229,92 @@ export default function UserDetailPage() {
                 />
               </FormField>
               {detail.role === 'BANKER' ? (
-                <FormField
-                  label="Daily deposit limit"
-                  required={canEditDepositLimit}
-                  error={fieldErrors.daily_deposit_limit_minor}
-                  hint="IST day COMPLETED Pay-In cap."
-                >
-                  {canEditDepositLimit ? (
-                    <MoneyInput
-                      id="user-daily-deposit-limit"
-                      valueMinor={dailyDepositLimitMinor}
-                      onChangeMinor={setDailyDepositLimitMinor}
-                      aria-label="Daily deposit limit"
-                    />
-                  ) : (
-                    <div className="flex h-9 items-center rounded-lg px-3 text-sm font-medium" style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}>
-                      {typeof detail.daily_deposit_limit_minor === 'number' ? (
-                        <MoneyDisplay amountMinor={detail.daily_deposit_limit_minor} />
+                <>
+                  <FormField
+                    label="Daily deposit limit"
+                    required={canEditDepositLimit}
+                    error={fieldErrors.daily_deposit_limit_minor}
+                    hint="IST day COMPLETED Pay-In cap."
+                  >
+                    {canEditDepositLimit ? (
+                      <MoneyInput
+                        id="user-daily-deposit-limit"
+                        valueMinor={dailyDepositLimitMinor}
+                        onChangeMinor={setDailyDepositLimitMinor}
+                        aria-label="Daily deposit limit"
+                      />
+                    ) : (
+                      <div className="flex h-9 items-center rounded-lg px-3 text-sm font-medium" style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}>
+                        {typeof detail.daily_deposit_limit_minor === 'number' ? (
+                          <MoneyDisplay amountMinor={detail.daily_deposit_limit_minor} />
+                        ) : (
+                          '—'
+                        )}
+                      </div>
+                    )}
+                  </FormField>
+                  {(
+                    [
+                      {
+                        key: 'min_deposit_minor' as const,
+                        label: 'Min deposit (per txn)',
+                        value: minDepositMinor,
+                        set: setMinDepositMinor,
+                        stored: detail.min_deposit_minor,
+                        hint: 'Gateway Pay-In floor.',
+                      },
+                      {
+                        key: 'max_deposit_minor' as const,
+                        label: 'Max deposit (per txn)',
+                        value: maxDepositMinor,
+                        set: setMaxDepositMinor,
+                        stored: detail.max_deposit_minor,
+                        hint: 'Gateway Pay-In ceiling.',
+                      },
+                      {
+                        key: 'min_withdrawal_minor' as const,
+                        label: 'Min withdrawal (per txn)',
+                        value: minWithdrawalMinor,
+                        set: setMinWithdrawalMinor,
+                        stored: detail.min_withdrawal_minor,
+                        hint: 'Gateway default Pay-Out floor.',
+                      },
+                      {
+                        key: 'max_withdrawal_minor' as const,
+                        label: 'Max withdrawal (per txn)',
+                        value: maxWithdrawalMinor,
+                        set: setMaxWithdrawalMinor,
+                        stored: detail.max_withdrawal_minor,
+                        hint: 'Out of range → Super Admin queue.',
+                      },
+                    ] as const
+                  ).map((field) => (
+                    <FormField
+                      key={field.key}
+                      label={field.label}
+                      required={canEditDepositLimit}
+                      error={fieldErrors[field.key]}
+                      hint={field.hint}
+                    >
+                      {canEditDepositLimit ? (
+                        <MoneyInput
+                          id={`user-${field.key}`}
+                          valueMinor={field.value}
+                          onChangeMinor={field.set}
+                          aria-label={field.label}
+                        />
                       ) : (
-                        '—'
+                        <div className="flex h-9 items-center rounded-lg px-3 text-sm font-medium" style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}>
+                          {typeof field.stored === 'number' ? (
+                            <MoneyDisplay amountMinor={field.stored} />
+                          ) : (
+                            '—'
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
-                </FormField>
+                    </FormField>
+                  ))}
+                </>
               ) : null}
             </FormGrid>
 
