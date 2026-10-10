@@ -437,7 +437,11 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
             <FormField label="API key (x-api-key header)">
               <div className="flex items-center gap-1">
                 <Input value={reveal.api_key} readOnly className="font-mono" aria-label="API key" />
-                <CopyButton value={reveal.api_key} label="Copy API key" />
+                <CopyButton
+                  value={reveal.api_key}
+                  label="Copy full API key"
+                  successMessage="Copied full API key"
+                />
               </div>
             </FormField>
           ) : null}
@@ -446,7 +450,11 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
               <FormField label="Webhook secret (verifies x-sp-signature)">
                 <div className="flex items-center gap-1">
                   <Input value={reveal.webhook_secret} readOnly className="font-mono" aria-label="Webhook secret" />
-                  <CopyButton value={reveal.webhook_secret} label="Copy webhook secret" />
+                  <CopyButton
+                    value={reveal.webhook_secret}
+                    label="Copy full webhook secret"
+                    successMessage="Copied full webhook secret"
+                  />
                 </div>
               </FormField>
             </div>

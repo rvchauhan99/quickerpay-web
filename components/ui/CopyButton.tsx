@@ -12,10 +12,13 @@ export function CopyButton({
   value,
   label,
   className = '',
+  successMessage = 'Copied',
 }: {
   value: string | null | undefined
   label: string
   className?: string
+  /** Toast body after a successful copy (use for one-time full secrets). */
+  successMessage?: string
 }) {
   const [copied, setCopied] = useState(false)
   const text = (value ?? '').trim()
@@ -28,7 +31,7 @@ export function CopyButton({
       toast.error('Could not copy')
       return
     }
-    toast.success('Copied')
+    toast.success(successMessage)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1500)
   }

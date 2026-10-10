@@ -91,6 +91,8 @@ export default function MerchantDetailPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [secretRegenConfirm, setSecretRegenConfirm] = useState(false)
   const [secretRegenBusy, setSecretRegenBusy] = useState(false)
+  const [keyRotateConfirm, setKeyRotateConfirm] = useState(false)
+  const [keyRotateBusy, setKeyRotateBusy] = useState(false)
   const [secretReveal, setSecretReveal] = useState<GatewaySecretReveal | null>(null)
 
   // Supago state
@@ -545,6 +547,49 @@ export default function MerchantDetailPage() {
     }
   }
 
+  const handlePortalResetPassword = async () => {
+    const portalUserId = merchant?.portal_user_id
+    const temp = portalPassword.trim()
+    if (!accessToken || !portalUserId || !temp || portalBusy) return
+    setPortalBusy(true)
+    try {
+      await apiRequest(`/api/v1/users/${portalUserId}/reset-password`, {
+        method: 'POST',
+        token: accessToken,
+        body: { temporary_password: temp, require_password_change: true },
+      })
+      setPortalOncePassword(temp)
+      setPortalPassword('')
+      toast.success('Portal password reset. Sessions revoked — copy the temporary password now.')
+    } catch (caught) {
+      toast.error(
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not reset portal password',
+      )
+    } finally {
+      setPortalBusy(false)
+    }
+  }
+
+  const handleRotateApiKey = async () => {
+    const keyId = gatewayConfig?.keys.find((k) => k.status === 'ACTIVE')?.id
+    if (!accessToken || !params.id || !keyId || keyRotateBusy) return
+    setKeyRotateBusy(true)
+    try {
+      const revealed = await apiRequest<GatewaySecretReveal>(
+        `/api/v1/merchants/${params.id}/gateway/keys/${keyId}/rotate`,
+        { method: 'POST', token: accessToken },
+      )
+      setKeyRotateConfirm(false)
+      setSecretReveal(revealed)
+      toast.success('Key rotated. The old key keeps working for 24 hours.')
+      await load({ silent: true })
+    } catch (caught) {
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not rotate API key')
+    } finally {
+      setKeyRotateBusy(false)
+    }
+  }
+
   const activeAdmins = admins.filter((row) => row.role === 'BANKER' && row.status === 'ACTIVE')
   const lockedPanel: PanelIntegrationType =
     merchant?.integration_type === 'SUPAGO'
@@ -585,13 +630,13 @@ export default function MerchantDetailPage() {
     }
   }
 
-  const activeKeyPrefix =
-    gatewayConfig?.keys.find((k) => k.status === 'ACTIVE')?.key_prefix ?? null
+  const activeKey = gatewayConfig?.keys.find((k) => k.status === 'ACTIVE') ?? null
+  const activeKeyPrefix = activeKey?.key_prefix ?? null
   const portalPasswordHint =
     merchant?.portal_user_id && merchant.portal_user_status === 'ACTIVE'
-      ? '••••••••'
+      ? '•••••••• — reset in Advanced Settings'
       : merchant?.portal_user_id && merchant.portal_user_status === 'DISABLED'
-        ? 'Disabled — enable in Advanced Settings'
+        ? 'Disabled — re-enable in Advanced Settings'
         : 'Enable in Advanced Settings'
 
   return (
@@ -694,7 +739,10 @@ export default function MerchantDetailPage() {
                   className="font-mono text-xs"
                 />
               </FormField>
-              <FormField label="Password">
+              <FormField
+                label="Portal password"
+                hint="Not editable here. Super Admin resets a temporary password in Advanced Settings → Portal access."
+              >
                 <Input value={portalPasswordHint} readOnly type="text" autoComplete="off" />
               </FormField>
               <div className="col-span-1 md:col-span-2">
@@ -739,13 +787,20 @@ export default function MerchantDetailPage() {
                         }
                         readOnly
                         className="font-mono"
+                        aria-label="API key prefix"
                       />
-                      {activeKeyPrefix ? (
-                        <CopyButton value={activeKeyPrefix} label="Copy key prefix" />
+                      {isSuperAdmin && canEdit && activeKey ? (
+                        <PrimaryButton
+                          disabled={keyRotateBusy || savingPrimary}
+                          onClick={() => setKeyRotateConfirm(true)}
+                        >
+                          Rotate key
+                        </PrimaryButton>
                       ) : null}
                     </div>
                     <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-                      Full token is shown once when you enable, create, or rotate a key in Advanced Settings.
+                      Prefix only on this screen. Full key is shown once when you enable, create, or rotate
+                      (use Rotate key).
                     </p>
                   </div>
                 </FormField>
@@ -872,11 +927,39 @@ export default function MerchantDetailPage() {
                   {portalOncePassword ? (
                     <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--qp-border)' }}>
                       Temporary password (shown once): <strong className="font-mono">{portalOncePassword}</strong>
+                      <span className="ml-2 inline-flex align-middle">
+                        <CopyButton
+                          value={portalOncePassword}
+                          label="Copy temporary portal password"
+                          successMessage="Copied temporary portal password"
+                        />
+                      </span>
                     </p>
                   ) : null}
-                  <PrimaryButton onClick={() => setPortalDisableConfirm(true)} disabled={portalBusy}>
-                    Disable portal
-                  </PrimaryButton>
+                  <FormField
+                    label="Temporary password"
+                    required
+                    hint="Sets a new temporary password and forces change on next portal login. Does not use the current password."
+                  >
+                    <Input
+                      type="password"
+                      value={portalPassword}
+                      onChange={(event) => setPortalPassword(event.target.value)}
+                      autoComplete="new-password"
+                      aria-label="Temporary portal password for reset"
+                    />
+                  </FormField>
+                  <div className="flex flex-wrap gap-2">
+                    <PrimaryButton
+                      onClick={() => void handlePortalResetPassword()}
+                      disabled={portalBusy || !portalPassword.trim()}
+                    >
+                      Reset portal password
+                    </PrimaryButton>
+                    <PrimaryButton onClick={() => setPortalDisableConfirm(true)} disabled={portalBusy}>
+                      Disable portal
+                    </PrimaryButton>
+                  </div>
                 </div>
               ) : merchant.portal_user_id && merchant.portal_user_status === 'DISABLED' ? (
                 <div className="space-y-3">
@@ -1518,6 +1601,17 @@ export default function MerchantDetailPage() {
         />
       ) : null}
 
+      {keyRotateConfirm ? (
+        <ConfirmDialog
+          title="Rotate API key?"
+          subtitle="A new full key is shown once. The previous key keeps working for 24 hours."
+          confirmLabel="Rotate key"
+          loading={keyRotateBusy}
+          onConfirm={() => void handleRotateApiKey()}
+          onCancel={() => setKeyRotateConfirm(false)}
+        />
+      ) : null}
+
       {secretReveal ? (
         <Modal
           title="Copy these now"
@@ -1531,6 +1625,23 @@ export default function MerchantDetailPage() {
           <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
             These values are shown once and cannot be read again. Store them in the panel&apos;s secret store.
           </p>
+          {secretReveal.api_key ? (
+            <FormField label="API key (x-api-key)">
+              <div className="flex items-center gap-1">
+                <Input
+                  value={secretReveal.api_key}
+                  readOnly
+                  className="font-mono"
+                  aria-label="Full API key"
+                />
+                <CopyButton
+                  value={secretReveal.api_key}
+                  label="Copy full API key"
+                  successMessage="Copied full API key"
+                />
+              </div>
+            </FormField>
+          ) : null}
           {secretReveal.webhook_secret ? (
             <FormField label="Webhook secret (verifies x-sp-signature)">
               <div className="flex items-center gap-1">
@@ -1540,7 +1651,11 @@ export default function MerchantDetailPage() {
                   className="font-mono"
                   aria-label="Webhook secret"
                 />
-                <CopyButton value={secretReveal.webhook_secret} label="Copy webhook secret" />
+                <CopyButton
+                  value={secretReveal.webhook_secret}
+                  label="Copy full webhook secret"
+                  successMessage="Copied full webhook secret"
+                />
               </div>
             </FormField>
           ) : null}
