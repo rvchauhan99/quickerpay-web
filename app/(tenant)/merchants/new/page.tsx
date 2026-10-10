@@ -15,10 +15,12 @@ import { RateInput } from '@/components/forms/RateInput'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { Modal } from '@/components/ui/Modal'
 import { toast } from 'sonner'
-import { apiRequest, formError } from '@/lib/api'
+import { apiRequest, ApiClientError, formError } from '@/lib/api'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
+
+type WithdrawRoutingMode = 'queue' | 'direct'
 
 export default function NewMerchantPage() {
   const router = useRouter()
@@ -31,6 +33,9 @@ export default function NewMerchantPage() {
   const [mobile, setMobile] = useState('')
   const [payinBp, setPayinBp] = useState(400)
   const [payoutBp, setPayoutBp] = useState(200)
+  const [portalPassword, setPortalPassword] = useState('')
+  const [routingMode, setRoutingMode] = useState<WithdrawRoutingMode>('queue')
+  const [routingAdminId, setRoutingAdminId] = useState('')
   const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
   const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -67,11 +72,26 @@ export default function NewMerchantPage() {
     setError(null)
     setFieldErrors({})
 
+    const tempPassword = portalPassword.trim()
+    if (!tempPassword) {
+      setFieldErrors({ temporary_password: 'Portal password is required.' })
+      setError('Set a temporary portal password for first login.')
+      return
+    }
+
     if (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
       setFieldErrors({
         banker_user_ids: `Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`,
       })
       setError(`Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`)
+      return
+    }
+
+    if (routingMode === 'direct' && !routingAdminId) {
+      setFieldErrors({
+        default_payout_banker_user_id: `Select a ${bankerLabel()} for Direct routing.`,
+      })
+      setError(`Select a ${bankerLabel()} for Direct withdrawal routing, or choose Super Admin queue.`)
       return
     }
 
@@ -94,11 +114,47 @@ export default function NewMerchantPage() {
           banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
       })
-      
+
       const enabled = await apiRequest<GatewaySecretReveal>(`/api/v1/merchants/${created.id}/gateway/enable`, {
         method: 'POST',
         token: accessToken,
       })
+
+      try {
+        const portal = await apiRequest<{ username: string }>(`/api/v1/merchants/${created.id}/portal/enable`, {
+          method: 'POST',
+          token: accessToken,
+          body: { temporary_password: tempPassword },
+        })
+        toast.success(`Portal enabled. Username: ${portal.username}`)
+      } catch (portalCaught) {
+        toast.error(
+          portalCaught instanceof ApiClientError
+            ? portalCaught.displayMessage()
+            : 'Portal enable failed — finish in Advanced Settings',
+        )
+      }
+
+      if (routingMode === 'direct' && routingAdminId) {
+        try {
+          await apiRequest(`/api/v1/merchants/${created.id}/payout-routing`, {
+            method: 'PATCH',
+            token: accessToken,
+            body: {
+              payout_banker_mode: 'ALL',
+              banker_user_ids: [],
+              default_payout_banker_user_id: routingAdminId,
+            },
+          })
+        } catch (routingCaught) {
+          toast.error(
+            routingCaught instanceof ApiClientError
+              ? routingCaught.displayMessage()
+              : 'Withdrawal routing failed — fix in Advanced Settings',
+          )
+        }
+      }
+
       setCreatedId(created.id)
       setReveal({
         ...(enabled.api_key ? { api_key: enabled.api_key } : {}),
@@ -157,8 +213,14 @@ export default function NewMerchantPage() {
             <FormField label="Payout URL (API path)">
               <Input value="" readOnly placeholder="Available after create" className="font-mono text-xs" />
             </FormField>
-            <FormField label="Password">
-              <Input value="" readOnly placeholder="Enable on detail → Advanced Settings" />
+            <FormField label="Portal password" required error={fieldErrors.temporary_password}>
+              <Input
+                type="password"
+                value={portalPassword}
+                onChange={(event) => setPortalPassword(event.target.value)}
+                autoComplete="new-password"
+                aria-label="Temporary portal password"
+              />
             </FormField>
 
             <div className="col-span-1 md:col-span-2">
@@ -188,12 +250,49 @@ export default function NewMerchantPage() {
                   </div>
                 )}
               </FormField>
-              <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                Withdrawal routing starts as Super Admin queue (unassigned). Change later under Advanced
-                Settings → Withdrawal routing.
-              </p>
             </div>
-            <div className="col-span-1 md:col-span-3">
+
+            <FormField
+              label="New withdrawals go to"
+              required
+              error={fieldErrors.default_payout_banker_user_id}
+              hint="Who may take withdrawals (allowlist) is set in Advanced Settings after create."
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                <Select
+                  id="create-withdraw-routing-mode"
+                  value={routingMode}
+                  onChange={(event) => {
+                    const next = event.target.value as WithdrawRoutingMode
+                    setRoutingMode(next)
+                    if (next === 'queue') setRoutingAdminId('')
+                  }}
+                  aria-label="Withdraw default assign mode"
+                  className="flex-1"
+                >
+                  <option value="queue">Super Admin queue (assign later)</option>
+                  <option value="direct">Direct to {bankerLabel()}</option>
+                </Select>
+                {routingMode === 'direct' ? (
+                  <Select
+                    id="create-withdraw-routing-admin"
+                    value={routingAdminId}
+                    onChange={(event) => setRoutingAdminId(event.target.value)}
+                    aria-label={`Auto-assign payout ${bankerLabel()}`}
+                    className="flex-1"
+                  >
+                    <option value="">Select {bankerLabel()}</option>
+                    {activeAdmins.map((admin) => (
+                      <option key={admin.id} value={admin.id}>
+                        {admin.username}
+                      </option>
+                    ))}
+                  </Select>
+                ) : null}
+              </div>
+            </FormField>
+
+            <div className="col-span-1 md:col-span-2">
               <FormField label="API Key">
                 <Input value="" readOnly placeholder="Generated after save — shown once" className="font-mono" />
               </FormField>

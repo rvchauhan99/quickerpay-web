@@ -632,12 +632,6 @@ export default function MerchantDetailPage() {
 
   const activeKey = gatewayConfig?.keys.find((k) => k.status === 'ACTIVE') ?? null
   const activeKeyPrefix = activeKey?.key_prefix ?? null
-  const portalPasswordHint =
-    merchant?.portal_user_id && merchant.portal_user_status === 'ACTIVE'
-      ? '•••••••• — reset in Advanced Settings'
-      : merchant?.portal_user_id && merchant.portal_user_status === 'DISABLED'
-        ? 'Disabled — re-enable in Advanced Settings'
-        : 'Enable in Advanced Settings'
 
   return (
     <AppShell title={`${merchantLabel()} Detail`} role={user.role} menus={menus}>
@@ -738,12 +732,6 @@ export default function MerchantDetailPage() {
                   readOnly
                   className="font-mono text-xs"
                 />
-              </FormField>
-              <FormField
-                label="Portal password"
-                hint="Not editable here. Super Admin resets a temporary password in Advanced Settings → Portal access."
-              >
-                <Input value={portalPasswordHint} readOnly type="text" autoComplete="off" />
               </FormField>
               <div className="col-span-1 md:col-span-2">
                 <FormField label={`Assigned Bankers (Deposit Managed By)`}>

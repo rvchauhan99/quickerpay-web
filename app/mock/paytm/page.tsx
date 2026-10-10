@@ -12,16 +12,27 @@ interface MockOrder {
   orderStatus: string
   orderCompletedTime: string
   payMoneyAmount: { currency: string; value: string }
-  additionalInfo?: { virtualPaymentAddr?: string; customerName?: string }
+  additionalInfo?: {
+    virtualPaymentAddr?: string
+    customerName?: string
+    /** Bank RRN — what Paytm Sync posts as utr */
+    rrn?: string
+  }
 }
 
 const STORAGE_KEY = 'quickerpay-mock-paytm-orders'
 
 function nextTxnId(): string {
-  // 35-digit Paytm-style Transaction ID
+  // 35-digit Paytm-style Transaction ID (not posted as UTR)
   const stamp = Date.now().toString()
   const pad = `${stamp}${Math.floor(Math.random() * 1e12)}`.replace(/\D/g, '')
   return `2026${pad}`.slice(0, 35).padEnd(35, '0')
+}
+
+function nextRrn(): string {
+  // 12-digit UPI RRN style
+  const n = `${Date.now()}${Math.floor(Math.random() * 1e6)}`.replace(/\D/g, '')
+  return n.slice(-12).padStart(12, '0')
 }
 
 function seedOrders(): MockOrder[] {
@@ -32,7 +43,11 @@ function seedOrders(): MockOrder[] {
       orderStatus: 'SUCCESS',
       orderCompletedTime: now,
       payMoneyAmount: { currency: 'INR', value: '200000' },
-      additionalInfo: { virtualPaymentAddr: 'payer@ptyes', customerName: 'Mock Customer' },
+      additionalInfo: {
+        virtualPaymentAddr: 'payer@ptyes',
+        customerName: 'Mock Customer',
+        rrn: nextRrn(),
+      },
     },
   ]
 }
@@ -44,7 +59,15 @@ function readStored(): MockOrder[] {
     if (!raw) return seedOrders()
     const parsed = JSON.parse(raw) as MockOrder[]
     if (!Array.isArray(parsed) || parsed.length === 0) return seedOrders()
-    return parsed
+    // Backfill RRN on older localStorage rows so the extension can ingest them.
+    return parsed.map((row) => {
+      const rrn = String(row.additionalInfo?.rrn || '').replace(/\D/g, '')
+      if (rrn) return row
+      return {
+        ...row,
+        additionalInfo: { ...row.additionalInfo, rrn: nextRrn() },
+      }
+    })
   } catch {
     return seedOrders()
   }
@@ -60,7 +83,7 @@ export default function MockPaytmPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [amountRupees, setAmountRupees] = useState('1250.50')
-  const [customTxnId, setCustomTxnId] = useState('')
+  const [customRrn, setCustomRrn] = useState('')
 
   useEffect(() => {
     setOrders(readStored())
@@ -89,15 +112,19 @@ export default function MockPaytmPage() {
     const rupees = Number.parseFloat(amountRupees.replace(/,/g, ''))
     const minor =
       Number.isFinite(rupees) && rupees > 0 ? Math.round(rupees * 100) : 125050
-    const bizOrderId = customTxnId.replace(/\D/g, '').slice(0, 40) || nextTxnId()
+    const rrn = customRrn.replace(/\D/g, '').slice(0, 40) || nextRrn()
     pushOrder({
-      bizOrderId,
+      bizOrderId: nextTxnId(),
       orderStatus: 'SUCCESS',
       orderCompletedTime: new Date().toISOString(),
       payMoneyAmount: { currency: 'INR', value: String(minor) },
-      additionalInfo: { virtualPaymentAddr: 'payer@ptyes', customerName: 'Mock Customer' },
+      additionalInfo: {
+        virtualPaymentAddr: 'payer@ptyes',
+        customerName: 'Mock Customer',
+        rrn,
+      },
     })
-    setCustomTxnId('')
+    setCustomRrn('')
   }
 
   const handleClear = () => {
@@ -113,8 +140,9 @@ export default function MockPaytmPage() {
           Local test fixture — not Paytm
         </p>
         <p className="mt-1 text-sm text-zinc-600">
-          Emits the same shape as dashboard <code>POST /api/v3/order/list</code>: full Transaction ID
-          (<code>bizOrderId</code>) and amount in paise. Open{' '}
+          Emits list-shaped orders with <code>additionalInfo.rrn</code> (posted as{' '}
+          <code>utr</code>) plus <code>bizOrderId</code> and amount in paise. Live Paytm Sync
+          resolves RRN via <code>POST /api/v4/order/detail</code>; mock skips that call. Open{' '}
           <a className="underline" href="http://localhost:3000/mock/paytm">
             http://localhost:3000/mock/paytm
           </a>
@@ -133,11 +161,11 @@ export default function MockPaytmPage() {
             aria-label="Mock amount"
           />
         </FormField>
-        <FormField label="Transaction ID (optional)">
+        <FormField label="RRN (optional)">
           <Input
-            value={customTxnId}
-            onChange={(event) => setCustomTxnId(event.target.value)}
-            aria-label="Mock Transaction ID"
+            value={customRrn}
+            onChange={(event) => setCustomRrn(event.target.value)}
+            aria-label="Mock RRN"
           />
         </FormField>
         <div className="flex flex-wrap items-end gap-2 pt-1 ml-auto">
@@ -156,12 +184,14 @@ export default function MockPaytmPage() {
         columns={[
           { key: 'time', heading: 'TIME' },
           { key: 'customer', heading: 'CUSTOMER' },
+          { key: 'rrn', heading: 'RRN' },
           { key: 'txn', heading: 'TRANSACTION ID' },
           { key: 'amount', heading: 'AMOUNT' },
         ]}
         rows={pageRows.map((row) => ({
           time: row.orderCompletedTime,
           customer: row.additionalInfo?.customerName || '—',
+          rrn: row.additionalInfo?.rrn || '—',
           txn: row.bizOrderId,
           amount: `₹${(Number(row.payMoneyAmount.value) / 100).toLocaleString('en-IN')}`,
         }))}
