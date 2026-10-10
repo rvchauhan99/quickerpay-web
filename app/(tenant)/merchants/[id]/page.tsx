@@ -1009,22 +1009,22 @@ export default function MerchantDetailPage() {
             </>
           ) : (
             <FormSection title="Withdrawal routing">
+              <FormField label="New withdrawals go to">
+                <Input
+                  value={
+                    merchant.default_payout_banker_username ??
+                    merchant.default_payout_banker_user_id ??
+                    'Super Admin queue'
+                  }
+                  readOnly
+                />
+              </FormField>
               <FormField label="Who may take withdrawals">
                 <Input
                   value={
                     (merchant.payout_banker_mode ?? 'ALL') === 'ALL'
                       ? `All ${bankerLabel({ plural: true })}`
                       : `Selected ${bankerLabel({ plural: true })} (${(merchant.payout_banker_user_ids ?? []).length})`
-                  }
-                  readOnly
-                />
-              </FormField>
-              <FormField label={`Default ${bankerLabel()}`}>
-                <Input
-                  value={
-                    merchant.default_payout_banker_username ??
-                    merchant.default_payout_banker_user_id ??
-                    'Super Admin queue'
                   }
                   readOnly
                 />

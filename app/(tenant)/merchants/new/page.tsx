@@ -188,6 +188,10 @@ export default function NewMerchantPage() {
                   </div>
                 )}
               </FormField>
+              <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+                Withdrawal routing starts as Super Admin queue (unassigned). Change later under Advanced
+                Settings → Withdrawal routing.
+              </p>
             </div>
             <div className="col-span-1 md:col-span-3">
               <FormField label="API Key">
