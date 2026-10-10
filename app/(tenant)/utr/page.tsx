@@ -6,16 +6,12 @@ import type { Pagination, UpiAccountListItem, UtrListItem } from '@quickerpay/sh
 import { UTR_STATUSES } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
-import { FormGrid } from '@/components/forms/FormGrid'
-import { FormSection } from '@/components/forms/FormSection'
-import { FormShell } from '@/components/forms/FormShell'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
-import { MoneyInput } from '@/components/forms/MoneyInput'
 import { IconButton } from '@/components/ui/IconButton'
 import { Unlock, X } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
@@ -44,10 +40,6 @@ export default function UtrPage() {
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [amountMinor, setAmountMinor] = useState(0)
-  const [utr, setUtr] = useState('')
-  const [upiId, setUpiId] = useState('')
   const [confirm, setConfirm] = useState<{ id: string; action: 'reject' | 'release' } | null>(null)
   const [unclaimedBanner, setUnclaimedBanner] = useState<{ count: number; amount_minor: number } | null>(null)
 
@@ -147,25 +139,6 @@ export default function UtrPage() {
     )
   }
 
-  const handleCreate = async () => {
-    if (!accessToken || submitting) return
-    setSubmitting('create')
-    try {
-      await apiRequest('/api/v1/utr', {
-        method: 'POST',
-        token: accessToken,
-        body: { amount_minor: amountMinor, utr, upi_account_id: upiId },
-      })
-      setCreating(false)
-      toast.success('UTR added')
-      await load()
-    } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not add UTR')
-    } finally {
-      setSubmitting(null)
-    }
-  }
-
   const handleAction = async () => {
     if (!confirm || !accessToken || submitting) return
     setSubmitting(confirm.id)
@@ -192,17 +165,11 @@ export default function UtrPage() {
 
   return (
     <AppShell title="Banker UTR Entries" role={user.role} menus={menus}>
-      <PageHeader
-        title="Banker UTR Entries"
-        action={
-          hasMenu(menus, 'UTR', 'can_create') ? (
-            <PrimaryButton onClick={() => setCreating(true)}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add UTR
-            </PrimaryButton>
-          ) : null
-        }
-      />
+      <PageHeader title="Banker UTR Entries" />
+      <p className="mb-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+        UTR entries are recorded from bank transactions via the extension (BOT). Manual Add on this screen
+        is not allowed.
+      </p>
       {unclaimedBanner ? (
         <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           {unclaimedBanner.count} unclaimed UTR{unclaimedBanner.count === 1 ? '' : 's'} (
@@ -287,31 +254,6 @@ export default function UtrPage() {
           />
         </div>
       </FilterBar>
-
-      {creating ? (
-        <div className="mb-qp-gap">
-          <FormShell submitLabel="Add" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
-            <FormSection title="Add Manual UTR" description="Manually record a UTR to force reconciliation.">
-              <FormGrid>
-                <FormField label="Bank/UPI Account" required>
-                  <Select value={upiId} onChange={(event) => setUpiId(event.target.value)}>
-                    <option value="" disabled>Select account</option>
-                    {utrUpis.map((upi) => (
-                      <option key={upi.id} value={upi.id}>{upi.upi_address}</option>
-                    ))}
-                  </Select>
-                </FormField>
-                <FormField label="UTR Number" required>
-                  <Input value={utr} onChange={(event) => setUtr(event.target.value)} />
-                </FormField>
-                <FormField label="Amount">
-                  <MoneyInput id="amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
-                </FormField>
-              </FormGrid>
-            </FormSection>
-          </FormShell>
-        </div>
-      ) : null}
 
       {loading ? <TableSkeleton /> : (
         <DataTable
