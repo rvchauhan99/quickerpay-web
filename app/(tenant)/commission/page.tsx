@@ -13,7 +13,7 @@ import { FormField } from '@/components/forms/FormField'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { downloadExport } from '@/lib/export'
-import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { hasMenu, useSession } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -72,7 +72,7 @@ export default function CommissionPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const hideMargin = user?.role === 'BANKER'
+  const hideMargin = user?.role === 'BANKER' || user?.role === 'AGENT'
 
   const load = useCallback(async () => {
     if (!accessToken) return
@@ -188,6 +188,7 @@ export default function CommissionPage() {
             <SummaryRow label="Eligible volume" a={payinKind.eligible_volume_minor} b={payoutKind.eligible_volume_minor} c={summary.total.eligible_volume_minor} />
             <SummaryRow label={`${merchantLabel()} commission`} a={payinKind.merchant_commission_minor} b={payoutKind.merchant_commission_minor} c={summary.total.merchant_commission_minor} />
             <SummaryRow label={`${bankerLabel()} commission`} a={payinKind.banker_commission_minor} b={payoutKind.banker_commission_minor} c={summary.total.banker_commission_minor} />
+            <SummaryRow label={`${agentLabel()} commission`} a={payinKind.agent_commission_minor} b={payoutKind.agent_commission_minor} c={summary.total.agent_commission_minor} />
             {hideMargin ? null : (
               <SummaryRow label="Your margin" a={payinKind.margin_minor} b={payoutKind.margin_minor} c={summary.total.margin_minor} />
             )}
@@ -214,8 +215,10 @@ export default function CommissionPage() {
           { key: 'eligible', heading: 'Eligible volume' },
           { key: 'merchant_rate', heading: `${merchantLabel()} rate` },
           { key: 'admin_rate', heading: `${bankerLabel()} rate` },
+          { key: 'agent_rate', heading: `${agentLabel()} rate` },
           { key: 'merchant', heading: `${merchantLabel()} commission` },
           { key: 'admin', heading: `${bankerLabel()} commission` },
+          { key: 'agent', heading: `${agentLabel()} commission` },
           ...(hideMargin ? [] : [{ key: 'margin', heading: 'Margin' }]),
         ]}
         rows={entries.map((row) => ({
@@ -224,8 +227,10 @@ export default function CommissionPage() {
           eligible: <MoneyDisplay amountMinor={row.eligible_amount_minor} />,
           merchant_rate: <RateDisplay rateBp={row.merchant_rate_bp} />,
           admin_rate: <RateDisplay rateBp={row.banker_rate_bp} />,
+          agent_rate: <RateDisplay rateBp={row.agent_rate_bp} />,
           merchant: <MoneyDisplay amountMinor={row.merchant_commission_minor} />,
           admin: <MoneyDisplay amountMinor={row.banker_commission_minor} />,
+          agent: <MoneyDisplay amountMinor={row.agent_commission_minor} />,
           margin: <MoneyDisplay amountMinor={row.margin_minor} />,
         }))}
         empty={<EmptyState message="No records match these filters" onClear={handleClear} />}

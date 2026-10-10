@@ -12,7 +12,6 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { RateInput } from '@/components/forms/RateInput'
-import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { Modal } from '@/components/ui/Modal'
 import { toast } from 'sonner'
@@ -21,12 +20,10 @@ import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
-type PanelIntegrationType = 'none' | 'supago' | 'crici' | 'api'
-
 export default function NewMerchantPage() {
   const router = useRouter()
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('MERCHANTS')
-  const { isSuperAdmin, admins } = useSuperAdminDirectory(accessToken, user?.role)
+  const { admins } = useSuperAdminDirectory(accessToken, user?.role)
   const [legalName, setLegalName] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [code, setCode] = useState('')
@@ -34,13 +31,6 @@ export default function NewMerchantPage() {
   const [mobile, setMobile] = useState('')
   const [payinBp, setPayinBp] = useState(400)
   const [payoutBp, setPayoutBp] = useState(200)
-  const [panelType, setPanelType] = useState<PanelIntegrationType>('none')
-  const [supagoUsername, setSupagoUsername] = useState('')
-  const [supagoPassword, setSupagoPassword] = useState('')
-  const [supagoTransactionCode, setSupagoTransactionCode] = useState('')
-  const [criciUsername, setCriciUsername] = useState('')
-  const [criciPassword, setCriciPassword] = useState('')
-  const [criciTotpCode, setCriciTotpCode] = useState('')
   const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
   const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -59,22 +49,6 @@ export default function NewMerchantPage() {
     setBankAdminIds((prev) =>
       prev.includes(adminId) ? prev.filter((id) => id !== adminId) : [...prev, adminId],
     )
-  }
-
-  const handlePanelTypeChange = (next: PanelIntegrationType) => {
-    setPanelType(next)
-    setFieldErrors({})
-    setError(null)
-    if (next !== 'supago') {
-      setSupagoUsername('')
-      setSupagoPassword('')
-      setSupagoTransactionCode('')
-    }
-    if (next !== 'crici') {
-      setCriciUsername('')
-      setCriciPassword('')
-      setCriciTotpCode('')
-    }
   }
 
   const goToDetail = (id: string) => {
@@ -101,36 +75,6 @@ export default function NewMerchantPage() {
       return
     }
 
-    const trimmedSupagoUsername = supagoUsername.trim()
-    const trimmedSupagoPassword = supagoPassword.trim()
-    const trimmedTransactionCode = supagoTransactionCode.trim()
-    const trimmedCriciUsername = criciUsername.trim()
-    const trimmedCriciPassword = criciPassword.trim()
-    const trimmedCriciTotp = criciTotpCode.trim()
-
-    if (panelType === 'supago') {
-      if (!trimmedSupagoUsername || !trimmedSupagoPassword || !trimmedTransactionCode) {
-        const nextErrors: Record<string, string> = {}
-        if (!trimmedSupagoUsername) nextErrors.supago_username = 'Required when connecting Supago'
-        if (!trimmedSupagoPassword) nextErrors.supago_password = 'Required when connecting Supago'
-        if (!trimmedTransactionCode) nextErrors.supago_transaction_code = 'Required when connecting Supago'
-        setFieldErrors(nextErrors)
-        setError('Supago username, password, and transaction code are all required to connect')
-        return
-      }
-    }
-
-    if (panelType === 'crici') {
-      if (!trimmedCriciUsername || !trimmedCriciPassword) {
-        const nextErrors: Record<string, string> = {}
-        if (!trimmedCriciUsername) nextErrors.crici_username = 'Required when connecting Crici'
-        if (!trimmedCriciPassword) nextErrors.crici_password = 'Required when connecting Crici'
-        setFieldErrors(nextErrors)
-        setError('Crici username and password are required to connect')
-        return
-      }
-    }
-
     setSubmitting(true)
     try {
       const created = await apiRequest<{ id: string }>('/api/v1/merchants', {
@@ -150,43 +94,18 @@ export default function NewMerchantPage() {
           banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
       })
-      if (panelType === 'supago') {
-        await apiRequest(`/api/v1/merchants/${created.id}/supago`, {
-          method: 'PATCH',
-          token: accessToken,
-          body: {
-            supago_username: trimmedSupagoUsername,
-            supago_password: trimmedSupagoPassword,
-            supago_transaction_code: trimmedTransactionCode,
-          },
-        })
-      }
-      if (panelType === 'crici') {
-        await apiRequest(`/api/v1/merchants/${created.id}/crici`, {
-          method: 'PATCH',
-          token: accessToken,
-          body: {
-            crici_username: trimmedCriciUsername,
-            crici_password: trimmedCriciPassword,
-            ...(trimmedCriciTotp ? { crici_totp_code: trimmedCriciTotp } : {}),
-          },
-        })
-      }
-      if (panelType === 'api') {
-        const enabled = await apiRequest<GatewaySecretReveal>(`/api/v1/merchants/${created.id}/gateway/enable`, {
-          method: 'POST',
-          token: accessToken,
-        })
-        setCreatedId(created.id)
-        setReveal({
-          ...(enabled.api_key ? { api_key: enabled.api_key } : {}),
-          ...(enabled.webhook_secret ? { webhook_secret: enabled.webhook_secret } : {}),
-        })
-        toast.success(`${label} created with Gateway API`)
-        return
-      }
-      toast.success(`${label} created`)
-      router.replace('/merchants')
+      
+      const enabled = await apiRequest<GatewaySecretReveal>(`/api/v1/merchants/${created.id}/gateway/enable`, {
+        method: 'POST',
+        token: accessToken,
+      })
+      setCreatedId(created.id)
+      setReveal({
+        ...(enabled.api_key ? { api_key: enabled.api_key } : {}),
+        ...(enabled.webhook_secret ? { webhook_secret: enabled.webhook_secret } : {}),
+      })
+      toast.success(`${label} created with Gateway API`)
+      return
     } catch (caught) {
       const next = formError(caught, 'Could not create')
       setError(next.banner)
@@ -203,149 +122,79 @@ export default function NewMerchantPage() {
         <ErrorAlert message={error} />
       </div>
       <FormShell
-        wide
         compact
+        width="full"
         submitLabel={submitting ? 'Creating…' : 'Create'}
         onSubmit={() => void handleSubmit()}
       >
         <FormSection title={label}>
-          <FormGrid>
-            <FormField label="Legal Name" required error={fieldErrors.legal_name}>
+          <FormGrid cols={5}>
+            <FormField label={`${label} Code`} required error={fieldErrors.merchant_code}>
+              <Input value={code} onChange={(event) => setCode(event.target.value)} />
+            </FormField>
+            <FormField label="Exchange Name" required error={fieldErrors.legal_name}>
               <Input value={legalName} onChange={(event) => setLegalName(event.target.value)} />
+            </FormField>
+            <FormField label="Deposit Charge (%)">
+              <RateInput id="m-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
+            </FormField>
+            <FormField label="Withdrawal Charge (%)">
+              <RateInput id="m-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
             </FormField>
             <FormField label="Display Name" error={fieldErrors.display_name}>
               <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
             </FormField>
-            <FormField label={`${label} Code`} required error={fieldErrors.merchant_code}>
-              <Input value={code} onChange={(event) => setCode(event.target.value)} />
-            </FormField>
+
             <FormField label="Contact Email" error={fieldErrors.contact_email}>
               <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
             </FormField>
             <FormField label="Contact Mobile" error={fieldErrors.contact_mobile}>
               <Input type="tel" value={mobile} onChange={(event) => setMobile(event.target.value)} />
             </FormField>
-            <FormField label="PAY-IN Rate">
-              <RateInput id="m-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
+            <FormField label="URL (Webhook)">
+              <Input value="" readOnly placeholder="Available after create" className="font-mono text-xs" />
             </FormField>
-            <FormField label="PAY-OUT Rate">
-              <RateInput id="m-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
+            <FormField label="Payout URL (API path)">
+              <Input value="" readOnly placeholder="Available after create" className="font-mono text-xs" />
             </FormField>
-          </FormGrid>
-        </FormSection>
+            <FormField label="Password">
+              <Input value="" readOnly placeholder="Enable on detail → Advanced Settings" />
+            </FormField>
 
-        {isSuperAdmin ? (
-          <BankAdminsFormSection
-            compact
-            mode={bankAdminMode}
-            selectedIds={bankAdminIds}
-            admins={activeAdmins}
-            onModeChange={setBankAdminMode}
-            onToggleAdmin={handleToggleAdmin}
-            disabled={submitting}
-          />
-        ) : null}
-
-        <FormSection
-          title="Integration"
-          description={`Optional. One integration per ${label} — Supago, Crici, or SafePay247 Gateway API.`}
-        >
-          <FormGrid>
-            <FormField label="Integration">
-              <Select
-                id="create-panel-integration"
-                value={panelType}
-                onChange={(event) => handlePanelTypeChange(event.target.value as PanelIntegrationType)}
-                aria-label="Integration type"
-                disabled={submitting}
+            <div className="col-span-1 md:col-span-2">
+              <FormField
+                label={`Assigned Bankers (Deposit Managed By)`}
+                error={fieldErrors.banker_user_ids}
               >
-                <option value="none">None</option>
-                <option value="supago">Supago</option>
-                <option value="crici">Crici</option>
-                <option value="api">SafePay247 Gateway API</option>
-              </Select>
-            </FormField>
+                <Select
+                  value={bankAdminMode}
+                  onChange={(e) => setBankAdminMode(e.target.value as BankAdminMode)}
+                >
+                  <option value="ALL">All {bankerLabel({ plural: true })}</option>
+                  <option value="SELECTED">Selected {bankerLabel({ plural: true })}</option>
+                </Select>
+                {bankAdminMode === 'SELECTED' && (
+                  <div className="mt-2 flex flex-col gap-1 max-h-32 overflow-y-auto border rounded p-2">
+                    {activeAdmins.map((admin) => (
+                      <label key={admin.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={bankAdminIds.includes(admin.id)}
+                          onChange={() => handleToggleAdmin(admin.id)}
+                        />
+                        {admin.username}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </FormField>
+            </div>
+            <div className="col-span-1 md:col-span-3">
+              <FormField label="API Key">
+                <Input value="" readOnly placeholder="Generated after save — shown once" className="font-mono" />
+              </FormField>
+            </div>
           </FormGrid>
-
-          {panelType === 'api' ? (
-            <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-              Creates the {label} and enables the Gateway API immediately. The API key and webhook secret are shown
-              once — store them in the panel&apos;s secret store. Configure webhook URL on the detail page.
-            </p>
-          ) : null}
-
-          {panelType === 'supago' ? (
-            <div className="mt-qp-gap">
-              <FormGrid>
-                <FormField label="Supago Username" required error={fieldErrors.supago_username}>
-                  <Input
-                    value={supagoUsername}
-                    onChange={(event) => setSupagoUsername(event.target.value)}
-                    placeholder="Supago username"
-                    aria-label="Supago username"
-                  />
-                </FormField>
-                <FormField label="Supago Password" required error={fieldErrors.supago_password}>
-                  <Input
-                    type="password"
-                    value={supagoPassword}
-                    onChange={(event) => setSupagoPassword(event.target.value)}
-                    placeholder="Supago password"
-                    aria-label="Supago password"
-                  />
-                </FormField>
-                <FormField label="Transaction Code" required error={fieldErrors.supago_transaction_code}>
-                  <Input
-                    value={supagoTransactionCode}
-                    onChange={(event) => setSupagoTransactionCode(event.target.value)}
-                    placeholder="e.g. 643795"
-                    aria-label="Supago transaction code"
-                  />
-                </FormField>
-              </FormGrid>
-            </div>
-          ) : null}
-
-          {panelType === 'crici' ? (
-            <div className="mt-qp-gap">
-              <FormGrid>
-                <FormField label="Crici Username" required error={fieldErrors.crici_username}>
-                  <Input
-                    value={criciUsername}
-                    onChange={(event) => setCriciUsername(event.target.value)}
-                    placeholder="Crici username"
-                    aria-label="Crici username"
-                    autoComplete="off"
-                  />
-                </FormField>
-                <FormField label="Crici Password" required error={fieldErrors.crici_password}>
-                  <Input
-                    type="password"
-                    value={criciPassword}
-                    onChange={(event) => setCriciPassword(event.target.value)}
-                    placeholder="Crici password"
-                    aria-label="Crici password"
-                    autoComplete="new-password"
-                  />
-                </FormField>
-                <FormField label="Authenticator code" error={fieldErrors.crici_totp_code}>
-                  <Input
-                    value={criciTotpCode}
-                    onChange={(event) =>
-                      setCriciTotpCode(event.target.value.replace(/\D/g, '').slice(0, 6))
-                    }
-                    placeholder="6-digit code if 2FA enabled"
-                    aria-label="Crici Google Authenticator code"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                  />
-                </FormField>
-              </FormGrid>
-              <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                Password is write-only after connect. If Google Authenticator is enabled on Crici, include a fresh code.
-              </p>
-            </div>
-          ) : null}
         </FormSection>
       </FormShell>
 

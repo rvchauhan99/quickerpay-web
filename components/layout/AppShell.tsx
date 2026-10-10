@@ -427,6 +427,10 @@ export function AppShell({
     !forcePasswordChange && menus.some((grant) => grant.menu_code === code && grant.can_view && panelBankNavVisible(code))
   const showBankerMaster =
     role === 'SUPER_ADMIN' && !forcePasswordChange && menus.some((grant) => grant.menu_code === 'USERS' && grant.can_view)
+  const showAgentsMaster =
+    (role === 'SUPER_ADMIN' || role === 'ADMIN') &&
+    !forcePasswordChange &&
+    menus.some((grant) => grant.menu_code === 'USERS' && grant.can_view)
   const bankerChildren = BANKER_CHILD_LINKS.filter((link) => canView(link.code))
   const showBankerGroup = showBankerMaster || bankerChildren.length > 0
 
@@ -490,6 +494,14 @@ export function AppShell({
     <ul className="space-y-px">
       {renderPrimaryLink(PRIMARY_LINKS[0]!, onNavigate)}
       {renderPrimaryLink(PRIMARY_LINKS[1]!, onNavigate)}
+      {showAgentsMaster ? (
+        <li>
+          <AgentsMasterNavItem
+            {...(onNavigate ? { onNavigate } : {})}
+            tone="rail"
+          />
+        </li>
+      ) : null}
       {showBankerGroup ? (
         <li className="flex flex-col gap-px">
           <button
@@ -797,6 +809,26 @@ function NavItem({
     >
       <span className="shrink-0 opacity-80">{icon}</span>
       <span className={`truncate ${tone === 'rail' ? SIDE_LABEL : ''}`}>{label}</span>
+    </Link>
+  )
+}
+
+/* ─── Agents Master (primary rail; reuse USERS gate, not a menu code) ──────── */
+function AgentsMasterNavItem({ onNavigate, tone = 'sheet' }: { onNavigate?: () => void; tone?: NavTone }) {
+  const pathname = usePathname()
+  const active = pathname === '/agents' || pathname.startsWith('/agents/')
+
+  return (
+    <Link
+      href="/agents"
+      data-active={active ? 'true' : 'false'}
+      onClick={() => onNavigate?.()}
+      className="qp-nav-item flex h-8 items-center gap-2 rounded-qp px-2.5 text-[12.5px] font-medium transition-colors duration-150"
+      style={navItemStyle(active, tone)}
+      aria-label="Agents Master"
+    >
+      <span className="shrink-0 opacity-80">{NAV_ICONS.USERS}</span>
+      <span className="truncate">Agents Master</span>
     </Link>
   )
 }

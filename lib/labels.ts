@@ -32,3 +32,8 @@ export function merchantLabel(opts?: { plural?: boolean }): string {
 export function bankerLabel(opts?: { plural?: boolean }): string {
   return opts?.plural ? 'Bankers' : 'Banker'
 }
+
+/** Upper-line Exchange introducer. */
+export function agentLabel(opts?: { plural?: boolean }): string {
+  return opts?.plural ? 'Agents' : 'Agent'
+}

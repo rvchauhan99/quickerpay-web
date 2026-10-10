@@ -2,7 +2,14 @@
 
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import type { BankAdminMode, MerchantDetail, MerchantRate, PayoutBankerMode } from '@quickerpay/shared-types'
+import type {
+  BankAdminMode,
+  GatewayConfigView,
+  GatewaySecretReveal,
+  MerchantDetail,
+  MerchantRate,
+  PayoutBankerMode,
+} from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { RateInput } from '@/components/forms/RateInput'
@@ -13,13 +20,16 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
-import { BankAdminsFormSection } from '@/components/forms/BankAdminsFormSection'
 import { PayoutBankersFormSection } from '@/components/forms/PayoutBankersFormSection'
 import { GatewayIntegrationSection } from '@/components/forms/GatewayIntegrationSection'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Drawer } from '@/components/ui/Drawer'
+import { Modal } from '@/components/ui/Modal'
+import { CopyButton } from '@/components/ui/CopyButton'
 import { toast } from 'sonner'
-import { apiRequest, ApiClientError } from '@/lib/api'
-import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { Settings } from 'lucide-react'
+import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -57,7 +67,7 @@ export default function MerchantDetailPage() {
   const [payoutBp, setPayoutBp] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [savingRate, setSavingRate] = useState<'PAYIN' | 'PAYOUT' | null>(null)
+  const [savingPrimary, setSavingPrimary] = useState(false)
   const [routingMode, setRoutingMode] = useState<WithdrawRoutingMode>('queue')
   const [routingAdminId, setRoutingAdminId] = useState('')
   const [payoutBankerMode, setPayoutBankerMode] = useState<PayoutBankerMode>('ALL')
@@ -65,13 +75,23 @@ export default function MerchantDetailPage() {
   const [savingRouting, setSavingRouting] = useState(false)
   const [bankAdminMode, setBankAdminMode] = useState<BankAdminMode>('ALL')
   const [bankAdminIds, setBankAdminIds] = useState<string[]>([])
-  const [savingBankAdmins, setSavingBankAdmins] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<'SUSPENDED' | 'ACTIVE' | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
   const [portalPassword, setPortalPassword] = useState('')
   const [portalBusy, setPortalBusy] = useState(false)
   const [portalOncePassword, setPortalOncePassword] = useState<string | null>(null)
   const [portalDisableConfirm, setPortalDisableConfirm] = useState(false)
+  const [agentOptions, setAgentOptions] = useState<Array<{ id: string; username: string }>>([])
+  const [agentUserId, setAgentUserId] = useState('')
+  const [agentPayinBp, setAgentPayinBp] = useState(0)
+  const [agentPayoutBp, setAgentPayoutBp] = useState(0)
+  const [savingAgent, setSavingAgent] = useState(false)
+  const [gatewayConfig, setGatewayConfig] = useState<GatewayConfigView | null>(null)
+  const [webhookUrlDraft, setWebhookUrlDraft] = useState('')
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [secretRegenConfirm, setSecretRegenConfirm] = useState(false)
+  const [secretRegenBusy, setSecretRegenBusy] = useState(false)
+  const [secretReveal, setSecretReveal] = useState<GatewaySecretReveal | null>(null)
 
   // Supago state
   const [supagoStatus, setSupagoStatus] = useState<SupagoStatus | null>(null)
@@ -143,8 +163,30 @@ export default function MerchantDetailPage() {
       setHistory(rates)
       setPayinBp(detail.rates.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
       setPayoutBp(detail.rates.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
+      setAgentUserId(detail.agent_user_id ?? '')
+      setAgentPayinBp(detail.agent_rates?.find((row) => row.rate_kind === 'PAYIN')?.rate_bp ?? 0)
+      setAgentPayoutBp(detail.agent_rates?.find((row) => row.rate_kind === 'PAYOUT')?.rate_bp ?? 0)
       void loadSupagoStatus(accessToken, params.id)
       void loadCriciStatus(accessToken, params.id)
+      try {
+        const gw = await apiRequest<GatewayConfigView>(`/api/v1/merchants/${params.id}/gateway`, {
+          token: accessToken,
+        })
+        setGatewayConfig(gw)
+        setWebhookUrlDraft(gw.webhook_url ?? '')
+      } catch {
+        setGatewayConfig(null)
+        setWebhookUrlDraft('')
+      }
+      try {
+        const agents = await apiListRequest<{ id: string; username: string; status: string }>(
+          '/api/v1/agents?page_size=100&status=ACTIVE',
+          { token: accessToken },
+        )
+        setAgentOptions(agents.items.map((a) => ({ id: a.id, username: a.username })))
+      } catch {
+        setAgentOptions([])
+      }
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not load')
     } finally {
@@ -159,21 +201,111 @@ export default function MerchantDetailPage() {
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
-  const handleSaveKind = async (kind: 'PAYIN' | 'PAYOUT') => {
-    if (!accessToken || !params.id || savingRate) return
-    setSavingRate(kind)
+  const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
+  const canEditRouting = Boolean(isSuperAdmin && canEdit)
+  const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
+
+  const handlePrimaryUpdate = async () => {
+    if (!accessToken || !params.id || savingPrimary) return
+    if (canEditBankAdmins && bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
+      toast.error(`Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`)
+      return
+    }
+    setSavingPrimary(true)
+    setError(null)
     try {
-      await apiRequest(`/api/v1/merchants/${params.id}/rates`, {
-        method: 'POST',
-        token: accessToken,
-        body: { rate_kind: kind, rate_bp: kind === 'PAYIN' ? payinBp : payoutBp },
-      })
-      toast.success(`${kind} rate updated`)
+      if (canEdit) {
+        await apiRequest(`/api/v1/merchants/${params.id}/rates`, {
+          method: 'POST',
+          token: accessToken,
+          body: { rate_kind: 'PAYIN', rate_bp: payinBp },
+        })
+        await apiRequest(`/api/v1/merchants/${params.id}/rates`, {
+          method: 'POST',
+          token: accessToken,
+          body: { rate_kind: 'PAYOUT', rate_bp: payoutBp },
+        })
+      }
+      if (canEditBankAdmins) {
+        await apiRequest(`/api/v1/merchants/${params.id}/bank-admins`, {
+          method: 'PATCH',
+          token: accessToken,
+          body: {
+            bank_banker_mode: bankAdminMode,
+            banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
+          },
+        })
+      }
+      if (isSuperAdmin && canEdit && gatewayConfig?.enabled) {
+        await apiRequest(`/api/v1/merchants/${params.id}/gateway`, {
+          method: 'PATCH',
+          token: accessToken,
+          body: { webhook_url: webhookUrlDraft.trim() },
+        })
+      }
+      toast.success('Updated')
+      await load({ silent: true })
+    } catch (caught) {
+      const message =
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setSavingPrimary(false)
+    }
+  }
+
+  const handleRegenerateWebhookSecret = async () => {
+    if (!accessToken || !params.id || secretRegenBusy || !gatewayConfig?.enabled) return
+    setSecretRegenBusy(true)
+    try {
+      const revealed = await apiRequest<GatewaySecretReveal>(
+        `/api/v1/merchants/${params.id}/gateway/webhook-secret`,
+        { method: 'POST', token: accessToken },
+      )
+      setSecretRegenConfirm(false)
+      setSecretReveal(revealed)
+      toast.success('Webhook secret regenerated')
+      await load({ silent: true })
+    } catch (caught) {
+      toast.error(
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not regenerate webhook secret',
+      )
+    } finally {
+      setSecretRegenBusy(false)
+    }
+  }
+
+  const handleSaveAgent = async () => {
+    if (!accessToken || !params.id || savingAgent) return
+    setSavingAgent(true)
+    try {
+      if (!agentUserId) {
+        await apiRequest(`/api/v1/merchants/${params.id}/agent`, {
+          method: 'POST',
+          token: accessToken,
+          body: { agent_user_id: null },
+        })
+        toast.success(`${agentLabel()} cleared`)
+      } else {
+        await apiRequest(`/api/v1/merchants/${params.id}/agent`, {
+          method: 'POST',
+          token: accessToken,
+          body: {
+            agent_user_id: agentUserId,
+            rates: [
+              { rate_kind: 'PAYIN', rate_bp: agentPayinBp },
+              { rate_kind: 'PAYOUT', rate_bp: agentPayoutBp },
+            ],
+          },
+        })
+        toast.success(`${agentLabel()} assigned`)
+      }
       await load()
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.message : 'Save failed')
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save Agent')
     } finally {
-      setSavingRate(null)
+      setSavingAgent(false)
     }
   }
 
@@ -347,31 +479,6 @@ export default function MerchantDetailPage() {
     )
   }
 
-  const handleSaveBankAdmins = async () => {
-    if (!accessToken || !params.id || savingBankAdmins) return
-    if (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0) {
-      toast.error(`Select at least one ${bankerLabel()}, or choose All ${bankerLabel({ plural: true })}.`)
-      return
-    }
-    setSavingBankAdmins(true)
-    try {
-      await apiRequest(`/api/v1/merchants/${params.id}/bank-admins`, {
-        method: 'PATCH',
-        token: accessToken,
-        body: {
-          bank_banker_mode: bankAdminMode,
-          banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
-        },
-      })
-      toast.success('Deposit managers saved')
-      await load()
-    } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save deposit managers')
-    } finally {
-      setSavingBankAdmins(false)
-    }
-  }
-
   const handleMerchantStatus = async () => {
     if (!accessToken || !params.id || !statusConfirm || statusSubmitting) return
     setStatusSubmitting(true)
@@ -438,9 +545,6 @@ export default function MerchantDetailPage() {
     }
   }
 
-  const canEdit = hasMenu(menus, 'MERCHANTS', 'can_edit')
-  const canEditRouting = Boolean(isSuperAdmin && canEdit)
-  const canEditBankAdmins = Boolean(isSuperAdmin && canEdit)
   const activeAdmins = admins.filter((row) => row.role === 'BANKER' && row.status === 'ACTIVE')
   const lockedPanel: PanelIntegrationType =
     merchant?.integration_type === 'SUPAGO'
@@ -481,6 +585,15 @@ export default function MerchantDetailPage() {
     }
   }
 
+  const activeKeyPrefix =
+    gatewayConfig?.keys.find((k) => k.status === 'ACTIVE')?.key_prefix ?? null
+  const portalPasswordHint =
+    merchant?.portal_user_id && merchant.portal_user_status === 'ACTIVE'
+      ? '••••••••'
+      : merchant?.portal_user_id && merchant.portal_user_status === 'DISABLED'
+        ? 'Disabled — enable in Advanced Settings'
+        : 'Enable in Advanced Settings'
+
   return (
     <AppShell title={`${merchantLabel()} Detail`} role={user.role} menus={menus}>
       <PageHeader
@@ -488,6 +601,23 @@ export default function MerchantDetailPage() {
         {...(merchant ? { subtitle: `${merchant.merchant_code} · ${merchant.legal_name}` } : {})}
         backHref="/merchants"
         backLabel={merchantLabel({ plural: true })}
+        action={
+          merchant ? (
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
+              style={{
+                borderColor: 'var(--qp-border)',
+                color: 'var(--qp-text-secondary)',
+                backgroundColor: '#fff',
+              }}
+            >
+              <Settings className="h-4 w-4" aria-hidden="true" />
+              Advanced Settings
+            </button>
+          ) : null
+        }
       />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
@@ -495,24 +625,168 @@ export default function MerchantDetailPage() {
       {loading || !merchant ? (
         <TableSkeleton />
       ) : (
-        <FormShell wide compact>
+        <FormShell compact width="full">
           <FormSection title={merchantLabel()}>
-            <FormGrid>
-              <FormField label="Legal Name">
-                <Input value={merchant.legal_name} readOnly />
-              </FormField>
+            <FormGrid cols={5}>
               <FormField label={`${merchantLabel()} Code`}>
                 <Input value={merchant.merchant_code} readOnly />
               </FormField>
-              <FormField label="Contact Email">
-                <Input value={merchant.contact_email ?? '—'} readOnly />
+              <FormField label="Exchange Name">
+                <Input value={merchant.legal_name} readOnly />
               </FormField>
-              {merchant.contact_mobile ? (
-                <FormField label="Contact Mobile">
-                  <Input value={merchant.contact_mobile} readOnly />
+              <FormField label="Deposit Charge (%)">
+                <RateInput
+                  id="edit-payin"
+                  valueBp={payinBp}
+                  onChangeBp={setPayinBp}
+                  disabled={!canEdit || savingPrimary}
+                />
+              </FormField>
+              <FormField label="Withdrawal Charge (%)">
+                <RateInput
+                  id="edit-payout"
+                  valueBp={payoutBp}
+                  onChangeBp={setPayoutBp}
+                  disabled={!canEdit || savingPrimary}
+                />
+              </FormField>
+              <FormField label="Display Name">
+                <Input value={merchant.display_name} readOnly />
+              </FormField>
+
+              <FormField label="URL (Webhook)">
+                <div className="flex items-center gap-1">
+                  {gatewayConfig?.enabled && isSuperAdmin && canEdit ? (
+                    <>
+                      <Input
+                        value={webhookUrlDraft}
+                        onChange={(e) => setWebhookUrlDraft(e.target.value)}
+                        placeholder="https://panel.example.com/webhook"
+                        className="font-mono text-xs"
+                        disabled={savingPrimary}
+                        aria-label="Webhook URL"
+                      />
+                      {webhookUrlDraft.trim() ? (
+                        <CopyButton value={webhookUrlDraft.trim()} label="Copy webhook URL" />
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <Input
+                        value={
+                          gatewayConfig?.webhook_url?.trim() ||
+                          (gatewayConfig?.enabled ? '—' : 'Enable Gateway in Advanced Settings')
+                        }
+                        readOnly
+                        className="font-mono text-xs"
+                      />
+                      {gatewayConfig?.webhook_url ? (
+                        <CopyButton value={gatewayConfig.webhook_url} label="Copy webhook URL" />
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </FormField>
+              <FormField label="Payout URL (API path)">
+                <Input
+                  value={gatewayConfig?.base_url_path?.trim() || '—'}
+                  readOnly
+                  className="font-mono text-xs"
+                />
+              </FormField>
+              <FormField label="Password">
+                <Input value={portalPasswordHint} readOnly type="text" autoComplete="off" />
+              </FormField>
+              <div className="col-span-1 md:col-span-2">
+                <FormField label={`Assigned Bankers (Deposit Managed By)`}>
+                  <Select
+                    value={bankAdminMode}
+                    onChange={(e) => setBankAdminMode(e.target.value as BankAdminMode)}
+                    disabled={savingPrimary || !canEditBankAdmins}
+                    className="flex-1"
+                  >
+                    <option value="ALL">All {bankerLabel({ plural: true })}</option>
+                    <option value="SELECTED">Selected {bankerLabel({ plural: true })}</option>
+                  </Select>
+                  {bankAdminMode === 'SELECTED' && (
+                    <div className="mt-2 flex flex-col gap-1 max-h-32 overflow-y-auto border rounded p-2 bg-white">
+                      {activeAdmins.map((admin) => (
+                        <label key={admin.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={bankAdminIds.includes(admin.id)}
+                            onChange={() => handleToggleBankAdmin(admin.id)}
+                            disabled={savingPrimary || !canEditBankAdmins}
+                          />
+                          {admin.username}
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </FormField>
-              ) : null}
+              </div>
+              <div className="col-span-1 md:col-span-3">
+                <FormField label="API Key">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={
+                          activeKeyPrefix
+                            ? `${activeKeyPrefix}…`
+                            : gatewayConfig?.enabled
+                              ? 'No keys — create in Advanced Settings'
+                              : 'Enable Gateway in Advanced Settings'
+                        }
+                        readOnly
+                        className="font-mono"
+                      />
+                      {activeKeyPrefix ? (
+                        <CopyButton value={activeKeyPrefix} label="Copy key prefix" />
+                      ) : null}
+                    </div>
+                    <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
+                      Full token is shown once when you enable, create, or rotate a key in Advanced Settings.
+                    </p>
+                  </div>
+                </FormField>
+              </div>
+              <div className="col-span-1 md:col-span-3">
+                <FormField label="Webhook secret (verifies x-sp-signature)">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={
+                          gatewayConfig?.enabled
+                            ? 'whsec_••••••••'
+                            : 'Enable Gateway in Advanced Settings'
+                        }
+                        readOnly
+                        className="font-mono"
+                        aria-label="Webhook secret"
+                      />
+                      {isSuperAdmin && canEdit && gatewayConfig?.enabled ? (
+                        <PrimaryButton
+                          disabled={secretRegenBusy || savingPrimary}
+                          onClick={() => setSecretRegenConfirm(true)}
+                        >
+                          Regenerate
+                        </PrimaryButton>
+                      ) : null}
+                    </div>
+                    <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
+                      Secret is shown once when you enable Gateway or regenerate. It cannot be read again.
+                    </p>
+                  </div>
+                </FormField>
+              </div>
             </FormGrid>
+            {(canEdit || canEditBankAdmins) ? (
+              <div className="mt-qp-gap flex justify-end">
+                <PrimaryButton disabled={savingPrimary} onClick={() => void handlePrimaryUpdate()}>
+                  {savingPrimary ? 'Saving…' : 'Update'}
+                </PrimaryButton>
+              </div>
+            ) : null}
             <div
               className="mt-qp-gap flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
               style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
@@ -557,6 +831,26 @@ export default function MerchantDetailPage() {
               )}
             </div>
           </FormSection>
+        </FormShell>
+      )}
+
+      {merchant ? (
+          <Drawer
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            title="Advanced Settings"
+            size="3xl"
+          >
+            <FormSection title="Contacts">
+              <FormGrid>
+                <FormField label="Contact Email">
+                  <Input value={merchant.contact_email ?? '—'} readOnly />
+                </FormField>
+                <FormField label="Contact Mobile">
+                  <Input value={merchant.contact_mobile ?? '—'} readOnly />
+                </FormField>
+              </FormGrid>
+            </FormSection>
 
           {canEdit ? (
             <FormSection
@@ -634,26 +928,54 @@ export default function MerchantDetailPage() {
             </FormSection>
           ) : null}
 
+
+
           {canEdit ? (
-            <FormSection title="Rates">
+            <FormSection
+              title={agentLabel()}
+              description="Upper-line brokerage carved from Super Admin margin (between us and the Exchange). Banker rates must stay ≤ Exchange − Agent."
+            >
               <FormGrid>
-                <FormField label="PAY-IN">
-                  <div className="flex items-center gap-2">
-                    <RateInput id="edit-payin" valueBp={payinBp} onChangeBp={setPayinBp} />
-                    <PrimaryButton disabled={savingRate === 'PAYIN'} onClick={() => void handleSaveKind('PAYIN')}>
-                      {savingRate === 'PAYIN' ? 'Saving…' : 'Update'}
-                    </PrimaryButton>
-                  </div>
+                <FormField label={agentLabel()}>
+                  <Select
+                    id="merchant-agent"
+                    value={agentUserId}
+                    onChange={(event) => setAgentUserId(event.target.value)}
+                    aria-label={agentLabel()}
+                  >
+                    <option value="">None</option>
+                    {agentOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.username}
+                      </option>
+                    ))}
+                    {agentUserId && !agentOptions.some((o) => o.id === agentUserId) && merchant?.agent_username ? (
+                      <option value={agentUserId}>{merchant.agent_username}</option>
+                    ) : null}
+                  </Select>
                 </FormField>
-                <FormField label="PAY-OUT">
-                  <div className="flex items-center gap-2">
-                    <RateInput id="edit-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
-                    <PrimaryButton disabled={savingRate === 'PAYOUT'} onClick={() => void handleSaveKind('PAYOUT')}>
-                      {savingRate === 'PAYOUT' ? 'Saving…' : 'Update'}
-                    </PrimaryButton>
-                  </div>
-                </FormField>
+                {agentUserId ? (
+                  <>
+                    <FormField label="Agent PAY-IN brokerage">
+                      <RateInput id="agent-payin" valueBp={agentPayinBp} onChangeBp={setAgentPayinBp} />
+                    </FormField>
+                    <FormField label="Agent PAY-OUT brokerage">
+                      <RateInput id="agent-payout" valueBp={agentPayoutBp} onChangeBp={setAgentPayoutBp} />
+                    </FormField>
+                    <FormField label="Residual ceiling (PAY-IN)">
+                      <p className="text-sm text-zinc-600">
+                        Exchange {payinBp} bp − Agent {agentPayinBp} bp ={' '}
+                        <strong>{Math.max(0, payinBp - agentPayinBp)} bp</strong> max for Bankers
+                      </p>
+                    </FormField>
+                  </>
+                ) : null}
               </FormGrid>
+              <div className="mt-3">
+                <PrimaryButton disabled={savingAgent} onClick={() => void handleSaveAgent()}>
+                  {savingAgent ? 'Saving…' : `Save ${agentLabel()}`}
+                </PrimaryButton>
+              </div>
             </FormSection>
           ) : null}
 
@@ -709,29 +1031,6 @@ export default function MerchantDetailPage() {
               </FormField>
             </FormSection>
           )}
-
-          {canEditBankAdmins ? (
-            <>
-              <BankAdminsFormSection
-                compact
-                mode={bankAdminMode}
-                selectedIds={bankAdminIds}
-                admins={activeAdmins}
-                onModeChange={setBankAdminMode}
-                onToggleAdmin={handleToggleBankAdmin}
-                disabled={savingBankAdmins}
-              />
-              <div className="-mt-1 flex justify-end">
-                <PrimaryButton
-                  type="button"
-                  disabled={savingBankAdmins || (bankAdminMode === 'SELECTED' && bankAdminIds.length === 0)}
-                  onClick={() => void handleSaveBankAdmins()}
-                >
-                  {savingBankAdmins ? 'Saving…' : 'Save'}
-                </PrimaryButton>
-              </div>
-            </>
-          ) : null}
 
           <FormSection
             title="Panel integration"
@@ -1116,7 +1415,7 @@ export default function MerchantDetailPage() {
             {connectedPanel === 'none' && panelChoice === 'none' ? (
               <p className="mt-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
                 {gatewayLocked
-                  ? `This exchange master uses the Gateway API${isSuperAdmin ? ' below' : ''}. Panel integrations are not available.`
+                  ? 'This exchange master uses the Gateway API. Panel integrations are not available.'
                   : 'No panel selected. Choose Supago or Crici to connect credentials.'}
               </p>
             ) : null}
@@ -1146,8 +1445,8 @@ export default function MerchantDetailPage() {
               empty={<EmptyState message="No rate history" />}
             />
           </FormSection>
-        </FormShell>
-      )}
+          </Drawer>
+      ) : null}
 
       {confirmDisconnect ? (
         <ConfirmDialog
@@ -1206,6 +1505,46 @@ export default function MerchantDetailPage() {
           onConfirm={() => void handlePortalDisable()}
           onCancel={() => setPortalDisableConfirm(false)}
         />
+      ) : null}
+
+      {secretRegenConfirm ? (
+        <ConfirmDialog
+          title="Regenerate webhook secret?"
+          subtitle="Webhooks are signed with the new secret immediately. Update the panel before the next event."
+          confirmLabel="Regenerate"
+          loading={secretRegenBusy}
+          onConfirm={() => void handleRegenerateWebhookSecret()}
+          onCancel={() => setSecretRegenConfirm(false)}
+        />
+      ) : null}
+
+      {secretReveal ? (
+        <Modal
+          title="Copy these now"
+          size="lg"
+          footer={
+            <div className="flex justify-end">
+              <PrimaryButton onClick={() => setSecretReveal(null)}>I have stored them</PrimaryButton>
+            </div>
+          }
+        >
+          <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+            These values are shown once and cannot be read again. Store them in the panel&apos;s secret store.
+          </p>
+          {secretReveal.webhook_secret ? (
+            <FormField label="Webhook secret (verifies x-sp-signature)">
+              <div className="flex items-center gap-1">
+                <Input
+                  value={secretReveal.webhook_secret}
+                  readOnly
+                  className="font-mono"
+                  aria-label="Webhook secret"
+                />
+                <CopyButton value={secretReveal.webhook_secret} label="Copy webhook secret" />
+              </div>
+            </FormField>
+          ) : null}
+        </Modal>
       ) : null}
     </AppShell>
   )
