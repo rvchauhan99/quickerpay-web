@@ -18,6 +18,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { PayoutActionDialogs } from '@/components/forms/PayoutActionDialogs'
+import { PayoutReassignDialog } from '@/components/forms/PayoutReassignDialog'
 import {
   copyPayoutBankDetails,
   payoutAccountNumber,
@@ -25,10 +26,11 @@ import {
   payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
-import { merchantLabel } from '@/lib/labels'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 function FieldWithCopy({
@@ -58,6 +60,8 @@ export default function PayoutDetailPage() {
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
   const [acceptFor, setAcceptFor] = useState<PayoutListItem | null>(null)
   const [rejectFor, setRejectFor] = useState<PayoutListItem | null>(null)
+  const [reassignOpen, setReassignOpen] = useState(false)
+  const { isSuperAdmin, admins } = useSuperAdminDirectory(accessToken, user?.role)
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
@@ -100,7 +104,14 @@ export default function PayoutDetailPage() {
   const isPending = row?.status === 'INITIATE'
   const canAccept = Boolean(isPending && hasMenu(menus, 'PAYOUT', 'can_edit'))
   const canReject = Boolean(isPending && hasMenu(menus, 'PAYOUT', 'can_edit'))
-  const showActions = Boolean(row && (canAccept || canReject))
+  const canReassign = Boolean(
+    isPending &&
+      isSuperAdmin &&
+      row?.banker_user_id &&
+      hasMenu(menus, 'PAYOUT', 'can_approve'),
+  )
+  const showActions = Boolean(row && (canAccept || canReject || canReassign))
+  const activeAssignees = admins.filter((admin) => admin.role === 'BANKER' && admin.status === 'ACTIVE')
 
   const accountDisplay = row ? payoutAccountNumber(row) || '—' : '—'
   const ifscDisplay = row?.beneficiary_ifsc?.trim() || '—'
@@ -123,6 +134,11 @@ export default function PayoutDetailPage() {
           actions={
             showActions ? (
               <>
+                {canReassign ? (
+                  <OutlineButton type="button" onClick={() => setReassignOpen(true)}>
+                    Reassign {bankerLabel()}
+                  </OutlineButton>
+                ) : null}
                 {canReject ? (
                   <DangerButton type="button" onClick={() => setRejectFor(row)}>
                     Reject
@@ -244,22 +260,34 @@ export default function PayoutDetailPage() {
         </FormShell>
       )}
       {accessToken ? (
-        <PayoutActionDialogs
-          acceptFor={acceptFor}
-          rejectFor={rejectFor}
-          banks={banks}
-          accessToken={accessToken}
-          onCloseAccept={() => setAcceptFor(null)}
-          onCloseReject={() => setRejectFor(null)}
-          onAccepted={async () => {
-            setAcceptFor(null)
-            await load()
-          }}
-          onRejected={async () => {
-            setRejectFor(null)
-            await load()
-          }}
-        />
+        <>
+          <PayoutActionDialogs
+            acceptFor={acceptFor}
+            rejectFor={rejectFor}
+            banks={banks}
+            accessToken={accessToken}
+            onCloseAccept={() => setAcceptFor(null)}
+            onCloseReject={() => setRejectFor(null)}
+            onAccepted={async () => {
+              setAcceptFor(null)
+              await load()
+            }}
+            onRejected={async () => {
+              setRejectFor(null)
+              await load()
+            }}
+          />
+          <PayoutReassignDialog
+            row={reassignOpen ? row : null}
+            assignees={activeAssignees}
+            accessToken={accessToken}
+            onClose={() => setReassignOpen(false)}
+            onReassigned={async () => {
+              setReassignOpen(false)
+              await load()
+            }}
+          />
+        </>
       ) : null}
     </AppShell>
   )

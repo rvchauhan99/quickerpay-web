@@ -18,11 +18,12 @@ import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { IconButton } from '@/components/ui/IconButton'
-import { Eye, X, CheckCircle, Paperclip } from 'lucide-react'
+import { Eye, X, CheckCircle, Paperclip, ArrowLeftRight } from 'lucide-react'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { PayoutActionDialogs } from '@/components/forms/PayoutActionDialogs'
+import { PayoutReassignDialog } from '@/components/forms/PayoutReassignDialog'
 import { PayoutBankDetailsCell } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
@@ -57,6 +58,7 @@ export default function PayoutPage() {
   const [loading, setLoading] = useState(true)
   const [rejectFor, setRejectFor] = useState<PayoutListItem | null>(null)
   const [successFor, setSuccessFor] = useState<PayoutListItem | null>(null)
+  const [reassignFor, setReassignFor] = useState<PayoutListItem | null>(null)
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
   const [creating, setCreating] = useState(false)
@@ -486,6 +488,16 @@ export default function PayoutPage() {
                 ) : null}
                 {row.status === 'INITIATE' ? (
                   <>
+                    {isSuperAdmin &&
+                    row.banker_user_id &&
+                    hasMenu(menus, 'PAYOUT', 'can_approve') ? (
+                      <IconButton
+                        variant="secondary"
+                        icon={<ArrowLeftRight size={15} strokeWidth={1.75} />}
+                        tooltip={`Reassign ${bankerLabel()}`}
+                        onClick={() => setReassignFor(row)}
+                      />
+                    ) : null}
                     {hasMenu(menus, 'PAYOUT', 'can_edit') ? (
                       <IconButton
                         variant="primary"
@@ -514,16 +526,25 @@ export default function PayoutPage() {
         />
       )}
       {accessToken ? (
-        <PayoutActionDialogs
-          acceptFor={successFor}
-          rejectFor={rejectFor}
-          banks={banks}
-          accessToken={accessToken}
-          onCloseAccept={() => setSuccessFor(null)}
-          onCloseReject={() => setRejectFor(null)}
-          onAccepted={load}
-          onRejected={load}
-        />
+        <>
+          <PayoutActionDialogs
+            acceptFor={successFor}
+            rejectFor={rejectFor}
+            banks={banks}
+            accessToken={accessToken}
+            onCloseAccept={() => setSuccessFor(null)}
+            onCloseReject={() => setRejectFor(null)}
+            onAccepted={load}
+            onRejected={load}
+          />
+          <PayoutReassignDialog
+            row={reassignFor}
+            assignees={activeAdmins}
+            accessToken={accessToken}
+            onClose={() => setReassignFor(null)}
+            onReassigned={load}
+          />
+        </>
       ) : null}
     </AppShell>
   )
