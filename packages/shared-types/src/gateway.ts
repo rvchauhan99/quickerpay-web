@@ -108,7 +108,10 @@ export interface GatewayPayPageView {
   upi: string | null
   payee_name: string
   status: PayinStatus
+  /** UPI UTR or USDT TxID is pinned. */
   utr_submitted: boolean
+  /** A payment screenshot is on file. */
+  proof_submitted: boolean
   expires_at: string | null
   return_url: string | null
 }
