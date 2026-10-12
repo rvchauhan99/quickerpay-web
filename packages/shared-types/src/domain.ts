@@ -219,6 +219,13 @@ export type BankPurpose = (typeof BANK_PURPOSES)[number]
 export const PAYMENT_METHODS = ['UPI', 'MANUAL_BANK', 'USDT_TRC20'] as const
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
+/**
+ * Pay-in row method, including the Gateway hosted-chooser shell before the player picks.
+ * Allocators and instrument create only use `PaymentMethod` (never PENDING_METHOD).
+ */
+export const PAYIN_PAYMENT_METHODS = ['UPI', 'MANUAL_BANK', 'USDT_TRC20', 'PENDING_METHOD'] as const
+export type PayinPaymentMethod = (typeof PAYIN_PAYMENT_METHODS)[number]
+
 export const LEDGER_DIRECTIONS = ['DEBIT', 'CREDIT'] as const
 export type LedgerDirection = (typeof LEDGER_DIRECTIONS)[number]
 

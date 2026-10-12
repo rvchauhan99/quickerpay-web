@@ -6,7 +6,7 @@
  * The public hosted-page views stay `_minor` paise for the web console formatter.
  */
 
-import type { PayinStatus, PaymentMethod, PayoutStatus } from './domain'
+import type { PayinPaymentMethod, PayinStatus, PaymentMethod, PayoutStatus } from './domain'
 
 /** Pay-to instructions returned on gateway create / status (method-specific). */
 export interface GatewayPayInstructions {
@@ -19,6 +19,23 @@ export interface GatewayPayInstructions {
   address?: string
   /** CRM transaction reference; shown for USDT so the player/support can match the pay-in. */
   deposit_ref?: string
+}
+
+/** Player-facing names for `GET /gateway/payment-methods` items. */
+export const GATEWAY_PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  UPI: 'UPI',
+  MANUAL_BANK: 'Manual bank transfer',
+  USDT_TRC20: 'USDT (TRC20)',
+}
+
+export interface GatewayPaymentMethodItem {
+  payment_method: PaymentMethod
+  label: string
+}
+
+/** `GET /gateway/payment-methods`: at most one item per kind, in `PAYMENT_METHODS` order; may be empty. */
+export interface GatewayPaymentMethodsList {
+  items: GatewayPaymentMethodItem[]
 }
 
 export const GATEWAY_WEBHOOK_EVENTS = [
@@ -46,9 +63,12 @@ export interface GatewayPayin {
   /** Whole rupees. */
   amount: number
   status: PayinStatus
-  /** Required on create; echoed on status. */
-  payment_method: PaymentMethod
-  /** Method-specific pay-to details for the player. */
+  /**
+   * Collection method. Omitted on create → `PENDING_METHOD` until the player picks on the hosted page.
+   * Compat: panel may still send UPI / MANUAL_BANK / USDT_TRC20 at create.
+   */
+  payment_method: PayinPaymentMethod
+  /** Method-specific pay-to details for the player; empty while PENDING_METHOD. */
   pay_instructions: GatewayPayInstructions
   /** Filled when payment_method is UPI; null otherwise (prefer pay_instructions). */
   upi: string | null
@@ -103,7 +123,7 @@ export interface GatewayPayout {
 export interface GatewayPayPageView {
   transaction_number: string
   amount_minor: number
-  payment_method: PaymentMethod
+  payment_method: PayinPaymentMethod
   pay_instructions: GatewayPayInstructions
   upi: string | null
   payee_name: string
@@ -114,6 +134,8 @@ export interface GatewayPayPageView {
   proof_submitted: boolean
   expires_at: string | null
   return_url: string | null
+  /** Present while PENDING_METHOD — kinds the player may pick (allocator eligibility). */
+  available_methods?: GatewayPaymentMethodItem[]
 }
 
 export type GatewayPayoutPageStatus = 'AWAITING_CONFIRM' | 'LOCKED' | 'CONFIRMED' | 'EXPIRED'
