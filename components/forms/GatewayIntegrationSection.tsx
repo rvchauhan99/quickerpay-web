@@ -13,6 +13,7 @@ import { FormSection } from '@/components/forms/FormSection'
 import { Input } from '@/components/forms/Input'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CopyButton } from '@/components/ui/CopyButton'
+import { PayoutAuthenticatorReveal } from '@/components/forms/PayoutAuthenticatorReveal'
 import { DataTable, EmptyState, StatusBadge } from '@/components/ui/FilterBar'
 import { Modal } from '@/components/ui/Modal'
 import { DangerButton, ErrorAlert, OutlineButton, PrimaryButton } from '@/components/ui/PageHeader'
@@ -37,6 +38,7 @@ type PendingConfirm =
   | { kind: 'rotate'; keyId: string; prefix: string }
   | { kind: 'revoke'; keyId: string; prefix: string }
   | { kind: 'secret' }
+  | { kind: 'authenticator' }
   | { kind: 'status'; next: 'ACTIVE' | 'DISABLED' }
 
 const DELIVERY_PAGE_SIZE = 10
@@ -123,8 +125,9 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
       const result = await apiRequest<GatewaySecretReveal & { config: GatewayConfigView }>(`${base}/enable`, {
         method: 'POST',
       })
-      applyConfig(result.config)
-      setReveal({ ...(result.api_key ? { api_key: result.api_key } : {}), ...(result.webhook_secret ? { webhook_secret: result.webhook_secret } : {}) })
+      const { config, ...secrets } = result
+      applyConfig(config)
+      setReveal(secrets)
       toast.success('API integration enabled')
       onChanged()
     })
@@ -188,6 +191,10 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
       if (pending.kind === 'secret') {
         setReveal(await apiRequest<GatewaySecretReveal>(`${base}/webhook-secret`, { method: 'POST' }))
         toast.success('Webhook secret regenerated')
+      }
+      if (pending.kind === 'authenticator') {
+        setReveal(await apiRequest<GatewaySecretReveal>(`${base}/authenticator/regenerate`, { method: 'POST' }))
+        toast.success('Pay-out authenticator regenerated')
       }
       if (pending.kind === 'status') {
         await apiRequest(base, { method: 'PATCH', body: { status: pending.next } })
@@ -310,6 +317,9 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
               </OutlineButton>
               <OutlineButton onClick={() => setPendingConfirm({ kind: 'secret' })} disabled={busy !== null}>
                 Regenerate webhook secret
+              </OutlineButton>
+              <OutlineButton onClick={() => setPendingConfirm({ kind: 'authenticator' })} disabled={busy !== null}>
+                {config.payout_authenticator_issued ? 'Regenerate pay-out authenticator' : 'Issue pay-out authenticator'}
               </OutlineButton>
               {isActive ? (
                 <DangerButton onClick={() => setPendingConfirm({ kind: 'status', next: 'DISABLED' })} disabled={busy !== null}>
@@ -459,9 +469,21 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
               </FormField>
             </div>
           ) : null}
+          <PayoutAuthenticatorReveal reveal={reveal} />
         </Modal>
       ) : null}
 
+      {pendingConfirm?.kind === 'authenticator' ? (
+        <ConfirmDialog
+          title={config.payout_authenticator_issued ? 'Regenerate pay-out authenticator?' : 'Issue pay-out authenticator?'}
+          subtitle="The new QR is shown once. The old authenticator stops working at once, so open pay-out links need the new code."
+          confirmLabel={config.payout_authenticator_issued ? 'Regenerate' : 'Issue'}
+          variant="primary"
+          loading={busy === 'confirm'}
+          onConfirm={handleConfirm}
+          onCancel={() => setPendingConfirm(null)}
+        />
+      ) : null}
       {pendingConfirm?.kind === 'rotate' ? (
         <ConfirmDialog
           title={`Rotate key ${pendingConfirm.prefix}…?`}

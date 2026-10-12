@@ -10,12 +10,15 @@ export interface Pagination {
 
 export interface SuccessResponse<T> {
   success: true
+  /** Human-readable outcome; present on Gateway routes. */
+  message?: string
   data: T
   request_id: string
 }
 
 export interface SuccessListResponse<T> {
   success: true
+  message?: string
   data: T[]
   pagination: Pagination
   request_id: string

@@ -14,6 +14,7 @@ import { Select } from '@/components/forms/Select'
 import { RateInput } from '@/components/forms/RateInput'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { Modal } from '@/components/ui/Modal'
+import { PayoutAuthenticatorReveal } from '@/components/forms/PayoutAuthenticatorReveal'
 import { toast } from 'sonner'
 import { apiRequest, ApiClientError, formError } from '@/lib/api'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
@@ -159,6 +160,9 @@ export default function NewMerchantPage() {
       setReveal({
         ...(enabled.api_key ? { api_key: enabled.api_key } : {}),
         ...(enabled.webhook_secret ? { webhook_secret: enabled.webhook_secret } : {}),
+        ...(enabled.payout_totp_otpauth_uri ? { payout_totp_otpauth_uri: enabled.payout_totp_otpauth_uri } : {}),
+        ...(enabled.payout_totp_secret ? { payout_totp_secret: enabled.payout_totp_secret } : {}),
+        ...(enabled.payout_totp_qr_data_url ? { payout_totp_qr_data_url: enabled.payout_totp_qr_data_url } : {}),
       })
       toast.success(`${label} created with Gateway API`)
       return
@@ -340,6 +344,7 @@ export default function NewMerchantPage() {
               </FormField>
             </div>
           ) : null}
+          <PayoutAuthenticatorReveal reveal={reveal} />
         </Modal>
       ) : null}
     </AppShell>

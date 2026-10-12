@@ -1,7 +1,9 @@
 /**
  * SafePay247 Gateway API contract, docs/04_API_CONTRACT.md section 8.12 and
  * docs/integrations/safepay247-gateway/SAFEPAY247_GATEWAY_API.md.
- * Money is integer paise named `_minor`.
+ * Panel-facing bodies, responses and webhooks carry `amount` in whole rupees
+ * (FastTag parity, docs/integrations/safepay247-gateway/FASTTAG_PARITY.md).
+ * The public hosted-page views stay `_minor` paise for the web console formatter.
  */
 
 import type { PayinStatus, PaymentMethod, PayoutStatus } from './domain'
@@ -26,6 +28,8 @@ export const GATEWAY_WEBHOOK_EVENTS = [
   'payin.rejected',
   'payin.expired',
   'payout.created',
+  'payout.confirmed',
+  'payout.expired',
   'payout.completed',
   'payout.rejected',
   'webhook.test',
@@ -39,7 +43,8 @@ export interface GatewayPayin {
   id: string
   transaction_number: string
   merchant_order_id: string
-  amount_minor: number
+  /** Whole rupees. */
+  amount: number
   status: PayinStatus
   /** Required on create; echoed on status. */
   payment_method: PaymentMethod
@@ -51,21 +56,37 @@ export interface GatewayPayin {
   customer_ref: string | null
   note: string | null
   reason: string | null
+  /** Hosted deposit page `{QP_GATEWAY_PAY_ORIGIN}/payin/{token}`; null in webhooks. */
   redirect_url: string | null
+  /** Where the hosted page sends the player when done; echoed from create. */
+  return_url: string | null
+  /** Short-lived signed URL of the player's payment screenshot, or null. */
+  image: string | null
   expires_at: string | null
   created_at: string
   updated_at: string
 }
 
+/** A Gateway pay-out also reads `EXPIRED` when nobody confirmed it in time. */
+export type GatewayPayoutStatus = PayoutStatus | 'EXPIRED'
+
 /** What the panel receives for a pay-out (API response and webhook `data`). */
 export interface GatewayPayout {
   id: string
-  transaction_number: string
+  /** Null until the Exchange Master confirms the pay-out on the hosted page. */
+  transaction_number: string | null
   merchant_order_id: string
-  amount_minor: number
-  status: PayoutStatus
+  /** Whole rupees. */
+  amount: number
+  status: GatewayPayoutStatus
+  /** Hosted confirm page `{QP_GATEWAY_PAY_ORIGIN}/payout/{token}` while awaiting confirm; else null. */
+  redirect_url: string | null
+  return_url: string | null
+  /** End of the confirm window. */
+  expires_at: string | null
+  confirmed_at: string | null
   beneficiary_name: string
-  beneficiary_account_masked: string
+  beneficiary_account_masked: string | null
   beneficiary_ifsc: string | null
   beneficiary_bank_name: string | null
   beneficiary_upi: string | null
@@ -92,6 +113,25 @@ export interface GatewayPayPageView {
   return_url: string | null
 }
 
+export type GatewayPayoutPageStatus = 'AWAITING_CONFIRM' | 'LOCKED' | 'CONFIRMED' | 'EXPIRED'
+
+/** Public hosted pay-out confirm page view. Account numbers arrive masked. */
+export interface GatewayPayoutPageView {
+  merchant_order_id: string
+  amount_minor: number
+  payee_name: string
+  beneficiary_name: string
+  beneficiary_account_masked: string | null
+  beneficiary_ifsc: string | null
+  beneficiary_bank_name: string | null
+  beneficiary_upi: string | null
+  status: GatewayPayoutPageStatus
+  attempts_left: number
+  transaction_number: string | null
+  expires_at: string
+  return_url: string | null
+}
+
 export interface GatewayApiKeyItem {
   id: string
   key_prefix: string
@@ -111,6 +151,9 @@ export interface GatewayConfigView {
   ip_allowlist: string[]
   return_url_hosts: string[]
   payin_expiry_seconds: number
+  payout_confirm_seconds: number
+  /** True once a pay-out authenticator has been issued. The secret is never returned here. */
+  payout_authenticator_issued: boolean
   status: 'ACTIVE' | 'DISABLED' | null
   keys: GatewayApiKeyItem[]
   base_url_path: string
@@ -121,6 +164,10 @@ export interface GatewaySecretReveal {
   api_key?: string
   key?: GatewayApiKeyItem
   webhook_secret?: string
+  /** Pay-out authenticator, shown once. Scan the URI (or QR) into Google Authenticator. */
+  payout_totp_otpauth_uri?: string
+  payout_totp_secret?: string
+  payout_totp_qr_data_url?: string
 }
 
 export interface GatewayDeliveryItem {

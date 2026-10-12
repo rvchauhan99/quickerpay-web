@@ -22,6 +22,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { PayoutBankersFormSection } from '@/components/forms/PayoutBankersFormSection'
 import { GatewayIntegrationSection } from '@/components/forms/GatewayIntegrationSection'
+import { PayoutAuthenticatorReveal } from '@/components/forms/PayoutAuthenticatorReveal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Drawer } from '@/components/ui/Drawer'
 import { Modal } from '@/components/ui/Modal'
@@ -1647,6 +1648,7 @@ export default function MerchantDetailPage() {
               </div>
             </FormField>
           ) : null}
+          <PayoutAuthenticatorReveal reveal={secretReveal} />
         </Modal>
       ) : null}
     </AppShell>
