@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { PayinDetail, PayinProofView } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert, PrimaryButton } from '@/components/ui/PageHeader'
+import { PageHeader, ErrorAlert, OutlineButton } from '@/components/ui/PageHeader'
 import { StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
@@ -23,6 +23,9 @@ export default function PayinDetailPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('PAYIN')
   const [row, setRow] = useState<PayinDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [proofUrl, setProofUrl] = useState<string | null>(null)
+  const [proofLoading, setProofLoading] = useState(false)
+  const [proofError, setProofError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
@@ -33,19 +36,37 @@ export default function PayinDetailPage() {
     }
   }, [accessToken, params.id])
 
-  const handleViewProof = async () => {
-    if (!accessToken || !params.id || !row?.has_utr_proof) return
+  const loadProof = useCallback(async () => {
+    if (!accessToken || !params.id) return
+    setProofLoading(true)
+    setProofError(null)
+    setProofUrl(null)
     try {
       const view = await apiRequest<PayinProofView>(`/api/v1/payin/${params.id}/proof`, { token: accessToken })
-      window.open(view.url, '_blank', 'noopener,noreferrer')
+      setProofUrl(view.url)
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not open attachment')
+      const message =
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load attachment'
+      setProofError(message)
+      toast.error(message)
+    } finally {
+      setProofLoading(false)
     }
-  }
+  }, [accessToken, params.id])
 
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
+
+  useEffect(() => {
+    if (!row?.has_utr_proof) {
+      setProofUrl(null)
+      setProofError(null)
+      setProofLoading(false)
+      return
+    }
+    void loadProof()
+  }, [row?.has_utr_proof, loadProof])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -92,18 +113,49 @@ export default function PayinDetailPage() {
             </FormGrid>
           </FormSection>
           <FormSection title="Attachment" description="UTR proof image sent with the deposit, when one was uploaded.">
-            <FormField label="File">
-              <div className="flex min-h-10 flex-wrap items-center gap-2">
-                <span className="text-sm" style={{ color: 'var(--qp-text-primary)' }}>
-                  {row.has_utr_proof ? 'Proof image' : 'No attachment'}
-                </span>
-                {row.has_utr_proof ? (
-                  <PrimaryButton type="button" onClick={() => void handleViewProof()}>
-                    View
-                  </PrimaryButton>
+            {!row.has_utr_proof ? (
+              <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                No attachment
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm" style={{ color: 'var(--qp-text-primary)' }}>
+                    Proof image
+                  </span>
+                  {proofUrl ? (
+                    <OutlineButton
+                      type="button"
+                      onClick={() => window.open(proofUrl, '_blank', 'noopener,noreferrer')}
+                    >
+                      Open full size
+                    </OutlineButton>
+                  ) : null}
+                </div>
+                {proofLoading ? (
+                  <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                    Loading attachment…
+                  </p>
+                ) : null}
+                {proofError ? (
+                  <p className="text-sm" style={{ color: 'var(--qp-danger)' }}>
+                    Could not load attachment
+                  </p>
+                ) : null}
+                {proofUrl ? (
+                  <img
+                    src={proofUrl}
+                    alt="UTR proof attachment"
+                    className="w-full rounded border object-contain"
+                    style={{
+                      maxHeight: 'min(70vh, 640px)',
+                      borderColor: 'var(--qp-border)',
+                      background: 'var(--qp-surface-muted, var(--qp-bg))',
+                    }}
+                  />
                 ) : null}
               </div>
-            </FormField>
+            )}
           </FormSection>
         </FormShell>
       )}
