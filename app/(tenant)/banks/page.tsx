@@ -194,6 +194,7 @@ export default function BanksPage() {
     setAltCreate(null)
     setEditing(null)
     setForm(emptyCreateForm())
+    setAltOwnerId(user?.role === 'BANKER' ? user.id : '')
     setCreating(true)
   }
 
@@ -310,7 +311,11 @@ export default function BanksPage() {
       const created = await apiRequest<BankAccountListItem>('/api/v1/bank-accounts', {
         method: 'POST',
         token: accessToken,
-        body: { ...base, ...otpFields },
+        body: {
+          ...base,
+          ...otpFields,
+          ...(user?.role === 'SUPER_ADMIN' && altOwnerId ? { owner_user_id: altOwnerId } : {}),
+        },
       })
       toast.success(
         created.status === 'ACTIVE'
@@ -344,6 +349,10 @@ export default function BanksPage() {
 
   const handleSaveWithOtp = async () => {
     if (!accessToken || submitting || otpSending) return
+    if (!editing && user.role === 'SUPER_ADMIN' && !altOwnerId) {
+      toast.error(`Select ${bankerLabel()} owner`)
+      return
+    }
     const purpose: 'CREATE' | 'UPDATE' = editing ? 'UPDATE' : 'CREATE'
     setSubmitting(purpose === 'CREATE' ? 'create' : `edit-${editing?.id ?? ''}`)
     setOtpSending(true)
@@ -656,6 +665,22 @@ export default function BanksPage() {
                     aria-label="UPI address"
                   />
                 </FormField>
+                {!editing && user.role === 'SUPER_ADMIN' ? (
+                  <FormField label={`${bankerLabel()} owner`} required>
+                    <Select
+                      value={altOwnerId}
+                      onChange={(e) => setAltOwnerId(e.target.value)}
+                      aria-label={`${bankerLabel()} owner`}
+                    >
+                      <option value="">Select owner</option>
+                      {ownerOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.username}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+                ) : null}
                 <FormField label="Description">
                   <Input
                     value={form.description}
