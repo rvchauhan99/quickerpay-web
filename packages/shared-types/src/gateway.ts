@@ -140,12 +140,17 @@ export interface GatewayPayPageView {
 
 export type GatewayPayoutPageStatus = 'AWAITING_CONFIRM' | 'LOCKED' | 'CONFIRMED' | 'EXPIRED'
 
-/** Public hosted pay-out confirm page view. Account numbers arrive masked. */
+/**
+ * Public hosted pay-out confirm page view.
+ * Full `beneficiary_account` is returned here (token is the bearer); Gateway REST create/list stay masked.
+ */
 export interface GatewayPayoutPageView {
   merchant_order_id: string
   amount_minor: number
   payee_name: string
   beneficiary_name: string
+  /** Full account digits for operator verify before TOTP. Null for UPI-only holds. */
+  beneficiary_account: string | null
   beneficiary_account_masked: string | null
   beneficiary_ifsc: string | null
   beneficiary_bank_name: string | null

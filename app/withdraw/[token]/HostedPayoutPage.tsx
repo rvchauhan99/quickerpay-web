@@ -173,7 +173,7 @@ export function HostedPayoutPage({ token }: { token: string }) {
 
             <dl className="mb-4 rounded-qp-card border px-3 py-2" style={{ borderColor: 'var(--qp-border)' }}>
               <Row label="Account holder" value={view.beneficiary_name} />
-              <Row label="Account number" value={view.beneficiary_account_masked} />
+              <Row label="Account number" value={view.beneficiary_account ?? view.beneficiary_account_masked} />
               <Row label="IFSC" value={view.beneficiary_ifsc} />
               <Row label="Bank" value={view.beneficiary_bank_name} />
               <Row label="UPI" value={view.beneficiary_upi} />
