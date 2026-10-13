@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import type { GatewayPayPageView, PayinPaymentMethod, PaymentMethod } from '@quickerpay/shared-types'
-import { Clock, ShieldCheck, Lock, CheckCircle2, ChevronRight, HelpCircle, ArrowUpRight, Smartphone } from 'lucide-react'
+import { Clock, ShieldCheck, Lock, Smartphone } from 'lucide-react'
 import { PaymentMethodCard } from './PaymentMethodCard'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { DocumentUpload } from '@/components/forms/DocumentUpload'
