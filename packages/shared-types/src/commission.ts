@@ -39,8 +39,8 @@ export interface CommissionEntry {
   id: string
   transaction_id: string
   rate_kind: RateKind
-  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). */
-  merchant_id?: string
+  /** Omitted for Banker / Operator / Auditor (canSeeMerchants). Null for unclaimed orphan settlement. */
+  merchant_id?: string | null
   banker_user_id: string
   agent_user_id?: string | null
   eligible_amount_minor: number

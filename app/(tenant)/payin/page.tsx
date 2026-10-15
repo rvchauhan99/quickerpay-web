@@ -8,12 +8,13 @@ import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Modal } from '@/components/ui/Modal'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { IconButton } from '@/components/ui/IconButton'
-import { Eye, Link2, Check, X, XCircle, Undo2 } from 'lucide-react'
+import { Eye, Link2, Check, X, XCircle, Undo2, Hash } from 'lucide-react'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
@@ -44,27 +45,46 @@ export default function PayinPage() {
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
     banker_user_id: parseAsString.withDefault(''),
+    inject: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
+  const isInjectMode = filters.inject === '1'
   const [rows, setRows] = useState<PayinListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
-  const [confirm, setConfirm] = useState<{ id: string; action: 'accept' | 'reject' | 'cancel' | 'refund' } | null>(null)
+  const [confirm, setConfirm] = useState<{
+    id: string
+    action: 'accept' | 'reject' | 'cancel' | 'refund'
+    paymentMethod?: PayinListItem['payment_method']
+    pinnedUtr?: string | null
+  } | null>(null)
+  const [acceptChainTx, setAcceptChainTx] = useState('')
   const [assignFor, setAssignFor] = useState<string | null>(null)
   const [assignUpi, setAssignUpi] = useState('')
   const [assignOperator, setAssignOperator] = useState('')
   const [upis, setUpis] = useState<UpiAccountListItem[]>([])
   const [users, setUsers] = useState<UserListItem[]>([])
+  const [injectionOwners, setInjectionOwners] = useState<UserListItem[]>([])
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [creating, setCreating] = useState(false)
   const [merchantId, setMerchantId] = useState('')
+  const [bankerUserId, setBankerUserId] = useState('')
   const [amountMinor, setAmountMinor] = useState(0)
   const [createUpi, setCreateUpi] = useState('')
   const [createOperator, setCreateOperator] = useState('')
   const [createUtr, setCreateUtr] = useState('')
+  const [acceptInjection, setAcceptInjection] = useState<PayinListItem | null>(null)
+  const [acceptUpiId, setAcceptUpiId] = useState('')
+  const [submitUtrFor, setSubmitUtrFor] = useState<PayinListItem | null>(null)
+  const [submitUtrValue, setSubmitUtrValue] = useState('')
+
+  const canCreateInjection =
+    isInjectMode &&
+    hasMenu(menus, 'PAYIN', 'can_create') &&
+    (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN')
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true)
@@ -78,6 +98,7 @@ export default function PayinPage() {
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+    if (filters.inject === '1') query.set('injection', 'true')
     try {
       const result = await apiListRequest<PayinListItem>(`/api/v1/payin?${query}`)
       setRows(result.items)
@@ -87,7 +108,7 @@ export default function PayinPage() {
     } finally {
       if (!options?.silent) setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, filters.inject])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -106,6 +127,7 @@ export default function PayinPage() {
       q: filters.q || undefined,
       merchant_id: filters.merchant_id || undefined,
       banker_user_id: filters.banker_user_id || undefined,
+      ...(filters.inject === '1' ? { injection: 'true' } : {}),
     },
     rows,
     setRows,
@@ -135,9 +157,22 @@ export default function PayinPage() {
     })
       .then((result) => setMerchants(result.items))
       .catch((caught) => {
-        setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
+        setError(
+          caught instanceof ApiClientError
+            ? caught.displayMessage()
+            : `Could not load ${merchantLabel({ plural: true })}`,
+        )
       })
   }, [accessToken, allowed, menus, user?.role])
+
+  useEffect(() => {
+    if (!accessToken || !allowed || !canCreateInjection) return
+    void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&status=ACTIVE&page_size=100', {
+      token: accessToken,
+    })
+      .then((result) => setInjectionOwners(result.items))
+      .catch(() => setInjectionOwners([]))
+  }, [accessToken, allowed, canCreateInjection])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
   const showPanelUsername = canSeeOwnPanelUsernames(user?.role)
@@ -173,20 +208,96 @@ export default function PayinPage() {
 
   const handleAction = async () => {
     if (!confirm || !accessToken || submitting) return
+    const needsChainTx =
+      confirm.action === 'accept' &&
+      confirm.paymentMethod === 'USDT_TRC20' &&
+      !confirm.pinnedUtr
+    const chainTx = acceptChainTx.trim().toLowerCase()
+    if (needsChainTx && !/^[a-f0-9]{64}$/.test(chainTx)) {
+      toast.error('Enter the 64-character TRON transaction hash')
+      return
+    }
     setSubmitting(confirm.id)
     try {
+      const acceptBody =
+        confirm.action === 'accept' && confirm.paymentMethod === 'USDT_TRC20'
+          ? { utr: confirm.pinnedUtr ?? chainTx }
+          : undefined
       await apiRequest(`/api/v1/payin/${confirm.id}/${confirm.action}`, {
         method: 'POST',
         token: accessToken,
-        body: confirm.action === 'reject' ? { reason: 'Rejected' } : undefined,
+        body:
+          confirm.action === 'reject'
+            ? { reason: 'Rejected' }
+            : acceptBody,
         headers: confirm.action === 'accept' || confirm.action === 'refund' ? { 'Idempotency-Key': crypto.randomUUID() } : undefined,
       })
       setConfirm(null)
+      setAcceptChainTx('')
       toast.success(`Pay-in ${confirm.action}ed`)
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update pay-in')
       setConfirm(null)
+      setAcceptChainTx('')
+    } finally {
+      setSubmitting(null)
+    }
+  }
+
+  const handleAcceptClick = (row: PayinListItem) => {
+    if (row.is_injection && !row.assigned_upi_id) {
+      setAcceptInjection(row)
+      setAcceptUpiId('')
+      return
+    }
+    setAcceptChainTx('')
+    setConfirm({
+      id: row.id,
+      action: 'accept',
+      paymentMethod: row.payment_method,
+      pinnedUtr: row.utr,
+    })
+  }
+
+  const handleInjectionAccept = async () => {
+    if (!acceptInjection || !accessToken || !acceptUpiId || submitting) return
+    setSubmitting(acceptInjection.id)
+    try {
+      await apiRequest(`/api/v1/payin/${acceptInjection.id}/accept`, {
+        method: 'POST',
+        token: accessToken,
+        body: { upi_account_id: acceptUpiId },
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+      })
+      setAcceptInjection(null)
+      setAcceptUpiId('')
+      toast.success('Pay-in accepted')
+      await load()
+    } catch (caught) {
+      toast.error(formatApiError(caught, 'Could not accept pay-in'))
+    } finally {
+      setSubmitting(null)
+    }
+  }
+
+  const handleSubmitUtr = async () => {
+    const utr = submitUtrValue.trim()
+    if (!submitUtrFor || !accessToken || !/^\d{6,32}$/.test(utr) || submitting) return
+    setSubmitting(submitUtrFor.id)
+    try {
+      await apiRequest(`/api/v1/payin/${submitUtrFor.id}/submit-utr`, {
+        method: 'POST',
+        token: accessToken,
+        body: { utr },
+      })
+      setSubmitUtrFor(null)
+      setSubmitUtrValue('')
+      toast.success('UTR submitted')
+      await setFilters({ status: 'IN_PROCESS', page: 1 })
+      await load()
+    } catch (caught) {
+      toast.error(formatApiError(caught, 'Could not submit UTR'))
     } finally {
       setSubmitting(null)
     }
@@ -217,11 +328,45 @@ export default function PayinPage() {
     }
   }
 
+  const handleCreateInjection = async () => {
+    if (!accessToken || amountMinor <= 0 || !merchantId || !bankerUserId || submitting) return
+    setSubmitting('create-injection')
+    try {
+      const created = await apiRequest<PayinListItem>('/api/v1/payin/injections', {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          merchant_id: merchantId,
+          banker_user_id: bankerUserId,
+          amount_minor: amountMinor,
+        },
+      })
+      setMerchantId('')
+      setBankerUserId('')
+      setAmountMinor(0)
+      const ref = created.reference
+      toast.success(`Pay-in created — ${ref}`, {
+        action: {
+          label: 'Copy',
+          onClick: () => {
+            void navigator.clipboard.writeText(ref)
+          },
+        },
+      })
+      await setFilters({ status: 'INITIATE', page: 1 })
+      await load()
+    } catch (caught) {
+      toast.error(formatApiError(caught, 'Could not create injection'))
+    } finally {
+      setSubmitting(null)
+    }
+  }
+
   const handleCreate = async () => {
     const utr = createUtr.trim()
     if (!accessToken || amountMinor <= 0 || !createUpi || !/^\d{6,32}$/.test(utr) || submitting) return
     if (!merchantId) {
-      toast.error('Select a merchant')
+      toast.error(`Select an ${merchantLabel()}`)
       return
     }
     setSubmitting('create')
@@ -259,12 +404,27 @@ export default function PayinPage() {
     }
   }
 
+  const payinTypeLabel = (row: PayinListItem) => {
+    if (row.is_injection) return 'INJECTION'
+    if (row.source === 'API') return row.auto_accepted ? 'API BOT' : 'API'
+    if (row.auto_accepted) return 'PAYIN BOT'
+    return 'PAYIN'
+  }
+
+  const injectionAcceptUpis = acceptInjection
+    ? upis.filter(
+        (row) =>
+          row.status === 'ACTIVE' &&
+          (!acceptInjection.banker_user_id || row.owner_user_id === acceptInjection.banker_user_id),
+      )
+    : []
+
   return (
-    <AppShell title="Pay-In Requests" role={user.role} menus={menus}>
+    <AppShell title={isInjectMode ? 'Payin Injection' : 'Pending Deposit'} role={user.role} menus={menus}>
       <PageHeader
-        title="Pay-In Requests"
+        title={isInjectMode ? 'Payin Injection' : 'Pending Deposit'}
         action={
-          hasMenu(menus, 'PAYIN', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+          !isInjectMode && hasMenu(menus, 'PAYIN', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
             <PrimaryButton onClick={() => setCreating(true)}>
               Create
             </PrimaryButton>
@@ -284,7 +444,21 @@ export default function PayinPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'IN_PROCESS', q: '', merchant_id: '', banker_user_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={() =>
+          void setFilters({
+            date_from: '',
+            date_to: '',
+            status: isInjectMode ? '' : 'IN_PROCESS',
+            q: '',
+            merchant_id: '',
+            banker_user_id: '',
+            page: 1,
+          })
+        }
+        onReload={() => void load()}
+      >
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -325,20 +499,64 @@ export default function PayinPage() {
               if (filters.q) query.set('q', filters.q)
               if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
               if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+              if (isInjectMode) query.set('injection', 'true')
               void downloadExport(`/api/v1/payin/export?${query}`, 'payins.csv', accessToken!)
             }}
           />
         </div>
       </FilterBar>
 
-      {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
-        <div className="mb-4">
+      {canCreateInjection ? (
+        <div className="mb-qp-gap">
+          <FormShell
+            title="Payin Injection"
+            submitLabel="Create Payin"
+            onCancel={() => {
+              setMerchantId('')
+              setBankerUserId('')
+              setAmountMinor(0)
+            }}
+            onSubmit={() => void handleCreateInjection()}
+          >
+            <FormSection title="Create">
+              <FormGrid>
+                <FormField label="Exchange" required>
+                  <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label="Select Exchange">
+                    <option value="">Select Exchange</option>
+                    {createMerchants.map((merchant) => (
+                      <option key={merchant.id} value={merchant.id}>
+                        {merchant.merchant_code} — {merchant.display_name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label={bankerLabel()} required>
+                  <Select value={bankerUserId} onChange={(event) => setBankerUserId(event.target.value)} aria-label={`Select ${bankerLabel()}`}>
+                    <option value="">Select {bankerLabel()}</option>
+                    {injectionOwners.map((owner) => (
+                      <option key={owner.id} value={owner.id}>
+                        {owner.username} — {owner.display_name}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+                <FormField label="Amount" required hint="Whole rupees.">
+                  <MoneyInput id="injection-amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} wholeRupees />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          </FormShell>
+        </div>
+      ) : null}
+
+      {creating && !isInjectMode && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
+        <div className="mb-qp-gap">
           <FormShell title="Create Pay-In" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
               <FormGrid>
                 <FormField label={merchantLabel()} required>
                   <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label={merchantLabel()}>
-                    <option value="">Select merchant</option>
+                    <option value="">{`Select ${merchantLabel()}`}</option>
                     {createMerchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>
                         {merchant.merchant_code} — {merchant.display_name}
@@ -382,7 +600,7 @@ export default function PayinPage() {
       ) : null}
 
       {assignFor ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell title={`Assign UPI for Pay-In ${assignFor}`} submitLabel="Assign" onCancel={() => setAssignFor(null)} onSubmit={() => void handleAssign()}>
             <FormField label="Target UPI Account" required>
               <Select value={assignUpi} onChange={(event) => handleUpiChange(event.target.value, 'assign')}>
@@ -409,6 +627,7 @@ export default function PayinPage() {
           columns={[
             { key: 'ref', heading: 'Gateway Ref. No' },
             { key: 'utr', heading: 'UTR' },
+            { key: 'method', heading: 'METHOD' },
             ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
@@ -421,6 +640,7 @@ export default function PayinPage() {
           rows={rows.map((row) => ({
             ref: row.reference,
             utr: row.utr ?? '—',
+            method: row.payment_method ?? 'UPI',
             ...(showPanelUsername
               ? {
                   username: row.customer_ref?.trim() || '—',
@@ -434,12 +654,23 @@ export default function PayinPage() {
             inprog: row.in_progress_at ? new Date(row.in_progress_at).toLocaleString() : '—',
             actionTime: row.action_at ? new Date(row.action_at).toLocaleString() : '—',
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,
-            type: row.auto_accepted ? 'PAYIN BOT' : 'PAYIN',
+            type: payinTypeLabel(row),
             status: <StatusBadge status={row.status} />,
             actions: (
               <span className="flex flex-wrap items-center gap-1">
                 <IconButton href={`/payin/${row.id}`} icon={<Eye size={15} strokeWidth={1.75} />} tooltip="View details" />
-                {hasMenu(menus, 'PAYIN', 'can_edit') && (row.status === 'INITIATE' || row.status === 'IN_PROCESS') ? (
+                {user.role === 'MERCHANT' && row.is_injection && row.status === 'INITIATE' ? (
+                  <IconButton
+                    variant="primary"
+                    icon={<Hash size={15} strokeWidth={1.75} />}
+                    tooltip="Submit UTR"
+                    onClick={() => {
+                      setSubmitUtrFor(row)
+                      setSubmitUtrValue('')
+                    }}
+                  />
+                ) : null}
+                {!row.is_injection && !row.assigned_upi_id && hasMenu(menus, 'PAYIN', 'can_edit') && (row.status === 'INITIATE' || row.status === 'IN_PROCESS') ? (
                   <IconButton
                     icon={<Link2 size={15} strokeWidth={1.75} />}
                     tooltip="Assign UPI"
@@ -452,11 +683,11 @@ export default function PayinPage() {
                 ) : null}
                 {hasMenu(menus, 'PAYIN', 'can_approve') && row.status === 'IN_PROCESS' ? (
                   <>
-                    <IconButton variant="primary" icon={<Check size={15} strokeWidth={1.75} />} tooltip="Accept" onClick={() => setConfirm({ id: row.id, action: 'accept' })} />
+                    <IconButton variant="primary" icon={<Check size={15} strokeWidth={1.75} />} tooltip="Accept" onClick={() => handleAcceptClick(row)} />
                     <IconButton variant="danger" icon={<X size={15} strokeWidth={1.75} />} tooltip="Reject" onClick={() => setConfirm({ id: row.id, action: 'reject' })} />
                   </>
                 ) : null}
-                {hasMenu(menus, 'PAYIN', 'can_edit') && row.status === 'INITIATE' ? (
+                {hasMenu(menus, 'PAYIN', 'can_edit') && row.status === 'INITIATE' && user.role !== 'MERCHANT' ? (
                   <IconButton variant="secondary" icon={<XCircle size={15} strokeWidth={1.75} />} tooltip="Cancel" onClick={() => setConfirm({ id: row.id, action: 'cancel' })} />
                 ) : null}
                 {user.role === 'SUPER_ADMIN' && row.status === 'COMPLETED' ? (
@@ -465,14 +696,160 @@ export default function PayinPage() {
               </span>
             ),
           }))}
-          empty={<EmptyState message="No Pay-In requests found" />}
+          empty={<EmptyState message={isInjectMode ? 'No Pay-In Injection requests found' : 'No Pay-In requests found'} />}
           pagination={pagination ?? undefined}
           onPage={(page) => void setFilters({ page })}
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
         />
       )}
-      {confirm ? (
-        <ConfirmDialog title={`${confirm.action} this pay-in?`} confirmLabel={confirm.action} loading={submitting === confirm.id} onCancel={() => setConfirm(null)} onConfirm={() => void handleAction()} />
+      {confirm &&
+      confirm.action === 'accept' &&
+      confirm.paymentMethod === 'USDT_TRC20' &&
+      !confirm.pinnedUtr ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          role="dialog"
+          aria-label="Accept USDT pay-in"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border p-6"
+            style={{ backgroundColor: 'var(--qp-card)', borderColor: 'var(--qp-border)' }}
+          >
+            <h3 className="mb-1 text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>
+              Accept USDT/TRC20 pay-in?
+            </h3>
+            <p className="mb-4 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+              Enter the TRON transaction hash (64 hex). One hash can complete only one pay-in.
+            </p>
+            <FormField label="TRON chain_tx_hash" required>
+              <Input
+                value={acceptChainTx}
+                onChange={(event) => setAcceptChainTx(event.target.value.trim())}
+                placeholder="64-character hex"
+                autoComplete="off"
+              />
+            </FormField>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-lg border px-4 text-sm"
+                style={{ borderColor: 'var(--qp-border)' }}
+                onClick={() => {
+                  setConfirm(null)
+                  setAcceptChainTx('')
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submitting === confirm.id}
+                className="inline-flex h-9 items-center rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: 'var(--qp-primary)' }}
+                onClick={() => void handleAction()}
+              >
+                {submitting === confirm.id ? 'Accepting…' : 'Accept'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : confirm ? (
+        <ConfirmDialog
+          title={`${confirm.action} this pay-in?`}
+          confirmLabel={confirm.action}
+          loading={submitting === confirm.id}
+          onCancel={() => {
+            setConfirm(null)
+            setAcceptChainTx('')
+          }}
+          onConfirm={() => void handleAction()}
+        />
+      ) : null}
+      {acceptInjection ? (
+        <Modal
+          title="Accept injection"
+          footer={
+            <>
+              <button
+                type="button"
+                className="h-8 rounded border border-zinc-300 px-3 text-xs"
+                onClick={() => { setAcceptInjection(null); setAcceptUpiId('') }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!acceptUpiId || submitting === acceptInjection.id}
+                className="h-8 rounded bg-zinc-900 px-3 text-xs text-white disabled:opacity-60"
+                onClick={() => void handleInjectionAccept()}
+              >
+                {submitting === acceptInjection.id ? 'Accepting…' : 'Accept'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-600">
+              Ref <span className="font-medium text-zinc-900">{acceptInjection.reference}</span>
+              {acceptInjection.utr ? (
+                <>
+                  {' '}· UTR <span className="font-medium text-zinc-900">{acceptInjection.utr}</span>
+                </>
+              ) : null}
+              {' '}· <MoneyDisplay amountMinor={acceptInjection.amount_minor} />
+            </p>
+            <FormField label="UPI" required hint={`Select an ACTIVE UPI owned by the injection ${bankerLabel()}.`}>
+              <Select value={acceptUpiId} onChange={(event) => setAcceptUpiId(event.target.value)} aria-label="Select UPI">
+                <option value="">Select UPI</option>
+                {injectionAcceptUpis.map((upi) => (
+                  <option key={upi.id} value={upi.id}>{upi.upi_address}</option>
+                ))}
+              </Select>
+            </FormField>
+          </div>
+        </Modal>
+      ) : null}
+      {submitUtrFor ? (
+        <Modal
+          title="Submit UTR"
+          footer={
+            <>
+              <button
+                type="button"
+                className="h-8 rounded border border-zinc-300 px-3 text-xs"
+                onClick={() => { setSubmitUtrFor(null); setSubmitUtrValue('') }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!/^\d{6,32}$/.test(submitUtrValue.trim()) || submitting === submitUtrFor.id}
+                className="h-8 rounded bg-zinc-900 px-3 text-xs text-white disabled:opacity-60"
+                onClick={() => void handleSubmitUtr()}
+              >
+                {submitting === submitUtrFor.id ? 'Submitting…' : 'Submit'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-600">
+              Ref <span className="font-medium text-zinc-900">{submitUtrFor.reference}</span>
+              {' '}· <MoneyDisplay amountMinor={submitUtrFor.amount_minor} />
+            </p>
+            <FormField label="UTR" required hint="6 to 32 digits from the payment receipt.">
+              <Input
+                value={submitUtrValue}
+                onChange={(event) => setSubmitUtrValue(event.target.value.replace(/\D/g, '').slice(0, 32))}
+                inputMode="numeric"
+                autoComplete="off"
+                aria-label="UTR"
+                placeholder="Enter UTR"
+              />
+            </FormField>
+          </div>
+        </Modal>
       ) : null}
       {assignFor ? (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30" role="dialog" aria-label="Assign UPI">

@@ -6,10 +6,9 @@ out/
 coverage/
 *.tsbuildinfo
 
+# Env — all local / Vercel copies are secrets. Never commit.
 .env
-.env.local
-.env.*.local
-!.env.example
+.env.*
 
 .DS_Store
 .idea/

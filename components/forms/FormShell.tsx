@@ -1,10 +1,17 @@
 'use client'
 
 import { ErrorAlert } from '@/components/ui/PageHeader'
+import { Button } from '@/components/ui/Button'
+
+const MAX_WIDTH = {
+  full: undefined,
+  narrow: '640px',
+  default: '920px',
+  wide: '1100px',
+} as const
 
 /* ─── FormShell ───────────────────────────────────────────────────────────────
-   Premium card-style form shell. Wraps form sections in a white rounded card
-   with a branded header, scrollable body, and sticky footer.
+   Compact card-style form shell: optional title bar, body, right-aligned footer.
    Usage:
      <FormShell title="Create User" submitLabel="Create" error={error} onSubmit={...} onCancel={() => router.back()}>
        <FormSection title="Basic Info"><FormGrid>...</FormGrid></FormSection>
@@ -20,6 +27,7 @@ export function FormShell({
   actions,
   wide = false,
   compact = false,
+  width,
   children,
 }: {
   title?: string | undefined
@@ -30,49 +38,40 @@ export function FormShell({
   loading?: boolean | undefined
   /** Custom footer actions (e.g. Accept / Reject). Replaces default Cancel/Submit when set. */
   actions?: React.ReactNode | undefined
-  /** Wider card for dense multi-column user forms. Default 920px. */
+  /** Shorthand for width="wide". */
   wide?: boolean | undefined
-  /** Tighter section spacing (space-y-4 instead of space-y-6). */
+  /** Tighter section spacing. */
   compact?: boolean | undefined
+  /** Max width preset. Default: full width of the content area. */
+  width?: keyof typeof MAX_WIDTH | undefined
   children: React.ReactNode
 }) {
   const showDefaultActions = !actions && (onCancel || onSubmit)
   const showFooter = Boolean(error || actions || showDefaultActions)
+  const maxWidth = MAX_WIDTH[width ?? (wide ? 'wide' : 'full')]
 
   return (
     <div
-      className="rounded-xl border"
+      className="rounded-qp-card border"
       style={{
         backgroundColor: 'var(--qp-card)',
         borderColor: 'var(--qp-border)',
-        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.05)',
-        maxWidth: wide ? '1100px' : '920px',
+        boxShadow: 'var(--qp-shadow-sm)',
+        maxWidth,
       }}
     >
-      {/* Card header */}
       {title ? (
         <div
-          className="flex items-center gap-3 px-5 py-3.5"
-          style={{
-            borderBottom: '1px solid var(--qp-border)',
-            background: 'linear-gradient(135deg, var(--qp-primary-light) 0%, var(--qp-card) 60%)',
-          }}
+          className="flex items-center gap-2 border-b px-qp-card py-2"
+          style={{ borderColor: 'var(--qp-border)' }}
         >
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ backgroundColor: 'var(--qp-primary)', boxShadow: '0 1px 3px 0 rgba(37, 99, 235, 0.3)' }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </div>
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--qp-text-primary)' }}>{title}</h3>
+          <span className="h-3.5 w-1 rounded-full" style={{ backgroundColor: 'var(--qp-primary)' }} aria-hidden="true" />
+          <h3 className="text-[13px] font-semibold" style={{ color: 'var(--qp-text-primary)' }}>{title}</h3>
         </div>
       ) : null}
 
-      {/* Form body */}
       <form
-        className={`${compact ? 'space-y-4' : 'space-y-6'} p-5`}
+        className={`${compact ? 'space-y-3' : 'space-y-4'} p-qp-card`}
         onSubmit={(event) => {
           event.preventDefault()
           if (onSubmit) {
@@ -84,46 +83,24 @@ export function FormShell({
 
         {showFooter ? (
           <div
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3.5 -mx-1"
-            style={{
-              borderTop: '1px solid var(--qp-border)',
-              backgroundColor: '#f8fafc',
-              marginTop: compact ? '16px' : '24px',
-            }}
+            className="flex flex-wrap items-center justify-between gap-2 border-t pt-qp-card"
+            style={{ borderColor: 'var(--qp-border)' }}
           >
             <ErrorAlert message={error ?? null} />
             {actions ? (
-              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{actions}</div>
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">{actions}</div>
             ) : null}
             {showDefaultActions ? (
-              <div className="ml-auto flex items-center gap-2.5">
+              <div className="ml-auto flex items-center gap-1.5">
                 {onCancel ? (
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={loading}
-                    className="inline-flex h-9 items-center rounded-lg border px-5 text-sm font-medium transition-all duration-150 hover:bg-slate-50"
-                    style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)', backgroundColor: '#fff' }}
-                  >
+                  <Button variant="secondary" onClick={onCancel} disabled={loading}>
                     Cancel
-                  </button>
+                  </Button>
                 ) : null}
                 {onSubmit ? (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg px-5 text-sm font-semibold text-white transition-all duration-150 disabled:opacity-60"
-                    style={{ backgroundColor: 'var(--qp-primary)', boxShadow: '0 1px 3px 0 rgba(37, 99, 235, 0.25)' }}
-                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = 'var(--qp-primary-dark)' }}
-                    onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = 'var(--qp-primary)' }}
-                  >
-                    {loading ? (
-                      <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                      </svg>
-                    ) : null}
+                  <Button type="submit" variant="primary" loading={loading}>
                     {submitLabel || 'Submit'}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             ) : null}
@@ -148,18 +125,19 @@ export function InlineCreatePanel({
 }) {
   return (
     <div
-      className="mb-4 rounded-xl border p-4"
+      className="mb-qp-gap rounded-qp-card border border-t-2 p-qp-card"
       style={{
         backgroundColor: 'var(--qp-card)',
-        borderColor: 'var(--qp-primary)',
+        borderColor: 'var(--qp-border)',
+        borderTopColor: 'var(--qp-primary)',
         boxShadow: 'var(--qp-shadow-sm)',
       }}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--qp-primary-dark)' }}>{title}</p>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold" style={{ color: 'var(--qp-primary-dark)' }}>{title}</p>
         <button
           type="button"
-          className="flex h-6 w-6 items-center justify-center rounded-md text-xs transition-colors"
+          className="flex h-6 w-6 items-center justify-center rounded-qp text-xs transition-colors hover:bg-[var(--qp-surface)]"
           style={{ color: 'var(--qp-text-muted)' }}
           onClick={onCancel}
           aria-label="Close"

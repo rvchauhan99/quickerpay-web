@@ -18,6 +18,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { PayoutActionDialogs } from '@/components/forms/PayoutActionDialogs'
+import { PayoutReassignDialog } from '@/components/forms/PayoutReassignDialog'
 import {
   copyPayoutBankDetails,
   payoutAccountNumber,
@@ -25,10 +26,11 @@ import {
   payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
-import { merchantLabel } from '@/lib/labels'
+import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
+import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 function FieldWithCopy({
@@ -58,6 +60,8 @@ export default function PayoutDetailPage() {
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
   const [acceptFor, setAcceptFor] = useState<PayoutListItem | null>(null)
   const [rejectFor, setRejectFor] = useState<PayoutListItem | null>(null)
+  const [reassignOpen, setReassignOpen] = useState(false)
+  const { isSuperAdmin, admins } = useSuperAdminDirectory(accessToken, user?.role)
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
@@ -100,7 +104,14 @@ export default function PayoutDetailPage() {
   const isPending = row?.status === 'INITIATE'
   const canAccept = Boolean(isPending && hasMenu(menus, 'PAYOUT', 'can_edit'))
   const canReject = Boolean(isPending && hasMenu(menus, 'PAYOUT', 'can_edit'))
-  const showActions = Boolean(row && (canAccept || canReject))
+  const canReassign = Boolean(
+    isPending &&
+      isSuperAdmin &&
+      row?.banker_user_id &&
+      hasMenu(menus, 'PAYOUT', 'can_approve'),
+  )
+  const showActions = Boolean(row && (canAccept || canReject || canReassign))
+  const activeAssignees = admins.filter((admin) => admin.role === 'BANKER' && admin.status === 'ACTIVE')
 
   const accountDisplay = row ? payoutAccountNumber(row) || '—' : '—'
   const ifscDisplay = row?.beneficiary_ifsc?.trim() || '—'
@@ -110,9 +121,9 @@ export default function PayoutDetailPage() {
   const upiPayee = row ? payoutIsUpiPayee(row) : false
 
   return (
-    <AppShell title="Pay-Out Detail" role={user.role} menus={menus}>
-      <PageHeader title="Pay-Out Detail" backHref="/payout" backLabel="Pay-Out" />
-      <div className="mb-4">
+    <AppShell title="Pending Withdrawal Detail" role={user.role} menus={menus}>
+      <PageHeader title="Pending Withdrawal Detail" backHref="/payout" backLabel="Pending Withdrawal" />
+      <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>
       {!row ? (
@@ -123,6 +134,11 @@ export default function PayoutDetailPage() {
           actions={
             showActions ? (
               <>
+                {canReassign ? (
+                  <OutlineButton type="button" onClick={() => setReassignOpen(true)}>
+                    Reassign {bankerLabel()}
+                  </OutlineButton>
+                ) : null}
                 {canReject ? (
                   <DangerButton type="button" onClick={() => setRejectFor(row)}>
                     Reject
@@ -139,7 +155,7 @@ export default function PayoutDetailPage() {
         >
           <FormSection title="Overview" description="Amount, status, and gateway references.">
             <div
-              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
+              className="mb-qp-gap flex flex-wrap items-center justify-between gap-3 rounded-qp-card border px-4 py-3"
               style={{
                 borderColor: 'var(--qp-border)',
                 backgroundColor: 'var(--qp-primary-light)',
@@ -197,7 +213,7 @@ export default function PayoutDetailPage() {
 
           <FormSection title="Bank details" description="Full payee details for transfer. Copy each field or all at once.">
             <div
-              className="mb-3 rounded-xl border p-3"
+              className="mb-3 rounded-qp-card border p-3"
               style={{
                 borderColor: 'var(--qp-border)',
                 backgroundColor: 'var(--qp-card)',
@@ -244,22 +260,34 @@ export default function PayoutDetailPage() {
         </FormShell>
       )}
       {accessToken ? (
-        <PayoutActionDialogs
-          acceptFor={acceptFor}
-          rejectFor={rejectFor}
-          banks={banks}
-          accessToken={accessToken}
-          onCloseAccept={() => setAcceptFor(null)}
-          onCloseReject={() => setRejectFor(null)}
-          onAccepted={async () => {
-            setAcceptFor(null)
-            await load()
-          }}
-          onRejected={async () => {
-            setRejectFor(null)
-            await load()
-          }}
-        />
+        <>
+          <PayoutActionDialogs
+            acceptFor={acceptFor}
+            rejectFor={rejectFor}
+            banks={banks}
+            accessToken={accessToken}
+            onCloseAccept={() => setAcceptFor(null)}
+            onCloseReject={() => setRejectFor(null)}
+            onAccepted={async () => {
+              setAcceptFor(null)
+              await load()
+            }}
+            onRejected={async () => {
+              setRejectFor(null)
+              await load()
+            }}
+          />
+          <PayoutReassignDialog
+            row={reassignOpen ? row : null}
+            assignees={activeAssignees}
+            accessToken={accessToken}
+            onClose={() => setReassignOpen(false)}
+            onReassigned={async () => {
+              setReassignOpen(false)
+              await load()
+            }}
+          />
+        </>
       ) : null}
     </AppShell>
   )

@@ -96,7 +96,7 @@ export default function CriciBanksPage() {
         { method: 'POST', token: accessToken, body },
       )
       toast.success(
-        `Synced ${result.merchants_synced} merchant(s): ${result.rows_upserted} rows, ${result.rows_linked} linked`,
+        `Synced ${result.merchants_synced} ${merchantLabel({ plural: true })}: ${result.rows_upserted} rows, ${result.rows_linked} linked`,
       )
       await load()
     } catch (caught) {
@@ -208,7 +208,7 @@ export default function CriciBanksPage() {
       ) : (
         <DataTable
           columns={[
-            { key: 'merchant', heading: 'MERCHANT' },
+            { key: 'merchant', heading: merchantLabel().toUpperCase() },
             { key: 'method', heading: 'METHOD ID' },
             { key: 'upi', heading: 'UPI ID' },
             { key: 'name', heading: 'NAME' },
@@ -271,7 +271,11 @@ export default function CriciBanksPage() {
                 }
               : {}),
           }))}
-          empty={<EmptyState message="No Crici banks synced yet. Run Resync All after connecting merchants." />}
+          empty={
+            <EmptyState
+              message={`No Crici banks synced yet. Run Resync All after connecting ${merchantLabel({ plural: true })}.`}
+            />
+          }
           pagination={pagination ?? undefined}
           onPage={(page) => void setFilters({ page })}
         />

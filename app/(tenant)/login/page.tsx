@@ -59,7 +59,7 @@ export default function LoginPage() {
       <div
         className="hidden lg:flex lg:w-[44%] flex-col justify-between p-10"
         style={{
-          background: 'linear-gradient(145deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)',
+          background: 'linear-gradient(145deg, var(--qp-sidebar-bg) 0%, var(--qp-sidebar-hover) 50%, var(--qp-sidebar-active) 100%)',
         }}
       >
         {/* Logo */}
@@ -70,7 +70,7 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold leading-tight text-white">
             Secure Payment<br />Operations Platform
           </h1>
-          <p className="mt-4 text-base leading-relaxed" style={{ color: '#bfdbfe' }}>
+          <p className="mt-4 text-base leading-relaxed" style={{ color: 'var(--qp-sidebar-text)' }}>
             Multi-tenant payment gateway management with real-time UTR verification and commission tracking.
           </p>
 
@@ -90,7 +90,7 @@ export default function LoginPage() {
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                 </div>
-                <span className="text-sm" style={{ color: '#dbeafe' }}>{feature}</span>
+                <span className="text-sm" style={{ color: 'var(--qp-sidebar-text)' }}>{feature}</span>
               </li>
             ))}
           </ul>
@@ -98,15 +98,15 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#93c5fd' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--qp-sidebar-muted)' }}>
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
-          <span className="text-xs" style={{ color: '#93c5fd' }}>Enterprise-grade security & compliance</span>
+          <span className="text-xs" style={{ color: 'var(--qp-sidebar-muted)' }}>Enterprise-grade security & compliance</span>
         </div>
       </div>
 
       {/* Right panel — form */}
-      <div className="flex flex-1 items-center justify-center px-6 py-12" style={{ backgroundColor: '#f8fafc' }}>
+      <div className="flex flex-1 items-center justify-center px-6 py-12" style={{ backgroundColor: 'var(--qp-surface)' }}>
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden">
@@ -192,10 +192,8 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white transition-all duration-150 disabled:opacity-70"
-              style={{ backgroundColor: loading ? 'var(--qp-primary-dark)' : 'var(--qp-primary)' }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = 'var(--qp-primary-dark)' }}
-              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = 'var(--qp-primary)' }}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white transition-all duration-150 disabled:opacity-70 hover:brightness-95"
+              style={{ backgroundColor: 'var(--qp-primary)' }}
             >
               {loading ? (
                 <>

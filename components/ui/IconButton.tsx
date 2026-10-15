@@ -8,6 +8,7 @@ export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   icon: ReactNode
   tooltip: string
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
+  size?: 'sm' | 'md'
   position?: 'top' | 'bottom' | 'left' | 'right'
   href?: string
 }
@@ -16,6 +17,7 @@ export function IconButton({
   icon,
   tooltip,
   variant = 'ghost',
+  size = 'sm',
   position = 'top',
   className = '',
   disabled,
@@ -24,7 +26,7 @@ export function IconButton({
   let variantClasses = ''
   
   if (variant === 'primary') {
-    variantClasses = 'bg-[#ecfdf5] text-[#059669] border border-[#a7f3d0] hover:bg-[#d1fae5] hover:text-[#047857]'
+    variantClasses = 'bg-[var(--qp-success-bg)] text-[var(--qp-success)] border border-[var(--qp-success-border)] hover:brightness-95'
   } else if (variant === 'danger') {
     variantClasses = 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 hover:text-red-700'
   } else if (variant === 'secondary') {
@@ -33,7 +35,8 @@ export function IconButton({
     variantClasses = 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 border border-transparent'
   }
 
-  const baseClasses = 'flex h-8 w-8 items-center justify-center rounded-lg transition-colors'
+  const sizeClasses = size === 'md' ? 'h-qp-ctl w-qp-ctl' : 'h-qp-ctl-sm w-qp-ctl-sm'
+  const baseClasses = `flex ${sizeClasses} shrink-0 items-center justify-center rounded-qp transition-colors [&_svg]:h-[14px] [&_svg]:w-[14px]`
   const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
 
   const finalClassName = `${baseClasses} ${variantClasses} ${disabledClasses} ${className}`

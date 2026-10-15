@@ -56,13 +56,13 @@ function OperationalStateSync() {
 
 function FullScreenSpinner() {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4" style={{ backgroundColor: 'var(--qp-card)' }}>
       <div className="flex flex-col items-center gap-3">
         <div className="relative flex h-14 w-14 items-center justify-center">
-          <div className="absolute inset-0 animate-spin rounded-full border-4 border-gray-100 border-t-emerald-500" />
-          <span className="text-lg font-bold tracking-tight text-emerald-600">QP</span>
+          <div className="absolute inset-0 animate-spin rounded-full border-4" style={{ borderColor: 'var(--qp-border)', borderTopColor: 'var(--qp-primary)' }} />
+          <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--qp-primary)' }}>QP</span>
         </div>
-        <p className="text-sm text-gray-400">Loading…</p>
+        <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>Loading…</p>
       </div>
     </div>
   )

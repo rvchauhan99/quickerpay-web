@@ -6,6 +6,8 @@ The product specification lives in the sibling API checkout: `../QuickerPay/docs
 
 **Development loop:** follow `../QuickerPay/.cursor/rules/quickerpay-development-loop.mdc` on every behavior-changing task (Plan → Clean → Implement → Test → Reloop → Docs → Sign-off).
 
+**Local-only testing:** every browser session, seed, and health check uses this PC only per [`.cursor/rules/local-only-testing.mdc`](.cursor/rules/local-only-testing.mdc). Never `*.safepay247.com`, VPS `178.94.251.176`, or production for QA.
+
 **Local browser QA:** localhost / `*.quickerpay.local` only — self-provision fixtures via local API per `../QuickerPay/.cursor/rules/local-browser-qa.mdc` when gates pass.
 
 **Workspace:** open `../QuickerPay/QuickerPay.code-workspace` so API, Web, and GPay-Extension load together. Cross-repo map: `../QuickerPay/docs/10_WORKSPACE.md`. Flowcharts: `../QuickerPay/docs/FLOWS.md`.

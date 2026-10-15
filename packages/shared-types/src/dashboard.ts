@@ -38,6 +38,10 @@ export interface DashboardSummary {
   pending_approvals: number
   failed_transactions: number
   unmatched_utrs: number
+  /** Count of UNCLAIMED utr_entries in scope. */
+  unclaimed_utrs: number
+  /** Sum of amount_minor for UNCLAIMED utr_entries in scope. */
+  unclaimed_amount_minor: number
   operators_online: number
   pending_utrs: number
   assigned_queue_depth: number

@@ -13,7 +13,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   AUDITOR: 'Auditor',
   /** Exchange Master portal login. */
   MERCHANT: 'Exchange Master',
-  /** Upper-line introducer — read-only on linked Exchanges. */
+  /** Upper-line brokerage role (API may return AGENT). */
   AGENT: 'Agent',
 }
 

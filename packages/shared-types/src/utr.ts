@@ -12,6 +12,7 @@ export interface UtrListItem {
   upi_account_id: string | null
   upi_address: string | null
   transaction_id: string | null
+  settlement_transaction_id: string | null
   reference: string | null
   status: UtrStatus
   source: UtrSource
@@ -21,4 +22,7 @@ export interface UtrListItem {
   device_label: string | null
   entry_time: string
   action_time: string | null
+  unclaimed_at: string | null
+  released_at: string | null
+  released_by: string | null
 }

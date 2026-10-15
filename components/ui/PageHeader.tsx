@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Button } from './Button'
 
 /* ─── PageHeader ──────────────────────────────────────────────────────────────
    Standard header for all list and detail pages.
@@ -17,23 +18,23 @@ export function PageHeader({
   backHref,
   backLabel,
   action,
+  meta,
 }: {
   title: string
   subtitle?: string
   backHref?: string
   backLabel?: string
   action?: React.ReactNode
+  /** Inline secondary info rendered after the title (counts, live indicators). */
+  meta?: React.ReactNode
 }) {
   return (
-    <div
-      className="mb-4 flex items-center justify-between"
-      style={{ borderBottom: '1px solid var(--qp-border)', paddingBottom: '12px' }}
-    >
-      <div className="flex items-center gap-3">
+    <div className="mb-qp-gap flex min-h-qp-ctl flex-wrap items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2.5">
         {backHref ? (
           <Link
             href={backHref}
-            className="flex items-center gap-1.5 text-xs font-medium transition-colors"
+            className="flex items-center gap-1 text-xs font-medium transition-colors hover:text-[var(--qp-text-primary)]"
             style={{ color: 'var(--qp-text-muted)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -42,22 +43,23 @@ export function PageHeader({
             {backLabel ?? 'Back'}
           </Link>
         ) : null}
-        <div>
-          <h2 className="text-base font-semibold leading-tight" style={{ color: 'var(--qp-text-primary)' }}>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          <h2 className="truncate text-[15px] font-semibold leading-tight" style={{ color: 'var(--qp-text-primary)' }}>
             {title}
           </h2>
           {subtitle ? (
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--qp-text-muted)' }}>{subtitle}</p>
+            <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>{subtitle}</p>
           ) : null}
+          {meta ? <div className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>{meta}</div> : null}
         </div>
       </div>
-      {action ? <div className="flex items-center gap-2">{action}</div> : null}
+      {action ? <div className="flex flex-wrap items-center gap-1.5">{action}</div> : null}
     </div>
   )
 }
 
 /* ─── PrimaryButton ───────────────────────────────────────────────────────────
-   Standard primary action button — emerald filled.
+   Standard primary action button — theme accent filled.
 ──────────────────────────────────────────────────────────────────────────── */
 export function PrimaryButton({
   href,
@@ -74,27 +76,13 @@ export function PrimaryButton({
   disabled?: boolean
   loading?: boolean
 }) {
-  const cls =
-    'inline-flex items-center gap-1.5 h-9 rounded-lg px-4 text-sm font-semibold text-white transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed'
-  const style = { backgroundColor: 'var(--qp-primary)' }
-
   if (href) {
-    return (
-      <Link href={href} className={cls} style={style}>
-        {children}
-      </Link>
-    )
+    return <Button href={href} variant="primary">{children}</Button>
   }
-
   return (
-    <button type={type} onClick={onClick} disabled={disabled || loading} className={cls} style={style}>
-      {loading ? (
-        <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-        </svg>
-      ) : null}
+    <Button type={type} onClick={onClick} disabled={disabled} loading={loading} variant="primary">
       {children}
-    </button>
+    </Button>
   )
 }
 
@@ -114,26 +102,13 @@ export function OutlineButton({
   type?: 'button' | 'submit'
   disabled?: boolean
 }) {
-  const cls =
-    'inline-flex items-center gap-1.5 h-9 rounded-lg border px-4 text-sm font-medium transition-all duration-150 disabled:opacity-60'
-  const style = {
-    borderColor: 'var(--qp-border)',
-    color: 'var(--qp-text-secondary)',
-    backgroundColor: '#ffffff',
-  }
-
   if (href) {
-    return (
-      <Link href={href} className={cls} style={style}>
-        {children}
-      </Link>
-    )
+    return <Button href={href} variant="secondary">{children}</Button>
   }
-
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={cls} style={style}>
+    <Button type={type} onClick={onClick} disabled={disabled} variant="secondary">
       {children}
-    </button>
+    </Button>
   )
 }
 
@@ -154,20 +129,9 @@ export function DangerButton({
   loading?: boolean
 }) {
   return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled || loading}
-      className="inline-flex items-center gap-1.5 h-9 rounded-lg px-4 text-sm font-semibold text-white transition-all duration-150 disabled:opacity-60"
-      style={{ backgroundColor: 'var(--qp-danger)' }}
-    >
-      {loading ? (
-        <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-        </svg>
-      ) : null}
+    <Button type={type} onClick={onClick} disabled={disabled} loading={loading} variant="danger">
       {children}
-    </button>
+    </Button>
   )
 }
 
@@ -178,14 +142,15 @@ export function ErrorAlert({ message, type = 'error' }: { message: string | null
   if (!message) return null
   return (
     <div
-      className="flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium"
+      role={type === 'error' ? 'alert' : 'status'}
+      className="flex items-center gap-2 rounded-qp border px-3 py-2 text-xs font-medium"
       style={{
         backgroundColor: type === 'error' ? 'var(--qp-danger-bg)' : 'var(--qp-success-bg)',
         borderColor: type === 'error' ? 'var(--qp-danger-border)' : 'var(--qp-success-border)',
         color: type === 'error' ? 'var(--qp-danger)' : 'var(--qp-success)',
       }}
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg className="shrink-0" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         {type === 'error' ? (
           <>
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -206,11 +171,11 @@ export function ErrorAlert({ message, type = 'error' }: { message: string | null
 ──────────────────────────────────────────────────────────────────────────── */
 export function LoadingSpinner() {
   return (
-    <div className="flex items-center gap-2 py-8" style={{ color: 'var(--qp-text-muted)' }}>
+    <div className="flex items-center gap-2 py-4" style={{ color: 'var(--qp-text-muted)' }}>
       <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
       </svg>
-      <span className="text-sm">Loading...</span>
+      <span className="text-xs">Loading...</span>
     </div>
   )
 }

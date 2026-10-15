@@ -170,7 +170,7 @@ export default function MerchantsPage() {
               </span>
             ),
           }))}
-          empty={<EmptyState message="No merchants found" />}
+          empty={<EmptyState message={`No ${merchantLabel({ plural: true })} found`} />}
           pagination={pagination ?? undefined}
           onPage={(page) => void setFilters({ page })}
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
@@ -179,7 +179,7 @@ export default function MerchantsPage() {
       {suspend ? (
         <ConfirmDialog
           title={`Suspend ${suspend.legal_name}?`}
-          subtitle="All banks synced with this merchant will be disabled (panel + CRM). Panel credentials are cleared. Polls stop until you Activate and reconnect."
+          subtitle={`All banks synced with this ${merchantLabel()} will be disabled (panel + CRM). Panel credentials are cleared. Polls stop until you Activate and reconnect.`}
           confirmLabel="Suspend"
           loading={submitting}
           onCancel={() => setSuspend(null)}
@@ -189,7 +189,7 @@ export default function MerchantsPage() {
       {activate ? (
         <ConfirmDialog
           title={`Activate ${activate.legal_name}?`}
-          subtitle="Sets the merchant ACTIVE only. Reconnect panel credentials on the merchant page, then re-enable banks from Bank Details. Banks are not restored automatically."
+          subtitle={`Sets the ${merchantLabel()} ACTIVE only. Reconnect panel credentials on the ${merchantLabel()} page, then re-enable banks from Bank Details. Banks are not restored automatically.`}
           confirmLabel="Activate"
           variant="primary"
           loading={submitting}

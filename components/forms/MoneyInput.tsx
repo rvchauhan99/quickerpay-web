@@ -19,10 +19,10 @@ export function MoneyInput({
     : fromMinor(BigInt(valueMinor)).replace(/^₹/, '')
   return (
     <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--qp-text-muted)' }}>₹</span>
+      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-qp-body" style={{ color: 'var(--qp-text-muted)' }}>₹</span>
       <Input
         id={id}
-        className="pl-7 tabular-nums"
+        className="pl-6 tabular-nums"
         inputMode={wholeRupees ? 'numeric' : 'decimal'}
         defaultValue={display}
         onBlur={(event) => {

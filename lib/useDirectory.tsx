@@ -20,7 +20,9 @@ export function useSuperAdminDirectory(accessToken: string | null, role: string 
 
     if (canFilterDirectory) {
       void Promise.all([
-        apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken }),
+        apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken }).catch(() => ({
+          items: [] as UserListItem[],
+        })),
         canFilterMerchants
           ? apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
               items: [] as MerchantListItem[],

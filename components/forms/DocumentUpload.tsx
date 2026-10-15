@@ -5,7 +5,13 @@ import { Camera, FileText, Upload, X } from 'lucide-react'
 
 const DEFAULT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp'
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024
-const ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+const TYPE_LABELS: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'image/jpeg': 'JPEG',
+  'image/png': 'PNG',
+  'image/webp': 'WEBP',
+  'image/*': 'Images',
+}
 
 export interface DocumentUploadProps {
   value: File | null
@@ -28,16 +34,23 @@ function formatBytes(size: number): string {
   return `${Math.floor(tenths / 10)}.${tenths % 10} MB`
 }
 
+function acceptTokens(accept: string): string[] {
+  return accept.split(',').map((part) => part.trim()).filter(Boolean)
+}
+
+function acceptLabel(accept: string): string {
+  return acceptTokens(accept)
+    .map((token) => TYPE_LABELS[token] ?? token.replace(/^\./, '').toUpperCase())
+    .join(', ')
+}
+
 function isAllowedFile(file: File, accept: string, maxBytes: number): string | null {
-  const tokens = accept.split(',').map((part) => part.trim()).filter(Boolean)
-  const mimeOk =
-    ALLOWED_MIME.has(file.type) ||
-    tokens.some((token) => {
-      if (token.startsWith('.')) return file.name.toLowerCase().endsWith(token.toLowerCase())
-      if (token.endsWith('/*')) return file.type.startsWith(token.slice(0, -1))
-      return file.type === token
-    })
-  if (!mimeOk) return 'Allowed types: PDF, JPEG, PNG, WEBP'
+  const mimeOk = acceptTokens(accept).some((token) => {
+    if (token.startsWith('.')) return file.name.toLowerCase().endsWith(token.toLowerCase())
+    if (token.endsWith('/*')) return file.type.startsWith(token.slice(0, -1))
+    return file.type === token
+  })
+  if (!mimeOk) return `Allowed types: ${acceptLabel(accept)}`
   if (file.size <= 0 || file.size > maxBytes) return `File must be between 1 byte and ${formatBytes(maxBytes)}`
   return null
 }
@@ -301,7 +314,7 @@ export function DocumentUpload({
               Drop a file here, or browse
             </p>
             <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-              PDF, JPEG, PNG, WEBP · max {formatBytes(maxBytes)}
+              {acceptLabel(accept)} · max {formatBytes(maxBytes)}
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-2" onClick={(event) => event.stopPropagation()}>

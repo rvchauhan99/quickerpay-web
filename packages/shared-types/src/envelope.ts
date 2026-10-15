@@ -10,12 +10,15 @@ export interface Pagination {
 
 export interface SuccessResponse<T> {
   success: true
+  /** Human-readable outcome; present on Gateway routes. */
+  message?: string
   data: T
   request_id: string
 }
 
 export interface SuccessListResponse<T> {
   success: true
+  message?: string
   data: T[]
   pagination: Pagination
   request_id: string
@@ -51,6 +54,7 @@ export const API_ERROR_CODES = [
   'TENANT_DB_UNAVAILABLE',
   'CONFLICT',
   'DUPLICATE_UTR',
+  'UNCLAIMED_UTR_LOCKED',
   'IDEMPOTENCY_KEY_REUSED',
   'INVALID_STATE_TRANSITION',
   'NEGATIVE_MARGIN',
@@ -63,6 +67,7 @@ export const API_ERROR_CODES = [
   'TOO_MANY_ATTEMPTS',
   'RATE_LIMITED',
   'NO_UPI_AVAILABLE',
+  'NO_PAYMENT_METHOD_AVAILABLE',
   'OTP_REQUIRED',
   'OTP_INVALID',
   'OTP_EXPIRED',

@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { MENU_CODES, PHASE_1_BANKER_MENUS } from '@quickerpay/shared-types'
+import { useEffect, useMemo, useState } from 'react'
+import type { MenuCode } from '@quickerpay/shared-types'
+import { menusForRole, preferredGrantForMenu } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
@@ -10,14 +12,18 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
-import { RateInput } from '@/components/forms/RateInput'
-import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
 import { apiRequest, ApiClientError } from '@/lib/api'
-import { bankerLabel, roleLabel } from '@/lib/labels'
+import { roleLabel } from '@/lib/labels'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
-type CreatableRole = 'BANKER' | 'ADMIN' | 'OPERATOR' | 'AUDITOR'
+type StaffCreatableRole = 'ADMIN' | 'OPERATOR' | 'AUDITOR'
+
+const STAFF_DEFAULT_MENUS: Record<StaffCreatableRole, MenuCode[]> = {
+  ADMIN: ['DASHBOARD', 'USERS', 'LEDGER', 'PAYIN', 'PAYOUT', 'UTR', 'HAWALA'],
+  OPERATOR: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR'],
+  AUDITOR: ['DASHBOARD', 'PAYIN', 'PAYOUT', 'UTR', 'TRANSACTIONS', 'LEDGER', 'AUDIT'],
+}
 
 export default function NewUserPage() {
   const router = useRouter()
@@ -26,37 +32,29 @@ export default function NewUserPage() {
   const [displayName, setDisplayName] = useState('')
   const [mobile, setMobile] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<CreatableRole>('BANKER')
-  const [payinBp, setPayinBp] = useState(350)
-  const [payoutBp, setPayoutBp] = useState(150)
-  const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
-  const [selected, setSelected] = useState<string[]>([...PHASE_1_BANKER_MENUS])
+  const [role, setRole] = useState<StaffCreatableRole>('ADMIN')
+  const [selected, setSelected] = useState<MenuCode[]>([...STAFF_DEFAULT_MENUS.ADMIN])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  const offerableMenus = useMemo(() => menusForRole(role), [role])
+
+  useEffect(() => {
+    const defaults = STAFF_DEFAULT_MENUS[role].filter((code) => offerableMenus.includes(code))
+    setSelected(defaults.length > 0 ? defaults : offerableMenus.slice(0, 1))
+  }, [role, offerableMenus])
+
   if (!ready || !user) return <p className="p-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>Loading</p>
   if (!allowed) return Forbidden
+
+  const creatableRoles: StaffCreatableRole[] =
+    user.role === 'SUPER_ADMIN' ? ['ADMIN', 'OPERATOR', 'AUDITOR'] : ['OPERATOR']
 
   const handleSubmit = async () => {
     if (!accessToken || submitting) return
     setError(null)
     setFieldErrors({})
-
-    if (role === 'BANKER') {
-      const nextErrors: Record<string, string> = {}
-      const national = splitE164(mobile).national
-      if (!national) nextErrors.mobile = `Required when creating a ${bankerLabel()}`
-      if (!dailyDepositLimitMinor || dailyDepositLimitMinor <= 0) {
-        nextErrors.daily_deposit_limit_minor = `Required when creating a ${bankerLabel()}`
-      }
-      if (Object.keys(nextErrors).length > 0) {
-        setFieldErrors(nextErrors)
-        setError(`Contact number and daily deposit limit are required for a ${bankerLabel()}`)
-        return
-      }
-    }
-
     setSubmitting(true)
     try {
       await apiRequest('/api/v1/users', {
@@ -69,21 +67,9 @@ export default function NewUserPage() {
           require_password_change: true,
           role,
           mobile: splitE164(mobile).national ? mobile.trim() : undefined,
-          daily_deposit_limit_minor: role === 'BANKER' ? dailyDepositLimitMinor : undefined,
-          rates:
-            role === 'BANKER'
-              ? [
-                  { rate_kind: 'PAYIN', rate_bp: payinBp },
-                  { rate_kind: 'PAYOUT', rate_bp: payoutBp },
-                ]
-              : undefined,
           menus: selected.map((code) => ({
             menu_code: code,
-            can_view: true,
-            can_create: code === 'PAYIN' || code === 'PAYOUT' || code === 'UTR' || code === 'BANKS' || code === 'USERS',
-            can_edit: code === 'PAYIN' || code === 'PAYOUT' || code === 'UTR' || code === 'BANKS',
-            can_approve: code === 'PAYIN',
-            can_export: false,
+            ...preferredGrantForMenu(role, code),
           })),
         },
       })
@@ -111,6 +97,14 @@ export default function NewUserPage() {
         onSubmit={() => void handleSubmit()}
         onCancel={() => router.back()}
       >
+        {user.role === 'SUPER_ADMIN' ? (
+          <p className="mb-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+            Create Admin, Operator, or Auditor here.{' '}
+            <Link href="/bankers/new" className="font-medium underline underline-offset-2" style={{ color: 'var(--qp-primary)' }}>
+              Create Banker → Banker Master
+            </Link>
+          </p>
+        ) : null}
         <FormSection title="Account & Role">
           <FormGrid>
             <FormField label="Username" required error={fieldErrors.username}>
@@ -125,9 +119,8 @@ export default function NewUserPage() {
             </FormField>
             <FormField
               label="Contact number"
-              required={role === 'BANKER'}
               error={fieldErrors.mobile}
-              hint={role === 'BANKER' ? 'Used for bank OTP.' : 'Optional.'}
+              hint="Optional."
             >
               <PhoneInput
                 value={mobile}
@@ -149,68 +142,37 @@ export default function NewUserPage() {
               />
             </FormField>
             <FormField label="Role" required>
-              <Select value={role} onChange={(event) => setRole(event.target.value as CreatableRole)} aria-label="Role">
-                {(user.role === 'SUPER_ADMIN'
-                  ? (['BANKER', 'ADMIN', 'OPERATOR', 'AUDITOR'] as const)
-                  : (['OPERATOR'] as const)
-                ).map((code) => (
+              <Select value={role} onChange={(event) => setRole(event.target.value as StaffCreatableRole)} aria-label="Role">
+                {creatableRoles.map((code) => (
                   <option key={code} value={code}>{roleLabel(code)}</option>
                 ))}
               </Select>
             </FormField>
-            {role === 'BANKER' ? (
-              <>
-                <FormField label="PAYIN rate (bp)" error={fieldErrors.rates ?? fieldErrors['rates.0.rate_bp']}>
-                  <RateInput id="payin" valueBp={payinBp} onChangeBp={setPayinBp} />
-                </FormField>
-                <FormField label="PAYOUT rate (bp)" error={fieldErrors['rates.1.rate_bp']}>
-                  <RateInput id="payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
-                </FormField>
-                <FormField
-                  label="Daily deposit limit"
-                  required
-                  error={fieldErrors.daily_deposit_limit_minor}
-                  hint="Max COMPLETED Pay-In volume per IST day"
-                >
-                  <MoneyInput
-                    id="daily-deposit-limit"
-                    valueMinor={dailyDepositLimitMinor}
-                    onChangeMinor={setDailyDepositLimitMinor}
-                  />
-                </FormField>
-              </>
-            ) : null}
           </FormGrid>
         </FormSection>
 
-        <FormSection title="Menus">
+        <FormSection
+          title="Menus"
+          {...(role === 'AUDITOR'
+            ? { description: 'Auditor menus are view and export only — write actions are not offered.' }
+            : role === 'OPERATOR'
+              ? { description: 'Operator menus follow the Operator ceiling (no Banks or Hawala).' }
+              : {})}
+        >
           <div className="flex flex-wrap gap-2">
-            {MENU_CODES.map((code) => {
+            {offerableMenus.map((code) => {
               const on = selected.includes(code)
               return (
                 <button
                   key={code}
                   type="button"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150"
+                  data-on={on ? 'true' : 'false'}
+                  className="qp-menu-pill inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150"
                   style={{
-                    backgroundColor: on ? 'var(--qp-primary)' : '#fff',
+                    backgroundColor: on ? 'var(--qp-primary)' : 'var(--qp-card)',
                     color: on ? '#ffffff' : 'var(--qp-text-secondary)',
                     border: `1px solid ${on ? 'var(--qp-primary)' : 'var(--qp-border)'}`,
                     boxShadow: on ? '0 1px 3px 0 rgba(37, 99, 235, 0.2)' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!on) {
-                      e.currentTarget.style.borderColor = 'var(--qp-primary)'
-                      e.currentTarget.style.color = 'var(--qp-primary-dark)'
-                      e.currentTarget.style.backgroundColor = 'var(--qp-primary-light)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!on) {
-                      e.currentTarget.style.borderColor = 'var(--qp-border)'
-                      e.currentTarget.style.color = 'var(--qp-text-secondary)'
-                      e.currentTarget.style.backgroundColor = '#fff'
-                    }
                   }}
                   onClick={() =>
                     setSelected((prev) => (on ? prev.filter((row) => row !== code) : [...prev, code]))

@@ -18,11 +18,12 @@ import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { IconButton } from '@/components/ui/IconButton'
-import { Eye, X, CheckCircle, Paperclip } from 'lucide-react'
+import { Eye, X, CheckCircle, Paperclip, ArrowLeftRight } from 'lucide-react'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { PayoutActionDialogs } from '@/components/forms/PayoutActionDialogs'
+import { PayoutReassignDialog } from '@/components/forms/PayoutReassignDialog'
 import { PayoutBankDetailsCell } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
@@ -47,6 +48,7 @@ export default function PayoutPage() {
     merchant_id: parseAsString.withDefault(''),
     banker_user_id: parseAsString.withDefault(''),
     unassigned: parseAsString.withDefault(''),
+    assigned: parseAsString.withDefault(''),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
@@ -56,6 +58,7 @@ export default function PayoutPage() {
   const [loading, setLoading] = useState(true)
   const [rejectFor, setRejectFor] = useState<PayoutListItem | null>(null)
   const [successFor, setSuccessFor] = useState<PayoutListItem | null>(null)
+  const [reassignFor, setReassignFor] = useState<PayoutListItem | null>(null)
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
   const [creating, setCreating] = useState(false)
@@ -71,7 +74,10 @@ export default function PayoutPage() {
   const didDefaultSaUnassigned = useRef(false)
 
   // Super Admin: empty URL param means unassigned queue (never All). Explicit `all` browses everything.
-  const saUnassignedOnly = user?.role === 'SUPER_ADMIN' && filters.unassigned !== 'all'
+  // Assigned=true is In Process Withdrawal — do not force unassigned.
+  const assignedOnly = filters.assigned === 'true'
+  const saUnassignedOnly =
+    user?.role === 'SUPER_ADMIN' && filters.unassigned !== 'all' && !assignedOnly
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -86,6 +92,7 @@ export default function PayoutPage() {
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     if (saUnassignedOnly) query.set('unassigned', 'true')
+    if (assignedOnly) query.set('assigned', 'true')
     try {
       const result = await apiListRequest<PayoutListItem>(`/api/v1/payout?${query}`)
       setRows(result.items)
@@ -95,7 +102,7 @@ export default function PayoutPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, saUnassignedOnly])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, saUnassignedOnly, assignedOnly])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -103,10 +110,11 @@ export default function PayoutPage() {
 
   useEffect(() => {
     if (!ready || !user || user.role !== 'SUPER_ADMIN' || didDefaultSaUnassigned.current) return
+    if (filters.assigned === 'true') return
     didDefaultSaUnassigned.current = true
     if (filters.unassigned === 'all') return
     void setFilters({ unassigned: 'true', status: filters.status || 'INITIATE', page: 1 })
-  }, [ready, user, setFilters, filters.unassigned, filters.status])
+  }, [ready, user, setFilters, filters.unassigned, filters.status, filters.assigned])
 
   const { pendingOnPage1 } = useQueueSync({
     entity: 'payout',
@@ -122,6 +130,7 @@ export default function PayoutPage() {
       merchant_id: filters.merchant_id || undefined,
       banker_user_id: filters.banker_user_id || undefined,
       unassigned: saUnassignedOnly ? 'true' : undefined,
+      assigned: assignedOnly ? 'true' : undefined,
     },
     rows,
     setRows,
@@ -138,7 +147,11 @@ export default function PayoutPage() {
       })
         .then((result) => setMerchants(result.items))
         .catch((caught) => {
-          setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load merchants')
+          setError(
+            caught instanceof ApiClientError
+              ? caught.displayMessage()
+              : `Could not load ${merchantLabel({ plural: true })}`,
+          )
         })
     }
     if (hasMenu(menus, 'PAYOUT', 'can_create') || hasMenu(menus, 'PAYOUT', 'can_edit')) {
@@ -169,6 +182,7 @@ export default function PayoutPage() {
       merchant_id: '',
       banker_user_id: '',
       unassigned: isSuperAdmin ? 'true' : '',
+      assigned: '',
       page: 1,
     })
   }
@@ -215,7 +229,7 @@ export default function PayoutPage() {
   const handleCreate = async () => {
     if (!accessToken || amountMinor <= 0 || !beneficiaryName || !beneficiaryAccount || !sourceBankId || createSubmitting) return
     if (!merchantId) {
-      toast.error('Select a merchant')
+      toast.error(`Select an ${merchantLabel()}`)
       return
     }
     setCreateSubmitting(true)
@@ -248,10 +262,12 @@ export default function PayoutPage() {
     }
   }
 
+  const payoutTitle = assignedOnly ? 'In Process Withdrawal' : 'Pending Withdrawal'
+
   return (
-    <AppShell title="Pay-Out Requests" role={user.role} menus={menus}>
+    <AppShell title={payoutTitle} role={user.role} menus={menus}>
       <PageHeader
-        title="Pay-Out Requests"
+        title={payoutTitle}
         action={
           hasMenu(menus, 'PAYOUT', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
             <PrimaryButton onClick={() => setCreating(true)}>Create</PrimaryButton>
@@ -292,17 +308,29 @@ export default function PayoutPage() {
         {isSuperAdmin ? (
           <FormField label="Queue">
             <Select
-              value={filters.unassigned === 'all' ? 'all' : 'true'}
-              onChange={(event) =>
+              value={assignedOnly ? 'assigned' : filters.unassigned === 'all' ? 'all' : 'true'}
+              onChange={(event) => {
+                const value = event.target.value
+                if (value === 'assigned') {
+                  void setFilters({
+                    assigned: 'true',
+                    unassigned: '',
+                    status: 'INITIATE',
+                    page: 1,
+                  })
+                  return
+                }
                 void setFilters({
-                  unassigned: event.target.value,
-                  status: event.target.value === 'true' ? 'INITIATE' : filters.status || 'INITIATE',
+                  assigned: '',
+                  unassigned: value,
+                  status: value === 'true' ? 'INITIATE' : filters.status || 'INITIATE',
                   page: 1,
                 })
-              }
+              }}
               aria-label="Assignment queue"
             >
               <option value="true">Unassigned only</option>
+              <option value="assigned">Assigned (In Process)</option>
               <option value="all">All records</option>
             </Select>
           </FormField>
@@ -336,7 +364,7 @@ export default function PayoutPage() {
         </div>
       </FilterBar>
       {isSuperAdmin && saUnassignedOnly && hasMenu(menus, 'PAYOUT', 'can_approve') ? (
-        <div className="mb-4 rounded border border-zinc-200 bg-white p-3">
+        <div className="mb-qp-gap rounded border border-zinc-200 bg-white p-3">
           <FormShell
             title="Bulk assign unassigned pay-outs"
             submitLabel={assigning ? 'Assigning…' : 'Assign by amount'}
@@ -363,13 +391,13 @@ export default function PayoutPage() {
         </div>
       ) : null}
       {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <FormShell title="Create Pay-Out" submitLabel="Create" onCancel={() => setCreating(false)} onSubmit={() => void handleCreate()}>
             <FormSection title="Request">
               <FormGrid>
                 <FormField label={merchantLabel()} required>
                   <Select value={merchantId} onChange={(event) => setMerchantId(event.target.value)} aria-label={merchantLabel()}>
-                    <option value="">Select merchant</option>
+                    <option value="">{`Select ${merchantLabel()}`}</option>
                     {createMerchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.id}>
                         {merchant.merchant_code} — {merchant.display_name}
@@ -415,7 +443,17 @@ export default function PayoutPage() {
             { key: 'actions', heading: 'ACTION' },
           ]}
           rows={rows.map((row) => ({
-            created: new Date(row.created_at).toLocaleString(),
+            created:
+              row.source === 'API' ? (
+                <span className="flex flex-col">
+                  <span>{new Date(row.created_at).toLocaleString()}</span>
+                  <span className="text-[11px] font-semibold" style={{ color: 'var(--qp-primary)' }}>
+                    API
+                  </span>
+                </span>
+              ) : (
+                new Date(row.created_at).toLocaleString()
+              ),
             ...(showPanelUsername
               ? {
                   username: row.supago_username ?? '—',
@@ -450,6 +488,16 @@ export default function PayoutPage() {
                 ) : null}
                 {row.status === 'INITIATE' ? (
                   <>
+                    {isSuperAdmin &&
+                    row.banker_user_id &&
+                    hasMenu(menus, 'PAYOUT', 'can_approve') ? (
+                      <IconButton
+                        variant="secondary"
+                        icon={<ArrowLeftRight size={15} strokeWidth={1.75} />}
+                        tooltip={`Reassign ${bankerLabel()}`}
+                        onClick={() => setReassignFor(row)}
+                      />
+                    ) : null}
                     {hasMenu(menus, 'PAYOUT', 'can_edit') ? (
                       <IconButton
                         variant="primary"
@@ -478,16 +526,25 @@ export default function PayoutPage() {
         />
       )}
       {accessToken ? (
-        <PayoutActionDialogs
-          acceptFor={successFor}
-          rejectFor={rejectFor}
-          banks={banks}
-          accessToken={accessToken}
-          onCloseAccept={() => setSuccessFor(null)}
-          onCloseReject={() => setRejectFor(null)}
-          onAccepted={load}
-          onRejected={load}
-        />
+        <>
+          <PayoutActionDialogs
+            acceptFor={successFor}
+            rejectFor={rejectFor}
+            banks={banks}
+            accessToken={accessToken}
+            onCloseAccept={() => setSuccessFor(null)}
+            onCloseReject={() => setRejectFor(null)}
+            onAccepted={load}
+            onRejected={load}
+          />
+          <PayoutReassignDialog
+            row={reassignFor}
+            assignees={activeAdmins}
+            accessToken={accessToken}
+            onClose={() => setReassignFor(null)}
+            onReassigned={load}
+          />
+        </>
       ) : null}
     </AppShell>
   )

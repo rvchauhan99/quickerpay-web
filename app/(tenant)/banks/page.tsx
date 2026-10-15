@@ -5,8 +5,8 @@ import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type {
   BankAccountListItem,
   BankMerchantLink,
-  EligibleBankMerchant,
   Pagination,
+  PaymentMethodListItem,
   UpiAccountListItem,
   UpiStatusHistoryItem,
 } from '@quickerpay/shared-types'
@@ -89,15 +89,23 @@ export default function BanksPage() {
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
-  const [rows, setRows] = useState<BankAccountListItem[]>([])
+  const [rows, setRows] = useState<PaymentMethodListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [altCreate, setAltCreate] = useState<'MANUAL_BANK' | 'USDT_TRC20' | null>(null)
+  const [altLabel, setAltLabel] = useState('')
+  const [altHolder, setAltHolder] = useState('')
+  const [altAccount, setAltAccount] = useState('')
+  const [altIfsc, setAltIfsc] = useState('')
+  const [altBankName, setAltBankName] = useState('')
+  const [altWallet, setAltWallet] = useState('')
+  const [altOwnerId, setAltOwnerId] = useState('')
   const [editing, setEditing] = useState<BankAccountListItem | null>(null)
   const [form, setForm] = useState<BankFormState>(emptyCreateForm)
   const [submitting, setSubmitting] = useState<string | null>(null)
-  const [closeTarget, setCloseTarget] = useState<BankAccountListItem | null>(null)
+  const [closeTarget, setCloseTarget] = useState<PaymentMethodListItem | null>(null)
   const [otpChallenge, setOtpChallenge] = useState<OtpChallenge | null>(null)
   const [otpCode, setOtpCode] = useState('')
   const [otpSending, setOtpSending] = useState(false)
@@ -106,29 +114,10 @@ export default function BanksPage() {
   const [merchantLinksFor, setMerchantLinksFor] = useState<string | null>(null)
   const [merchantLinks, setMerchantLinks] = useState<BankMerchantLink[]>([])
   const [loadingLinks, setLoadingLinks] = useState(false)
-  const [eligibleMerchants, setEligibleMerchants] = useState<EligibleBankMerchant[]>([])
-  const [selectedMerchantIds, setSelectedMerchantIds] = useState<string[]>([])
   const merchantLinksForRef = useRef<string | null>(null)
   merchantLinksForRef.current = merchantLinksFor
 
   const canEdit = hasMenu(menus, 'BANKS', 'can_edit')
-
-  const loadEligibleMerchants = useCallback(async () => {
-    if (!accessToken) return
-    try {
-      const list = await apiRequest<EligibleBankMerchant[]>('/api/v1/bank-accounts/eligible-merchants', {
-        token: accessToken,
-      })
-      setEligibleMerchants(list)
-      setSelectedMerchantIds(list.map((m) => m.id))
-    } catch (caught) {
-      setEligibleMerchants([])
-      setSelectedMerchantIds([])
-      toast.error(
-        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load eligible merchants',
-      )
-    }
-  }, [accessToken])
 
   const refreshMerchantLinks = useCallback(
     async (bankId: string): Promise<boolean> => {
@@ -163,7 +152,7 @@ export default function BanksPage() {
     if (filters.status) query.set('status', filters.status)
     if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
     try {
-      const result = await apiListRequest<BankAccountListItem>(`/api/v1/bank-accounts?${query}`)
+      const result = await apiListRequest<PaymentMethodListItem>(`/api/v1/payment-methods?${query}`)
       setRows(result.items)
       setPagination(result.pagination)
       const openBankId = merchantLinksForRef.current
@@ -199,65 +188,98 @@ export default function BanksPage() {
     setForm(emptyCreateForm())
     setOtpChallenge(null)
     setOtpCode('')
-    setEligibleMerchants([])
-    setSelectedMerchantIds([])
   }
 
   const handleOpenCreate = () => {
+    setAltCreate(null)
     setEditing(null)
     setForm(emptyCreateForm())
+    setAltOwnerId(user?.role === 'BANKER' ? user.id : '')
     setCreating(true)
-    void loadEligibleMerchants()
   }
 
-  const handleOpenEdit = async (row: BankAccountListItem) => {
+  const openAltCreate = (kind: 'MANUAL_BANK' | 'USDT_TRC20') => {
     setCreating(false)
-    setEditing(row)
-    setForm(formFromRow(row))
-    if (!accessToken) return
+    setEditing(null)
+    setAltCreate(kind)
+    setAltLabel('')
+    setAltHolder('')
+    setAltAccount('')
+    setAltIfsc('')
+    setAltBankName('')
+    setAltWallet('')
+    setAltOwnerId(user?.role === 'BANKER' ? user.id : '')
+  }
+
+  const submitAltCreate = async () => {
+    if (!accessToken || !altCreate) return
+    setSubmitting('alt-create')
     try {
-      const [list, links] = await Promise.all([
-        apiRequest<EligibleBankMerchant[]>('/api/v1/bank-accounts/eligible-merchants', {
+      if (altCreate === 'MANUAL_BANK') {
+        await apiRequest('/api/v1/payment-methods/manual-bank', {
+          method: 'POST',
           token: accessToken,
-        }),
-        apiRequest<BankMerchantLink[]>(`/api/v1/bank-accounts/${row.id}/merchant-links`, {
+          body: {
+            label: altLabel,
+            account_holder_name: altHolder,
+            account_number: altAccount,
+            ifsc: altIfsc,
+            ...(altBankName ? { bank_name: altBankName } : {}),
+            ...(altOwnerId ? { owner_user_id: altOwnerId } : {}),
+          },
+        })
+        toast.success('Manual bank method created')
+      } else {
+        await apiRequest('/api/v1/payment-methods/usdt-trc20', {
+          method: 'POST',
           token: accessToken,
-        }),
-      ])
-      setEligibleMerchants(list)
-      // Prefer linked merchants that are still eligible, then include remaining eligible
-      // so Edit can add Crici/Supago links the same way Create defaults to all.
-      const linkedIds = new Set(links.map((link) => link.merchant_id))
-      const linkedEligible = list.filter((m) => linkedIds.has(m.id)).map((m) => m.id)
-      const remainingEligible = list.filter((m) => !linkedIds.has(m.id)).map((m) => m.id)
-      setSelectedMerchantIds([...linkedEligible, ...remainingEligible])
+          body: {
+            label: altLabel,
+            wallet_address: altWallet,
+            ...(altOwnerId ? { owner_user_id: altOwnerId } : {}),
+          },
+        })
+        toast.success('USDT/TRC20 method created')
+      }
+      setAltCreate(null)
+      void load()
     } catch (caught) {
-      setEligibleMerchants([])
-      setSelectedMerchantIds([])
+      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Create failed')
+    } finally {
+      setSubmitting(null)
+    }
+  }
+
+  const handleOpenEdit = async (row: PaymentMethodListItem) => {
+    if (row.method_kind !== 'UPI' || !row.bank_account_id || !accessToken) return
+    const bankId = row.bank_account_id
+    setAltCreate(null)
+    setCreating(false)
+    try {
+      const bank = await apiRequest<BankAccountListItem>(`/api/v1/bank-accounts/${bankId}`, {
+        token: accessToken,
+      })
+      setEditing(bank)
+      setForm(formFromRow(bank))
+    } catch (caught) {
+      setEditing(null)
       toast.error(
-        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load eligible merchants',
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not load bank for edit',
       )
     }
   }
 
-  const handleToggleMerchant = (merchantId: string) => {
-    setSelectedMerchantIds((prev) =>
-      prev.includes(merchantId) ? prev.filter((id) => id !== merchantId) : [...prev, merchantId],
-    )
-  }
-
   const buildSupagoBody = () => {
-    const minval = Number.parseInt(form.minval, 10)
-    const maxval = Number.parseInt(form.maxval, 10)
+    // Min/Max/Regex are fixed defaults — not shown in the UI.
     return {
       upi_address: form.upiAddress.trim().toLowerCase(),
       display_name: form.displayName.trim(),
       bank_name: form.displayName.trim(),
       description: form.description.trim() || DEFAULT_DESCRIPTION,
       remark: form.remark.trim() || DEFAULT_REMARK,
-      minval: Number.isFinite(minval) ? minval : Number(DEFAULT_MINVAL),
-      maxval: Number.isFinite(maxval) ? maxval : Number(DEFAULT_MAXVAL),
-      regex_pattern: form.regexPattern.trim() || DEFAULT_REGEX,
+      minval: Number(DEFAULT_MINVAL),
+      maxval: Number(DEFAULT_MAXVAL),
+      regex_pattern: DEFAULT_REGEX,
     }
   }
 
@@ -269,10 +291,6 @@ export default function BanksPage() {
       : {}
 
     if (editing) {
-      if (selectedMerchantIds.length === 0) {
-        toast.error('Select at least one merchant')
-        return
-      }
       await apiRequest(`/api/v1/bank-accounts/${editing.id}`, {
         method: 'PATCH',
         token: accessToken,
@@ -285,20 +303,19 @@ export default function BanksPage() {
           minval: base.minval,
           maxval: base.maxval,
           regex_pattern: base.regex_pattern,
-          merchant_ids: selectedMerchantIds,
           ...otpFields,
         },
       })
       toast.success('Bank updated on panel merchants and CRM')
     } else {
-      if (selectedMerchantIds.length === 0) {
-        toast.error('Select at least one merchant')
-        return
-      }
       const created = await apiRequest<BankAccountListItem>('/api/v1/bank-accounts', {
         method: 'POST',
         token: accessToken,
-        body: { ...base, merchant_ids: selectedMerchantIds, ...otpFields },
+        body: {
+          ...base,
+          ...otpFields,
+          ...(user?.role === 'SUPER_ADMIN' && altOwnerId ? { owner_user_id: altOwnerId } : {}),
+        },
       })
       toast.success(
         created.status === 'ACTIVE'
@@ -332,6 +349,10 @@ export default function BanksPage() {
 
   const handleSaveWithOtp = async () => {
     if (!accessToken || submitting || otpSending) return
+    if (!editing && user.role === 'SUPER_ADMIN' && !altOwnerId) {
+      toast.error(`Select ${bankerLabel()} owner`)
+      return
+    }
     const purpose: 'CREATE' | 'UPDATE' = editing ? 'UPDATE' : 'CREATE'
     setSubmitting(purpose === 'CREATE' ? 'create' : `edit-${editing?.id ?? ''}`)
     setOtpSending(true)
@@ -431,16 +452,43 @@ export default function BanksPage() {
     }
   }
 
-  const handleStatus = async (id: string, status: 'ACTIVE' | 'DISABLED') => {
+  const handleStatus = async (row: PaymentMethodListItem, status: 'ACTIVE' | 'DISABLED' | 'CLOSED') => {
     if (!accessToken || submitting) return
-    setSubmitting(id)
+    setSubmitting(row.id)
     try {
-      await apiRequest(`/api/v1/bank-accounts/${id}/status`, {
-        method: 'POST',
-        token: accessToken,
-        body: { status },
-      })
-      toast.success(status === 'DISABLED' ? 'Account disabled' : 'Account enabled')
+      if (row.method_kind === 'UPI') {
+        const bankId = row.bank_account_id
+        if (!bankId) throw new Error('Missing bank account')
+        if (status === 'CLOSED') {
+          await apiRequest(`/api/v1/bank-accounts/${bankId}/close`, {
+            method: 'POST',
+            token: accessToken,
+            body: { reason: 'Closed from Payment Methods' },
+          })
+        } else {
+          await apiRequest(`/api/v1/bank-accounts/${bankId}/status`, {
+            method: 'POST',
+            token: accessToken,
+            body: { status },
+          })
+        }
+      } else if (row.method_kind === 'MANUAL_BANK') {
+        await apiRequest(`/api/v1/payment-methods/manual-bank/${row.id}/status`, {
+          method: 'POST',
+          token: accessToken,
+          body: { status },
+        })
+      } else {
+        await apiRequest(`/api/v1/payment-methods/usdt-trc20/${row.id}/status`, {
+          method: 'POST',
+          token: accessToken,
+          body: { status },
+        })
+      }
+      toast.success(
+        status === 'CLOSED' ? 'Method closed' : status === 'DISABLED' ? 'Method disabled' : 'Method enabled',
+      )
+      setCloseTarget(null)
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update status')
@@ -450,31 +498,18 @@ export default function BanksPage() {
   }
 
   const handleClose = async () => {
-    if (!accessToken || !closeTarget || submitting) return
-    setSubmitting(closeTarget.id)
-    try {
-      await apiRequest(`/api/v1/bank-accounts/${closeTarget.id}/close`, {
-        method: 'POST',
-        token: accessToken,
-        body: { reason: 'Closed from Bank Details' },
-      })
-      setCloseTarget(null)
-      toast.success('Account closed')
-      await load()
-    } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not close')
-    } finally {
-      setSubmitting(null)
-    }
+    if (!closeTarget) return
+    await handleStatus(closeTarget, 'CLOSED')
   }
 
-  const handleHistory = async (row: BankAccountListItem) => {
-    if (!accessToken) return
+  const handleHistory = async (row: PaymentMethodListItem) => {
+    if (!accessToken || row.method_kind !== 'UPI' || !row.bank_account_id) return
+    const bankId = row.bank_account_id
     setMerchantLinksFor(null)
     setMerchantLinks([])
     try {
       const upis = await apiListRequest<UpiAccountListItem>(
-        `/api/v1/upi-accounts?bank_account_id=${row.id}&page_size=25`,
+        `/api/v1/upi-accounts?bank_account_id=${bankId}&page_size=25`,
         { token: accessToken },
       )
       const entries: HistoryRow[] = []
@@ -494,16 +529,17 @@ export default function BanksPage() {
     }
   }
 
-  const handleMerchantLinks = async (row: BankAccountListItem) => {
-    if (!accessToken) return
-    if (merchantLinksFor === row.id) {
+  const handleMerchantLinks = async (row: PaymentMethodListItem) => {
+    if (!accessToken || row.method_kind !== 'UPI' || !row.bank_account_id) return
+    const bankId = row.bank_account_id
+    if (merchantLinksFor === bankId) {
       setMerchantLinksFor(null)
       setMerchantLinks([])
       return
     }
-    setMerchantLinksFor(row.id)
+    setMerchantLinksFor(bankId)
     setHistoryFor(null)
-    const ok = await refreshMerchantLinks(row.id)
+    const ok = await refreshMerchantLinks(bankId)
     if (!ok) {
       setMerchantLinksFor(null)
       setMerchantLinks([])
@@ -538,19 +574,30 @@ export default function BanksPage() {
 
   const formOpen = creating || editing !== null
   const merchantLinksBankLabel = merchantLinksFor
-    ? rows.find((row) => row.id === merchantLinksFor)?.label ?? 'Bank'
+    ? rows.find((row) => row.bank_account_id === merchantLinksFor)?.label ?? 'Bank'
     : null
 
+  const methodKindLabel = (kind: PaymentMethodListItem['method_kind']) => {
+    if (kind === 'MANUAL_BANK') return 'Manual bank'
+    if (kind === 'USDT_TRC20') return 'USDT/TRC20'
+    return 'UPI'
+  }
+
   return (
-    <AppShell title="Bank Details" role={user.role} menus={menus}>
+    <AppShell title="Payment Methods" role={user.role} menus={menus}>
       <PageHeader
-        title="Bank Details"
+        title="Payment Methods"
+        subtitle="UPI, Manual bank, and USDT/TRC20 — one row per Banker instrument"
         action={
           hasMenu(menus, 'BANKS', 'can_create') ? (
-            <PrimaryButton onClick={handleOpenCreate}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add Bank
-            </PrimaryButton>
+            <div className="flex flex-wrap gap-2">
+              <PrimaryButton onClick={handleOpenCreate}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add UPI
+              </PrimaryButton>
+              <PrimaryButton onClick={() => void openAltCreate('MANUAL_BANK')}>Add Manual bank</PrimaryButton>
+              <PrimaryButton onClick={() => void openAltCreate('USDT_TRC20')}>Add USDT/TRC20</PrimaryButton>
+            </div>
           ) : null
         }
       />
@@ -599,8 +646,8 @@ export default function BanksPage() {
               title={editing ? 'Edit Bank' : 'Add Bank'}
               description={
                 editing
-                  ? 'Updates this UPI on the merchants you select (Supago and/or Crici), writes merchant links, then saves CRM.'
-                  : 'Creates the UPI on the merchants you select (Deposit Managed By). Defaults to all eligible. Crici selections go live immediately (ACTIVE). Supago still starts disabled until Enable. Bank row is Active when any merchant link is enabled.'
+                  ? 'Updates this UPI on every Deposit-Managed-By–eligible Exchange Master (no picker). Supago starts DISABLED; Crici create goes live (ACTIVE).'
+                  : 'Exchange Masters come from Deposit Managed By (no picker). Supago starts DISABLED; Crici create goes live (ACTIVE).'
               }
             >
               <FormGrid>
@@ -618,6 +665,22 @@ export default function BanksPage() {
                     aria-label="UPI address"
                   />
                 </FormField>
+                {!editing && user.role === 'SUPER_ADMIN' ? (
+                  <FormField label={`${bankerLabel()} owner`} required>
+                    <Select
+                      value={altOwnerId}
+                      onChange={(e) => setAltOwnerId(e.target.value)}
+                      aria-label={`${bankerLabel()} owner`}
+                    >
+                      <option value="">Select owner</option>
+                      {ownerOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.username}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+                ) : null}
                 <FormField label="Description">
                   <Input
                     value={form.description}
@@ -632,69 +695,84 @@ export default function BanksPage() {
                     aria-label="Remark"
                   />
                 </FormField>
-                <FormField label="Min amount (₹)">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={form.minval}
-                    onChange={(event) => handleFormChange({ minval: event.target.value })}
-                    aria-label="Min amount"
-                  />
-                </FormField>
-                <FormField label="Max amount (₹)">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={form.maxval}
-                    onChange={(event) => handleFormChange({ maxval: event.target.value })}
-                    aria-label="Max amount"
-                  />
-                </FormField>
-                <FormField label="Regex pattern">
-                  <Input
-                    value={form.regexPattern}
-                    onChange={(event) => handleFormChange({ regexPattern: event.target.value })}
-                    aria-label="Regex pattern"
-                  />
-                </FormField>
               </FormGrid>
-              <div className="mt-4">
-                  <p className="mb-2 text-xs font-medium" style={{ color: 'var(--qp-text-secondary)' }}>
-                    {merchantLabel({ plural: true })} {editing ? '(linked + eligible)' : '(default: all)'}
-                  </p>
-                  {eligibleMerchants.length === 0 ? (
-                    <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                      No eligible {merchantLabel({ plural: true }).toLowerCase()} for this {bankerLabel()} under Deposit Managed By.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2" aria-label={`Eligible ${merchantLabel({ plural: true }).toLowerCase()}`}>
-                      {eligibleMerchants.map((merchant) => {
-                        const checked = selectedMerchantIds.includes(merchant.id)
-                        return (
-                          <li key={merchant.id} className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              id={`merchant-${merchant.id}`}
-                              checked={checked}
-                              onChange={() => handleToggleMerchant(merchant.id)}
-                              aria-label={
-                                merchant.display_name
-                                  ? `${merchant.display_name} (${merchant.integration_type})`
-                                  : `${merchant.integration_type} link`
-                              }
-                            />
-                            <label htmlFor={`merchant-${merchant.id}`} className="cursor-pointer">
-                              {merchant.display_name ?? 'Linked merchant'}{' '}
-                              <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-                                {merchant.integration_type}
-                              </span>
-                            </label>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </div>
+            </FormSection>
+          </FormShell>
+        </div>
+      ) : null}
+
+      {altCreate ? (
+        <div className="mb-4">
+          <FormShell
+            submitLabel={submitting === 'alt-create' ? 'Saving…' : 'Add'}
+            onCancel={() => setAltCreate(null)}
+            onSubmit={() => void submitAltCreate()}
+          >
+            <FormSection
+              title={altCreate === 'MANUAL_BANK' ? 'Add Manual bank' : 'Add USDT/TRC20'}
+              description={
+                altCreate === 'MANUAL_BANK'
+                  ? 'Creates a Manual bank collection instrument for the Banker (no panel slot).'
+                  : 'Creates a USDT/TRC20 wallet instrument for the Banker (no panel slot).'
+              }
+            >
+              <FormGrid>
+                <FormField label="Label" required>
+                  <Input value={altLabel} onChange={(e) => setAltLabel(e.target.value)} aria-label="Label" />
+                </FormField>
+                {user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? (
+                  <FormField label={`${bankerLabel()} owner`} required>
+                    <Select
+                      value={altOwnerId}
+                      onChange={(e) => setAltOwnerId(e.target.value)}
+                      aria-label={`${bankerLabel()} owner`}
+                    >
+                      <option value="">Select owner</option>
+                      {ownerOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.username}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+                ) : null}
+                {altCreate === 'MANUAL_BANK' ? (
+                  <>
+                    <FormField label="Account holder" required>
+                      <Input
+                        value={altHolder}
+                        onChange={(e) => setAltHolder(e.target.value)}
+                        aria-label="Account holder"
+                      />
+                    </FormField>
+                    <FormField label="Account number" required>
+                      <Input
+                        value={altAccount}
+                        onChange={(e) => setAltAccount(e.target.value)}
+                        aria-label="Account number"
+                      />
+                    </FormField>
+                    <FormField label="IFSC" required>
+                      <Input value={altIfsc} onChange={(e) => setAltIfsc(e.target.value)} aria-label="IFSC" />
+                    </FormField>
+                    <FormField label="Bank name">
+                      <Input
+                        value={altBankName}
+                        onChange={(e) => setAltBankName(e.target.value)}
+                        aria-label="Bank name"
+                      />
+                    </FormField>
+                  </>
+                ) : (
+                  <FormField label="TRC20 wallet address" required>
+                    <Input
+                      value={altWallet}
+                      onChange={(e) => setAltWallet(e.target.value)}
+                      aria-label="Wallet address"
+                    />
+                  </FormField>
+                )}
+              </FormGrid>
             </FormSection>
           </FormShell>
         </div>
@@ -703,16 +781,16 @@ export default function BanksPage() {
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
+            { key: 'type', heading: 'TYPE' },
             { key: 'owner', heading: 'OWNER' },
             { key: 'label', heading: 'LABEL' },
-            { key: 'upi', heading: 'UPI ID' },
-            { key: 'supago', heading: 'SUPAGO' },
+            { key: 'detail', heading: 'DETAIL' },
             { key: 'status', heading: 'STATUS' },
             { key: 'actions', heading: 'ACTION' },
           ]}
           onRowClick={(index) => {
             const row = rows[index]
-            if (row) void handleMerchantLinks(row)
+            if (row?.method_kind === 'UPI') void handleMerchantLinks(row)
           }}
           expandedRowKey={merchantLinksFor}
           renderExpandedRow={() => (
@@ -788,20 +866,14 @@ export default function BanksPage() {
             </div>
           )}
           rows={rows.map((row) => ({
-            _rowKey: row.id,
-            ...(merchantLinksFor === row.id
+            _rowKey: row.method_kind === 'UPI' && row.bank_account_id ? row.bank_account_id : row.id,
+            ...(merchantLinksFor && row.bank_account_id === merchantLinksFor
               ? { _rowClass: 'bg-[var(--qp-primary-light)]' }
               : {}),
+            type: methodKindLabel(row.method_kind),
             owner: row.owner_username,
             label: row.label,
-            upi: row.upi_address ?? '—',
-            supago: row.supago_linked ? (
-              <span className="text-[11px] font-medium" style={{ color: 'var(--qp-success)' }}>
-                Linked
-              </span>
-            ) : (
-              <span className="text-[11px] text-zinc-400">—</span>
-            ),
+            detail: row.detail_masked,
             status: <StatusBadge status={row.status} />,
             actions: (
               <span
@@ -809,25 +881,25 @@ export default function BanksPage() {
                 onClick={(event) => event.stopPropagation()}
                 onKeyDown={(event) => event.stopPropagation()}
               >
-                {canEdit && row.status !== 'CLOSED' && row.status !== 'REJECTED' ? (
+                {canEdit && row.method_kind === 'UPI' && row.status !== 'CLOSED' ? (
                   <IconButton
                     icon={<Pencil size={15} strokeWidth={1.75} />}
                     tooltip="Edit"
-                    onClick={() => handleOpenEdit(row)}
+                    onClick={() => void handleOpenEdit(row)}
                   />
                 ) : null}
-                {canEdit && row.status !== 'CLOSED' && row.status !== 'REJECTED' ? (
+                {canEdit && row.method_kind === 'UPI' && row.bank_account_id && row.status !== 'CLOSED' ? (
                   <IconButton
                     icon={<RefreshCw size={15} strokeWidth={1.75} />}
                     tooltip="Resync & link merchants"
-                    onClick={() => void handleResyncSupago(row.id)}
+                    onClick={() => void handleResyncSupago(row.bank_account_id!)}
                   />
                 ) : null}
                 {canEdit && row.status === 'ACTIVE' ? (
                   <IconButton
                     icon={<Ban size={15} strokeWidth={1.75} />}
                     tooltip="Disable"
-                    onClick={() => void handleStatus(row.id, 'DISABLED')}
+                    onClick={() => void handleStatus(row, 'DISABLED')}
                   />
                 ) : null}
                 {canEdit && row.status === 'DISABLED' ? (
@@ -835,28 +907,34 @@ export default function BanksPage() {
                     icon={<CircleCheck size={15} strokeWidth={1.75} />}
                     tooltip="Enable"
                     variant="primary"
-                    onClick={() => void handleStatus(row.id, 'ACTIVE')}
+                    onClick={() => void handleStatus(row, 'ACTIVE')}
                   />
                 ) : null}
-                <IconButton
-                  icon={<Building2 size={15} strokeWidth={1.75} />}
-                  tooltip={merchantLabel({ plural: true })}
-                  onClick={() => void handleMerchantLinks(row)}
-                />
-                <IconButton
-                  icon={<History size={15} strokeWidth={1.75} />}
-                  tooltip="View history"
-                  onClick={() => void handleHistory(row)}
-                />
-                <IconButton
-                  icon={<ScrollText size={15} strokeWidth={1.75} />}
-                  tooltip="Transactions History"
-                  href={`/banks/${row.id}/history`}
-                />
-                {canEdit && row.status !== 'CLOSED' && row.status !== 'REJECTED' ? (
+                {row.method_kind === 'UPI' ? (
+                  <IconButton
+                    icon={<Building2 size={15} strokeWidth={1.75} />}
+                    tooltip={merchantLabel({ plural: true })}
+                    onClick={() => void handleMerchantLinks(row)}
+                  />
+                ) : null}
+                {row.method_kind === 'UPI' ? (
+                  <IconButton
+                    icon={<History size={15} strokeWidth={1.75} />}
+                    tooltip="View history"
+                    onClick={() => void handleHistory(row)}
+                  />
+                ) : null}
+                {row.method_kind === 'UPI' && row.bank_account_id ? (
+                  <IconButton
+                    icon={<ScrollText size={15} strokeWidth={1.75} />}
+                    tooltip="Transactions History"
+                    href={`/banks/${row.bank_account_id}/history`}
+                  />
+                ) : null}
+                {canEdit && row.status !== 'CLOSED' ? (
                   <IconButton
                     icon={<Trash2 size={15} strokeWidth={1.75} />}
-                    tooltip="Delete"
+                    tooltip="Close"
                     variant="danger"
                     onClick={() => setCloseTarget(row)}
                   />
@@ -864,7 +942,7 @@ export default function BanksPage() {
               </span>
             ),
           }))}
-          empty={<EmptyState message="No bank accounts found" />}
+          empty={<EmptyState message="No payment methods found" />}
           pagination={pagination ?? undefined}
           onPage={(page) => void setFilters({ page })}
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
@@ -898,7 +976,7 @@ export default function BanksPage() {
       {closeTarget ? (
         <ConfirmDialog
           title={`Close ${closeTarget.label}?`}
-          subtitle="Soft close to CLOSED. The row stays for history. Create the same UPI again to reopen it in place (starts DISABLED)."
+          subtitle="Soft close to CLOSED. The row stays for history."
           confirmLabel="Close"
           loading={submitting === closeTarget.id}
           onCancel={() => setCloseTarget(null)}

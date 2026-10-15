@@ -125,17 +125,17 @@ export default function ProfilePage() {
     <AppShell title="Profile" role={user.role} menus={menus}>
       <PageHeader title="Profile & Security" />
       {mustChangePassword ? (
-        <div className="mb-4">
+        <div className="mb-qp-gap">
           <ErrorAlert message="Change your temporary password to continue. Sign in again after saving." />
         </div>
       ) : null}
-      <div className="mb-4">
+      <div className="mb-qp-gap">
         <p className="text-sm font-medium text-[var(--qp-text-primary)]">
           {user.username} <span className="text-[var(--qp-text-muted)] font-normal ml-2">({user.role.replaceAll('_', ' ')})</span>
         </p>
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-qp-gap">
         <FormShell submitLabel={done ? undefined : changingPassword ? 'Saving…' : 'Change password'} onSubmit={done ? undefined : () => void handleSubmit()}>
           <FormSection
             title={mustChangePassword ? 'Required password change' : 'Password Change'}
@@ -176,13 +176,13 @@ export default function ProfilePage() {
         {!mustChangePassword ? (
         <FormShell>
           <FormSection title="Authenticator (2FA)" description="Manage two-factor authentication for your account.">
-            <div className="p-4">
+            <div className="p-qp-card">
               {totpError ? <ErrorAlert message={totpError} /> : null}
               {totpOk ? <ErrorAlert message={totpOk} type="success" /> : null}
               
               {user.two_fa_enabled ? (
-                <div className="mt-4">
-                  <p className="text-sm text-[var(--qp-text-primary)] mb-4">Two-factor authentication is currently <strong>enabled</strong>.</p>
+                <div className="mt-qp-gap">
+                  <p className="text-sm text-[var(--qp-text-primary)] mb-qp-gap">Two-factor authentication is currently <strong>enabled</strong>.</p>
                   <PrimaryButton
                     disabled={totpBusy}
                     onClick={() => setConfirmDisable(true)}
@@ -191,8 +191,8 @@ export default function ProfilePage() {
                   </PrimaryButton>
                 </div>
               ) : (
-                <div className="mt-4">
-                  <p className="text-sm text-[var(--qp-text-primary)] mb-4">Two-factor authentication is <strong>not enabled</strong>.</p>
+                <div className="mt-qp-gap">
+                  <p className="text-sm text-[var(--qp-text-primary)] mb-qp-gap">Two-factor authentication is <strong>not enabled</strong>.</p>
                   {!qr ? (
                     <PrimaryButton
                       disabled={totpBusy}
@@ -201,10 +201,10 @@ export default function ProfilePage() {
                       Set up 2FA
                     </PrimaryButton>
                   ) : (
-                    <div className="mt-4 border rounded p-4 bg-[var(--qp-bg-card)]">
+                    <div className="mt-qp-gap border rounded p-qp-card bg-[var(--qp-bg-card)]">
                       <p className="mb-2 text-sm font-medium">1. Scan this code</p>
                       <img src={qr} alt="2FA QR Code" className="mb-2 h-32 w-32 border border-zinc-200" />
-                      <p className="mb-4 text-xs font-mono text-[var(--qp-text-muted)] select-all">{secret}</p>
+                      <p className="mb-qp-gap text-xs font-mono text-[var(--qp-text-muted)] select-all">{secret}</p>
                       
                       <p className="mb-2 text-sm font-medium">2. Enter verification code</p>
                       <div className="flex items-center gap-2">

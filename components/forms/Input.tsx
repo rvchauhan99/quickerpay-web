@@ -12,8 +12,8 @@ export function Input({
     <input
       {...props}
       className={[
-        'h-9 w-full rounded-lg border px-3 text-sm transition-colors',
-        'placeholder:text-slate-400',
+        'h-qp-ctl w-full rounded-qp border px-qp-ctl-x text-qp-body transition-colors',
+        'placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70',
         className,
       ].join(' ')}
       style={{
