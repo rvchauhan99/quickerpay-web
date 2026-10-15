@@ -12,6 +12,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -139,7 +140,7 @@ export default function TransactionsPage() {
           rows={rows.map((row) => ({
             ref: <Link className="underline" href={`/transactions/${row.id}`}>{row.reference}</Link>,
             type: row.type,
-            when: new Date(row.created_at).toLocaleString(),
+            when: formatDateTimeIst(row.created_at),
             admin: row.banker_username ?? '—',
             ...(canSeeOwnPanelUsernames(user.role)
               ? { username: row.customer_ref?.trim() || '—' }

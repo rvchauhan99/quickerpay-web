@@ -30,6 +30,7 @@ import { CopyButton } from '@/components/ui/CopyButton'
 import { toast } from 'sonner'
 import { Settings } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -1150,7 +1151,7 @@ export default function MerchantDetailPage() {
                       <FormField label="Token Expires">
                         <Input
                           value={
-                            supagoStatus.expires_at ? new Date(supagoStatus.expires_at).toLocaleString() : ''
+                            formatDateTimeIst(supagoStatus.expires_at)
                           }
                           readOnly
                         />
@@ -1312,7 +1313,7 @@ export default function MerchantDetailPage() {
                       <FormField label="Session Expires">
                         <Input
                           value={
-                            criciStatus.expires_at ? new Date(criciStatus.expires_at).toLocaleString() : ''
+                            formatDateTimeIst(criciStatus.expires_at)
                           }
                           readOnly
                         />
@@ -1512,7 +1513,7 @@ export default function MerchantDetailPage() {
               rows={history.map((row) => ({
                 kind: row.rate_kind,
                 rate: <RateDisplay rateBp={row.rate_bp} />,
-                from: new Date(row.effective_from).toLocaleString(),
+                from: formatDateTimeIst(row.effective_from),
               }))}
               empty={<EmptyState message="No rate history" />}
             />

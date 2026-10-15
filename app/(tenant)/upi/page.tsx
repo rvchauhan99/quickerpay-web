@@ -11,6 +11,7 @@ import { FormField } from '@/components/forms/FormField'
 import { IconButton } from '@/components/ui/IconButton'
 import { History } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -132,7 +133,7 @@ export default function UpiPage() {
               { key: 'reason', heading: 'REASON' },
             ]}
             rows={history.map((row) => ({
-              when: new Date(row.created_at).toLocaleString(),
+              when: formatDateTimeIst(row.created_at),
               from: row.from_status ?? '—',
               to: row.to_status,
               reason: row.reason ?? '—',

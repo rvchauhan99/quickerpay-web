@@ -15,6 +15,7 @@ import { Select } from '@/components/forms/Select'
 import { IconButton } from '@/components/ui/IconButton'
 import { Unlock, X } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -274,8 +275,8 @@ export default function UtrPage() {
             upi: row.upi_address ?? '—',
             ref: row.reference ?? '—',
             added: addedBy(row),
-            entry: new Date(row.entry_time).toLocaleString(),
-            actionTime: row.action_time ? new Date(row.action_time).toLocaleString() : '—',
+            entry: formatDateTimeIst(row.entry_time),
+            actionTime: formatDateTimeIst(row.action_time),
             status: (
               <span className="flex flex-col gap-0.5">
                 <StatusBadge status={row.status} />

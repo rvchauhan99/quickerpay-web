@@ -7,6 +7,7 @@
  */
 
 export * from './envelope'
+export * from './datetime'
 export * from './domain'
 export * from './auth'
 export * from './role-matrix'

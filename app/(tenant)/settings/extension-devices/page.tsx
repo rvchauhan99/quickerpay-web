@@ -13,6 +13,7 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { isLabConsole } from '@/lib/lab'
 import { hasMenu, useSession } from '@/lib/session'
 import { useRouter } from 'next/navigation'
@@ -155,12 +156,12 @@ export default function ExtensionDevicesPage() {
                 <StatusBadge status={row.presence} />
               </span>
             ),
-            last_seen: row.last_seen_at ? new Date(row.last_seen_at).toLocaleString() : '—',
+            last_seen: formatDateTimeIst(row.last_seen_at),
             scraper: row.scraper_version ?? '—',
             rows_seen: String(row.rows_seen),
             posted: String(row.entries_posted),
             enrolled_by: row.enrolled_by,
-            created_at: new Date(row.created_at).toLocaleString(),
+            created_at: formatDateTimeIst(row.created_at),
             actions: (
               <span className="flex items-center gap-1">
                 <IconButton href={`/utr?status=PENDING&extension_device_id=${row.id}`} icon={<List size={15} strokeWidth={1.75} />} tooltip="View posted entries" />

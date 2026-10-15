@@ -18,6 +18,7 @@ import { DataTable, EmptyState, StatusBadge } from '@/components/ui/FilterBar'
 import { Modal } from '@/components/ui/Modal'
 import { DangerButton, ErrorAlert, OutlineButton, PrimaryButton } from '@/components/ui/PageHeader'
 import { ApiClientError, apiRequest } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 
 interface GatewayIntegrationSectionProps {
   merchantId: string
@@ -51,7 +52,7 @@ function splitList(value: string): string[] {
 }
 
 function formatWhen(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : '—'
+  return formatDateTimeIst(value)
 }
 
 function errorText(caught: unknown, fallback: string): string {

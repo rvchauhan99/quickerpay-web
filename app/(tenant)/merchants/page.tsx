@@ -15,6 +15,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { merchantLabel } from '@/lib/labels'
 import { RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -156,7 +157,7 @@ export default function MerchantsPage() {
             payin: <RateDisplay rateBp={openBp(row.rates, 'PAYIN')} />,
             payout: <RateDisplay rateBp={openBp(row.rates, 'PAYOUT')} />,
             status: <StatusBadge status={row.status} />,
-            created: new Date(row.created_at).toLocaleString(),
+            created: formatDateTimeIst(row.created_at),
             actions: (
               <span className="flex items-center gap-1">
                 <IconButton href={`/merchants/${row.id}`} icon={<Pencil size={15} strokeWidth={1.75} />} tooltip="Edit" />

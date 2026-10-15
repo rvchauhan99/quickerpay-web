@@ -9,6 +9,7 @@ import { DataTable, EmptyState, ExportButton, FilterBar, TableSkeleton } from '@
 import { Input } from '@/components/forms/Input'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -119,7 +120,7 @@ export default function AuditPage() {
             { key: 'request_id', heading: 'request_id' },
           ]}
           rows={rows.map((row) => ({
-            created_at: new Date(row.created_at).toLocaleString(),
+            created_at: formatDateTimeIst(row.created_at),
             actor: (
               <button type="button" className="underline" onClick={() => setDetail(row)}>
                 {row.actor ?? row.actor_id ?? '—'}

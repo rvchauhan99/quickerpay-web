@@ -12,6 +12,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { merchantLabel } from '@/lib/labels'
 import { hasMenu } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -245,7 +246,7 @@ export default function CriciBanksPage() {
               (row.owner_username ?? '—')
             ),
             linked: row.linked_upi_address ?? '—',
-            synced: new Date(row.synced_at).toLocaleString(),
+            synced: formatDateTimeIst(row.synced_at),
             ...(canEdit
               ? {
                   actions: (

@@ -13,6 +13,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { ExportButton, TableSkeleton, StatCard } from '@/components/ui/FilterBar'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -73,7 +74,7 @@ export default function GeneralPage() {
         meta={
           position ? (
             <span>
-              As of {new Date(position.as_of).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+              As of {formatDateTimeIst(position.as_of)}
             </span>
           ) : null
         }

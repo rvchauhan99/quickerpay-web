@@ -10,6 +10,7 @@ import {
   payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyDisplay } from '@/lib/money'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { useSession } from '@/lib/session'
@@ -80,7 +81,7 @@ export function PayoutWithdrawSummary({
         Withdrawal details
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-        <SummaryItem label="Created">{new Date(row.created_at).toLocaleString()}</SummaryItem>
+        <SummaryItem label="Created">{formatDateTimeIst(row.created_at)}</SummaryItem>
         {showPanelIdentity ? (
           <SummaryItem label="Username">{row.supago_username?.trim() || '—'}</SummaryItem>
         ) : null}

@@ -10,6 +10,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Ban, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 
 interface PlatformTenantRow {
   id: string
@@ -137,7 +138,7 @@ export default function PlatformTenantsPage() {
             status: <StatusBadge status={row.status} />,
             schema: row.schema_version ?? '—',
             health: row.health_status ?? '—',
-            backup: row.last_backup_at ? new Date(row.last_backup_at).toLocaleString() : '—',
+            backup: formatDateTimeIst(row.last_backup_at),
             actions: (
               <span className="flex items-center gap-1">
                 {row.status === 'ACTIVE' ? (

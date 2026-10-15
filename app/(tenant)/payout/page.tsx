@@ -27,6 +27,7 @@ import { PayoutReassignDialog } from '@/components/forms/PayoutReassignDialog'
 import { PayoutBankDetailsCell } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
@@ -446,13 +447,13 @@ export default function PayoutPage() {
             created:
               row.source === 'API' ? (
                 <span className="flex flex-col">
-                  <span>{new Date(row.created_at).toLocaleString()}</span>
+                  <span>{formatDateTimeIst(row.created_at)}</span>
                   <span className="text-[11px] font-semibold" style={{ color: 'var(--qp-primary)' }}>
                     API
                   </span>
                 </span>
               ) : (
-                new Date(row.created_at).toLocaleString()
+                formatDateTimeIst(row.created_at)
               ),
             ...(showPanelUsername
               ? {

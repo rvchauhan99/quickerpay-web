@@ -6,6 +6,7 @@ import type { TransactionDetail } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { DataTable, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -45,7 +46,7 @@ export default function TransactionDetailPage() {
                 { key: 'reason', heading: 'REASON' },
               ]}
               rows={detail.events.map((row) => ({
-                when: new Date(row.created_at).toLocaleString(),
+                when: formatDateTimeIst(row.created_at),
                 event: row.event_type,
                 from: row.from_status ?? '—',
                 to: row.to_status,
@@ -65,7 +66,7 @@ export default function TransactionDetailPage() {
                 { key: 'remark', heading: 'REMARK' },
               ]}
               rows={detail.ledger.map((row) => ({
-                when: new Date(row.created_at).toLocaleString(),
+                when: formatDateTimeIst(row.created_at),
                 credit: <MoneyDisplay amountMinor={row.credit_minor} />,
                 debit: <MoneyDisplay amountMinor={row.debit_minor} />,
                 balance: <MoneyDisplay amountMinor={row.balance_after_minor} />,
@@ -95,7 +96,7 @@ export default function TransactionDetailPage() {
                 { key: 'actor', heading: 'ACTOR' },
               ]}
               rows={detail.audit.map((row) => ({
-                when: new Date(row.created_at).toLocaleString(),
+                when: formatDateTimeIst(row.created_at),
                 action: row.action,
                 actor: row.actor_id ?? '—',
               }))}

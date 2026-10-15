@@ -17,6 +17,7 @@ import { FormField } from '@/components/forms/FormField'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { toast } from 'sonner'
 import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
@@ -268,7 +269,7 @@ export default function LedgerPage() {
           { key: 'utr', heading: 'UTR' },
         ]}
         rows={(statement?.lines ?? []).map((row) => ({
-          when: new Date(row.created_at).toLocaleString(),
+          when: formatDateTimeIst(row.created_at),
           credit: <MoneyDisplay amountMinor={row.credit_minor} />,
           debit: <MoneyDisplay amountMinor={row.debit_minor} />,
           balance: <MoneyDisplay amountMinor={row.balance_after_minor} />,

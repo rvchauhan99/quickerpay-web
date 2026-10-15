@@ -26,6 +26,7 @@ import {
   payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
@@ -184,7 +185,7 @@ export default function PayoutDetailPage() {
             </div>
             <FormGrid>
               <FormField label="Created">
-                <Input value={new Date(row.created_at).toLocaleString()} readOnly />
+                <Input value={formatDateTimeIst(row.created_at)} readOnly />
               </FormField>
               {canSeeOwnPanelUsernames(user.role) ? (
                 <FormField label="Username">

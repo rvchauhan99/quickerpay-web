@@ -25,6 +25,7 @@ import { FormField } from '@/components/forms/FormField'
 import { FormShell } from '@/components/forms/FormShell'
 import { Modal } from '@/components/ui/Modal'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { useBankListSync } from '@/lib/live/useBankListSync'
@@ -964,7 +965,7 @@ export default function BanksPage() {
             ]}
             rows={history.map((row) => ({
               upi: row.upi_address,
-              when: new Date(row.created_at).toLocaleString(),
+              when: formatDateTimeIst(row.created_at),
               from: row.from_status ?? '—',
               to: row.to_status,
               reason: row.reason ?? '—',

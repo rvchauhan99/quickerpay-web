@@ -13,6 +13,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -213,7 +214,7 @@ export default function BankTransactionsHistoryPage() {
             { key: 'utr', heading: 'UTR' },
           ]}
           rows={(statement?.lines ?? []).map((row) => ({
-            when: new Date(row.created_at).toLocaleString(),
+            when: formatDateTimeIst(row.created_at),
             credit: <MoneyDisplay amountMinor={row.credit_minor} />,
             debit: <MoneyDisplay amountMinor={row.debit_minor} />,
             balance: <MoneyDisplay amountMinor={row.balance_after_minor} />,

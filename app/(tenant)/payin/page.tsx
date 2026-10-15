@@ -20,6 +20,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
@@ -651,8 +652,8 @@ export default function PayinPage() {
                   merchant: row.merchant_display_name?.trim() || '—',
                 }
               : {}),
-            inprog: row.in_progress_at ? new Date(row.in_progress_at).toLocaleString() : '—',
-            actionTime: row.action_at ? new Date(row.action_at).toLocaleString() : '—',
+            inprog: formatDateTimeIst(row.in_progress_at),
+            actionTime: formatDateTimeIst(row.action_at),
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,
             type: payinTypeLabel(row),
             status: <StatusBadge status={row.status} />,

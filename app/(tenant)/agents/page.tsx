@@ -15,6 +15,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { agentLabel } from '@/lib/labels'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -162,7 +163,7 @@ export default function AgentsPage() {
             name: row.display_name,
             exchanges: row.exchange_count,
             status: <StatusBadge status={row.status} />,
-            created: new Date(row.created_at).toLocaleString(),
+            created: formatDateTimeIst(row.created_at),
             actions: (
               <span className="flex items-center gap-1">
                 <IconButton href={`/agents/${row.id}`} icon={<Pencil size={15} strokeWidth={1.75} />} tooltip="Edit" />

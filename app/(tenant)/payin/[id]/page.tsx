@@ -13,6 +13,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { merchantLabel } from '@/lib/labels'
 import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
@@ -108,7 +109,7 @@ export default function PayinDetailPage() {
                 </div>
               </FormField>
               <FormField label="Created At">
-                <Input value={new Date(row.created_at).toLocaleString()} readOnly />
+                <Input value={formatDateTimeIst(row.created_at)} readOnly />
               </FormField>
             </FormGrid>
           </FormSection>

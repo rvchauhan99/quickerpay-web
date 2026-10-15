@@ -16,6 +16,7 @@ import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu, useSession } from '@/lib/session'
@@ -310,7 +311,7 @@ export default function HawalaPage() {
         ]}
         rows={rows.map((row) => ({
           _rowKey: row.id,
-          created: new Date(row.created_at).toLocaleString(),
+          created: formatDateTimeIst(row.created_at),
           ref: row.reference,
           debit: `${row.debit.kind === 'MERCHANT' ? 'Exchange' : row.debit.kind}: ${row.debit.label}`,
           credit: `${row.credit.kind === 'MERCHANT' ? 'Exchange' : row.credit.kind}: ${row.credit.label}`,
