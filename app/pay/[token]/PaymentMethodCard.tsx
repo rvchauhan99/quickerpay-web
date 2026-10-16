@@ -61,10 +61,21 @@ function UsdtIcon({ className = 'w-6 h-6' }: { className?: string }) {
   )
 }
 
+/** Micro app logo / chip */
+function AppChip({ label, bg = 'bg-slate-100', text = 'text-slate-600' }: { label: string; bg?: string | undefined; text?: string | undefined }) {
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-tight ${bg} ${text}`}>
+      {label}
+    </span>
+  )
+}
+
 interface MethodMeta {
   title: string
+  subtitle: string
   badgeText: string
   badgeColor: string
+  chips: { label: string; bg?: string; text?: string }[]
   renderIcon: () => React.ReactNode
 }
 
@@ -73,19 +84,32 @@ function getMethodMeta(method: PaymentMethod, rawLabel: string): MethodMeta {
     case 'UPI':
       return {
         title: 'UPI',
+        subtitle: 'Instant payment via any UPI app',
         badgeText: 'INSTANT',
         badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200/70',
-        renderIcon: () => <UpiIcon className="h-8 w-8 shrink-0" />,
+        chips: [
+          { label: 'GPay', bg: 'bg-blue-50 text-blue-700' },
+          { label: 'PhonePe', bg: 'bg-purple-50 text-purple-700' },
+          { label: 'Paytm', bg: 'bg-sky-50 text-sky-700' },
+          { label: 'BHIM', bg: 'bg-amber-50 text-amber-800' },
+        ],
+        renderIcon: () => <UpiIcon className="w-11 h-11 shrink-0 drop-shadow-sm" />,
       }
 
     case 'MANUAL_BANK':
       return {
         title: 'Direct Bank Transfer',
+        subtitle: 'IMPS, NEFT & RTGS to merchant account',
         badgeText: 'ALL BANKS',
         badgeColor: 'bg-blue-50 text-blue-700 border-blue-200/70',
+        chips: [
+          { label: 'IMPS', bg: 'bg-slate-100 text-slate-700' },
+          { label: 'NEFT', bg: 'bg-slate-100 text-slate-700' },
+          { label: 'RTGS', bg: 'bg-slate-100 text-slate-700' },
+        ],
         renderIcon: () => (
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-            <Building2 className="h-4 w-4 stroke-[2.2]" />
+          <div className="w-11 h-11 rounded-[10px] bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shrink-0 shadow-sm">
+            <Building2 className="w-6 h-6 stroke-[2.2]" />
           </div>
         ),
       }
@@ -93,19 +117,26 @@ function getMethodMeta(method: PaymentMethod, rawLabel: string): MethodMeta {
     case 'USDT_TRC20':
       return {
         title: 'USDT (TRC20)',
+        subtitle: 'Crypto deposit via TRON network',
         badgeText: 'TRC-20',
         badgeColor: 'bg-teal-50 text-teal-700 border-teal-200/70',
-        renderIcon: () => <UsdtIcon className="h-8 w-8 shrink-0" />,
+        chips: [
+          { label: 'TRON (TRC20)', bg: 'bg-emerald-50 text-emerald-700' },
+          { label: 'USDT', bg: 'bg-teal-50 text-teal-700' },
+        ],
+        renderIcon: () => <UsdtIcon className="w-11 h-11 shrink-0 drop-shadow-sm" />,
       }
 
     default:
       return {
         title: rawLabel || method,
+        subtitle: 'Secure payment method',
         badgeText: 'SECURE',
         badgeColor: 'bg-slate-50 text-slate-700 border-slate-200',
+        chips: [],
         renderIcon: () => (
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 text-white">
-            <Building2 className="h-4 w-4" />
+          <div className="w-11 h-11 rounded-[10px] bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-white shrink-0 shadow-sm">
+            <Building2 className="w-6 h-6" />
           </div>
         ),
       }
@@ -127,29 +158,51 @@ export function PaymentMethodCard({
       disabled={disabled || isLoading}
       onClick={onClick}
       className={`
-        group relative flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-all
+        w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all duration-200
+        flex items-center justify-between gap-3 group relative
         bg-white hover:bg-slate-50/70
         border-slate-200 hover:border-blue-500
+        hover:shadow-md hover:shadow-blue-500/5
         focus:outline-none focus:ring-2 focus:ring-blue-500/20
         active:scale-[0.99]
-        ${disabled && !isLoading ? 'cursor-not-allowed opacity-50 hover:border-slate-200 hover:bg-white' : ''}
-        ${isLoading ? 'cursor-wait border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20' : ''}
+        ${disabled && !isLoading ? 'opacity-50 cursor-not-allowed hover:border-slate-200 hover:bg-white hover:shadow-none' : ''}
+        ${isLoading ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20 cursor-wait' : ''}
       `}
     >
-      <div className="flex min-w-0 items-center gap-2.5">
+      {/* Left icon & content */}
+      <div className="flex items-center gap-3.5 min-w-0">
         {meta.renderIcon()}
-        <span className="truncate text-sm font-semibold text-slate-900 group-hover:text-blue-600">
-          {meta.title}
-        </span>
-        <span className={`inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${meta.badgeColor}`}>
-          {meta.badgeText}
-        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-900 text-sm sm:text-base group-hover:text-blue-600 transition-colors">
+              {meta.title}
+            </span>
+            <span
+              className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.badgeColor}`}
+            >
+              {meta.badgeText}
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{meta.subtitle}</p>
+
+          {/* Micro chips */}
+          {meta.chips.length > 0 ? (
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              {meta.chips.map((chip) => (
+                <AppChip key={chip.label} label={chip.label} bg={chip.bg} text={chip.text} />
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <div className="shrink-0">
+      {/* Right chevron or loader */}
+      <div className="shrink-0 pl-1">
         <div
           className={`
-            flex h-7 w-7 items-center justify-center rounded-full transition-all
+            w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200
             ${isLoading ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:text-white'}
           `}
         >
