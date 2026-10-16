@@ -158,7 +158,7 @@ export default function NewBankerPage() {
             <FormField
               label="Temporary password"
               required
-              hint="6-20 chars, uppercase + number + special"
+              hint="At least 6 characters"
               error={fieldErrors.temporary_password}
             >
               <Input

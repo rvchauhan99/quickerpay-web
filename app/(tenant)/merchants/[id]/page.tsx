@@ -22,9 +22,11 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { PayoutBankersFormSection } from '@/components/forms/PayoutBankersFormSection'
 import { GatewayIntegrationSection } from '@/components/forms/GatewayIntegrationSection'
+import { PayoutAuthenticatorPanel } from '@/components/forms/PayoutAuthenticatorPanel'
 import { PayoutAuthenticatorReveal } from '@/components/forms/PayoutAuthenticatorReveal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Drawer } from '@/components/ui/Drawer'
+import { DrawerSectionNav, type DrawerSectionNavItem } from '@/components/ui/DrawerSectionNav'
 import { Modal } from '@/components/ui/Modal'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { toast } from 'sonner'
@@ -58,6 +60,15 @@ interface CriciStatus {
 
 type WithdrawRoutingMode = 'queue' | 'direct'
 type PanelIntegrationType = 'none' | 'supago' | 'crici'
+type AdvancedSectionId =
+  | 'contacts'
+  | 'portal'
+  | 'agent'
+  | 'withdrawals'
+  | 'gateway'
+  | 'authenticator'
+  | 'panel'
+  | 'rates'
 
 export default function MerchantDetailPage() {
   const params = useParams<{ id: string }>()
@@ -91,6 +102,7 @@ export default function MerchantDetailPage() {
   const [gatewayConfig, setGatewayConfig] = useState<GatewayConfigView | null>(null)
   const [webhookUrlDraft, setWebhookUrlDraft] = useState('')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [advancedSection, setAdvancedSection] = useState<AdvancedSectionId>('contacts')
   const [secretRegenConfirm, setSecretRegenConfirm] = useState(false)
   const [secretRegenBusy, setSecretRegenBusy] = useState(false)
   const [keyRotateConfirm, setKeyRotateConfirm] = useState(false)
@@ -607,7 +619,6 @@ export default function MerchantDetailPage() {
         : criciStatus?.connected
           ? 'crici'
           : 'none'
-  const gatewayLocked = merchant?.integration_type === 'API'
   const panelSelectValue = connectedPanel !== 'none' ? connectedPanel : panelChoice
   const panelBusy = supagoLoading || criciLoading
   const panelError =
@@ -615,25 +626,55 @@ export default function MerchantDetailPage() {
 
   const handlePanelChoiceChange = (next: PanelIntegrationType) => {
     if (lockedPanel !== 'none') return
+    // Supago/Crici retired for new connects (API *_CONNECT_ENABLED=false).
+    if (next === 'supago' || next === 'crici') return
     setPanelChoice(next)
     setSupagoError(null)
     setCriciError(null)
     setUpdateCredsOpen(false)
     setCriciUpdateOpen(false)
-    if (next !== 'supago') {
-      setSupagoUsername('')
-      setSupagoPassword('')
-      setSupagoTransactionCode('')
-    }
-    if (next !== 'crici') {
-      setCriciUsername('')
-      setCriciPassword('')
-      setCriciTotpCode('')
-    }
+    setSupagoUsername('')
+    setSupagoPassword('')
+    setSupagoTransactionCode('')
+    setCriciUsername('')
+    setCriciPassword('')
+    setCriciTotpCode('')
   }
 
   const activeKey = gatewayConfig?.keys.find((k) => k.status === 'ACTIVE') ?? null
   const activeKeyPrefix = activeKey?.key_prefix ?? null
+
+  const openAdvancedSettings = () => {
+    const preferGateway =
+      merchant?.integration_type === 'API' || Boolean(gatewayConfig?.enabled)
+    setAdvancedSection(preferGateway ? 'gateway' : 'contacts')
+    setIsDrawerOpen(true)
+  }
+
+  const advancedNavSections: DrawerSectionNavItem[] = [
+    { id: 'contacts', label: 'Contacts' },
+    {
+      id: 'portal',
+      label: 'Portal',
+      ...(merchant?.portal_user_status === 'ACTIVE' ? { badge: 'ON' } : {}),
+    },
+    { id: 'agent', label: agentLabel() },
+    { id: 'withdrawals', label: 'Withdrawals' },
+    {
+      id: 'gateway',
+      label: 'Gateway',
+      ...(gatewayConfig?.enabled || merchant?.integration_type === 'API' ? { badge: 'ON' } : {}),
+    },
+    {
+      id: 'authenticator',
+      label: 'Authenticator',
+      ...(gatewayConfig?.payout_authenticator_issued ? { badge: 'ON' } : {}),
+    },
+    ...(lockedPanel === 'supago' || lockedPanel === 'crici'
+      ? [{ id: 'panel', label: 'Panel', badge: lockedPanel === 'supago' ? 'Supago' : 'Crici' }]
+      : []),
+    { id: 'rates', label: 'Rates' },
+  ]
 
   return (
     <AppShell title={`${merchantLabel()} Detail`} role={user.role} menus={menus}>
@@ -646,7 +687,7 @@ export default function MerchantDetailPage() {
           merchant ? (
             <button
               type="button"
-              onClick={() => setIsDrawerOpen(true)}
+              onClick={openAdvancedSettings}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
               style={{
                 borderColor: 'var(--qp-border)',
@@ -885,7 +926,15 @@ export default function MerchantDetailPage() {
             onClose={() => setIsDrawerOpen(false)}
             title="Advanced Settings"
             size="3xl"
+            aside={
+              <DrawerSectionNav
+                sections={advancedNavSections}
+                activeId={advancedSection}
+                onChange={(id) => setAdvancedSection(id as AdvancedSectionId)}
+              />
+            }
           >
+          {advancedSection === 'contacts' ? (
             <FormSection title="Contacts">
               <FormGrid>
                 <FormField label="Contact Email">
@@ -896,11 +945,19 @@ export default function MerchantDetailPage() {
                 </FormField>
               </FormGrid>
             </FormSection>
+          ) : null}
 
-          {canEdit ? (
+          {advancedSection === 'portal' && canEdit ? (
             <FormSection
-              title="Portal access"
-              description={`One ${merchantLabel()} login (username = ${merchantLabel()} code). View-only Dashboard, Pay-In, Pay-Out, and Transactions.`}
+              title="Portal"
+              description={`View-only login (username = ${merchantLabel()} code).`}
+              action={
+                merchant.portal_user_status === 'ACTIVE' ? (
+                  <StatusBadge status={merchant.portal_user_status} />
+                ) : merchant.portal_user_status === 'DISABLED' ? (
+                  <StatusBadge status="DISABLED" />
+                ) : null
+              }
             >
               {merchant.portal_user_id && merchant.portal_user_status === 'ACTIVE' ? (
                 <div className="space-y-3">
@@ -1001,12 +1058,30 @@ export default function MerchantDetailPage() {
             </FormSection>
           ) : null}
 
+          {advancedSection === 'portal' && !canEdit ? (
+            <FormSection
+              title="Portal"
+              action={
+                merchant.portal_user_status ? (
+                  <StatusBadge status={merchant.portal_user_status} />
+                ) : null
+              }
+            >
+              <FormGrid>
+                <FormField label="Portal username">
+                  <Input value={merchant.portal_username ?? merchant.merchant_code} readOnly />
+                </FormField>
+                <FormField label="Portal status">
+                  <Input value={merchant.portal_user_status ?? 'Not enabled'} readOnly />
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          ) : null}
 
-
-          {canEdit ? (
+          {advancedSection === 'agent' && canEdit ? (
             <FormSection
               title={agentLabel()}
-              description="Upper-line brokerage carved from Super Admin margin (between us and the Exchange). Banker rates must stay ≤ Exchange − Agent."
+              description="Brokerage from Super Admin margin; Banker rates ≤ Exchange − Agent."
             >
               <FormGrid>
                 <FormField label={agentLabel()}>
@@ -1044,7 +1119,7 @@ export default function MerchantDetailPage() {
                   </>
                 ) : null}
               </FormGrid>
-              <div className="mt-3">
+              <div className="mt-3 flex justify-end">
                 <PrimaryButton disabled={savingAgent} onClick={() => void handleSaveAgent()}>
                   {savingAgent ? 'Saving…' : `Save ${agentLabel()}`}
                 </PrimaryButton>
@@ -1052,7 +1127,15 @@ export default function MerchantDetailPage() {
             </FormSection>
           ) : null}
 
-          {canEditRouting ? (
+          {advancedSection === 'agent' && !canEdit ? (
+            <FormSection title={agentLabel()}>
+              <FormField label={agentLabel()}>
+                <Input value={merchant.agent_username ?? 'None'} readOnly />
+              </FormField>
+            </FormSection>
+          ) : null}
+
+          {advancedSection === 'withdrawals' && canEditRouting ? (
             <>
               <PayoutBankersFormSection
                 mode={payoutBankerMode}
@@ -1066,7 +1149,7 @@ export default function MerchantDetailPage() {
                 onDefaultAdminChange={setRoutingAdminId}
                 disabled={savingRouting}
               />
-              <div className="-mt-1 flex justify-end">
+              <div className="mt-3 flex justify-end">
                 <PrimaryButton
                   type="button"
                   disabled={
@@ -1080,8 +1163,10 @@ export default function MerchantDetailPage() {
                 </PrimaryButton>
               </div>
             </>
-          ) : (
-            <FormSection title="Withdrawal routing">
+          ) : null}
+
+          {advancedSection === 'withdrawals' && !canEditRouting ? (
+            <FormSection title="Withdrawals">
               <FormField label="New withdrawals go to">
                 <Input
                   value={
@@ -1103,11 +1188,21 @@ export default function MerchantDetailPage() {
                 />
               </FormField>
             </FormSection>
-          )}
+          ) : null}
 
+          {/* Panel Supago/Crici only for legacy locks — new connects are disabled; Gateway is the path. */}
+          {advancedSection === 'panel' && (lockedPanel === 'supago' || lockedPanel === 'crici') ? (
           <FormSection
-            title="Panel integration"
-            description="One external panel per exchange master. The first connect locks the panel permanently; credentials can be changed or cleared later."
+            title="Panel"
+            description="Legacy lock — change or clear credentials only; switching panels is not allowed."
+            action={
+              <span
+                className="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase"
+                style={{ backgroundColor: 'var(--qp-border)', color: 'var(--qp-text-muted)' }}
+              >
+                {lockedPanel === 'supago' ? 'Supago' : 'Crici'}
+              </span>
+            }
           >
             {panelError ? (
               <div className="mb-3">
@@ -1120,24 +1215,23 @@ export default function MerchantDetailPage() {
                 <Select
                   id="panel-integration-type"
                   value={panelSelectValue}
-                  disabled={!canEdit || lockedPanel !== 'none' || gatewayLocked || panelBusy}
+                  disabled
                   onChange={(event) => handlePanelChoiceChange(event.target.value as PanelIntegrationType)}
                   aria-label="Panel integration type"
                 >
                   <option value="none">None</option>
-                  <option value="supago">Supago</option>
+                  {/* Legacy locked merchants only — new Supago connects are disabled. */}
+                  {lockedPanel === 'supago' ? <option value="supago">Supago</option> : null}
                   <option value="crici">Crici</option>
                 </Select>
               </FormField>
             </FormGrid>
-            {lockedPanel !== 'none' ? (
-              <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                Panel is locked to {lockedPanel === 'supago' ? 'Supago' : 'Crici'}. You can change or clear
-                credentials for this panel only — switching panels is not allowed.
-              </p>
-            ) : null}
+            <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+              Panel is locked to {lockedPanel === 'supago' ? 'Supago' : 'Crici'}. You can change or clear
+              credentials for this panel only — switching panels is not allowed.
+            </p>
 
-            {connectedPanel === 'supago' || (connectedPanel === 'none' && panelChoice === 'supago') ? (
+            {lockedPanel === 'supago' ? (
               <div className="mt-qp-gap">
                 {supagoStatus?.connected ? (
                   <>
@@ -1302,7 +1396,7 @@ export default function MerchantDetailPage() {
               </div>
             ) : null}
 
-            {connectedPanel === 'crici' || (connectedPanel === 'none' && panelChoice === 'crici') ? (
+            {lockedPanel === 'crici' ? (
               <div className="mt-qp-gap">
                 {criciStatus?.connected ? (
                   <>
@@ -1485,39 +1579,61 @@ export default function MerchantDetailPage() {
               </div>
             ) : null}
 
-            {connectedPanel === 'none' && panelChoice === 'none' ? (
-              <p className="mt-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-                {gatewayLocked
-                  ? 'This exchange master uses the Gateway API. Panel integrations are not available.'
-                  : 'No panel selected. Choose Supago or Crici to connect credentials.'}
-              </p>
-            ) : null}
           </FormSection>
-
-          {isSuperAdmin ? (
-            <GatewayIntegrationSection
-              merchantId={merchant.id}
-              panelLocked={connectedPanel !== 'none'}
-              canEdit={canEdit}
-              onChanged={() => void load({ silent: true })}
-            />
           ) : null}
 
-          <FormSection title="Rate history">
-            <DataTable
-              columns={[
-                { key: 'kind', heading: 'KIND' },
-                { key: 'rate', heading: 'RATE' },
-                { key: 'from', heading: 'EFFECTIVE FROM' },
-              ]}
-              rows={history.map((row) => ({
-                kind: row.rate_kind,
-                rate: <RateDisplay rateBp={row.rate_bp} />,
-                from: formatDateTimeIst(row.effective_from),
-              }))}
-              empty={<EmptyState message="No rate history" />}
-            />
-          </FormSection>
+          {advancedSection === 'gateway' ? (
+            isSuperAdmin ? (
+              <GatewayIntegrationSection
+                merchantId={merchant.id}
+                panelLocked={connectedPanel !== 'none'}
+                canEdit={canEdit}
+                onChanged={() => void load({ silent: true })}
+              />
+            ) : (
+              <FormSection title="Gateway">
+                <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                  Gateway settings are available to Super Admin only.
+                </p>
+              </FormSection>
+            )
+          ) : null}
+
+          {advancedSection === 'authenticator' ? (
+            isSuperAdmin ? (
+              <PayoutAuthenticatorPanel
+                merchantId={merchant.id}
+                gatewayEnabled={Boolean(gatewayConfig?.enabled)}
+                issued={Boolean(gatewayConfig?.payout_authenticator_issued)}
+                canEdit={canEdit}
+                onChanged={() => void load({ silent: true })}
+              />
+            ) : (
+              <FormSection title="Authenticator">
+                <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                  The pay-out authenticator is available to Super Admin only.
+                </p>
+              </FormSection>
+            )
+          ) : null}
+
+          {advancedSection === 'rates' ? (
+            <FormSection title="Rate history">
+              <DataTable
+                columns={[
+                  { key: 'kind', heading: 'KIND' },
+                  { key: 'rate', heading: 'RATE' },
+                  { key: 'from', heading: 'EFFECTIVE FROM' },
+                ]}
+                rows={history.map((row) => ({
+                  kind: row.rate_kind,
+                  rate: <RateDisplay rateBp={row.rate_bp} />,
+                  from: formatDateTimeIst(row.effective_from),
+                }))}
+                empty={<EmptyState message="No rate history" />}
+              />
+            </FormSection>
+          ) : null}
           </Drawer>
       ) : null}
 
@@ -1536,7 +1652,7 @@ export default function MerchantDetailPage() {
       {confirmCriciDisconnect ? (
         <ConfirmDialog
           title="Clear Crici credentials?"
-          subtitle={`The cached session will be cleared and credentials removed. This ${merchantLabel()} stays locked to Crici — you can reconnect the same panel, but cannot switch to Supago.`}
+          subtitle={`The cached session will be cleared and credentials removed. This ${merchantLabel()} stays locked to Crici — you can reconnect the same panel, but cannot switch panels.`}
           confirmLabel="Clear credentials"
           variant="danger"
           loading={criciLoading}
