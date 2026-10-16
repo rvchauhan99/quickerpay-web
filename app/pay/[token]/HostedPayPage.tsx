@@ -102,6 +102,60 @@ function QrImage({ qr, alt }: { qr: string | null; alt: string }) {
   )
 }
 
+function SubmitSuccess({
+  animate,
+  secondsLeft,
+  returnUrl,
+}: {
+  animate: boolean
+  secondsLeft: number | null
+  returnUrl: string | null
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      <style>{`
+        .pay-success-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: pay-circle 0.6s ease-in-out forwards; }
+        .pay-success-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: pay-check 0.4s 0.55s ease-in-out forwards; }
+        .pay-success-copy { opacity: 0; animation: pay-fade 0.35s 0.95s ease-out forwards; }
+        @keyframes pay-circle { to { stroke-dashoffset: 0; } }
+        @keyframes pay-check { to { stroke-dashoffset: 0; } }
+        @keyframes pay-fade { to { opacity: 1; } }
+      `}</style>
+      <svg viewBox="0 0 52 52" className="h-20 w-20" aria-hidden="true">
+        <circle
+          className={animate ? 'pay-success-circle' : undefined}
+          cx="26"
+          cy="26"
+          r="24"
+          fill="none"
+          stroke="var(--qp-success)"
+          strokeWidth="2"
+          strokeDashoffset={animate ? undefined : 0}
+        />
+        <path
+          className={animate ? 'pay-success-check' : undefined}
+          fill="none"
+          stroke="var(--qp-success)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M14 27l8 8 16-16"
+          strokeDashoffset={animate ? undefined : 0}
+        />
+      </svg>
+      <div className={animate ? 'pay-success-copy flex flex-col items-center gap-3' : 'flex flex-col items-center gap-3'}>
+        <p className="text-lg font-bold text-slate-900">Payment submitted successfully</p>
+        {secondsLeft !== null ? (
+          <p className="text-sm text-slate-500">
+            Redirecting in <span className="tabular-nums font-semibold">{secondsLeft}</span> seconds
+          </p>
+        ) : null}
+        {returnUrl ? <PrimaryButton href={returnUrl}>Return to merchant</PrimaryButton> : null}
+      </div>
+    </div>
+  )
+}
+
 function DetailRow({ label, value, copyLabel }: { label: string; value: string | null | undefined; copyLabel: string }) {
   if (!value) return null
   return (
@@ -128,6 +182,7 @@ export function HostedPayPage({ token }: { token: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [loadingMethod, setLoadingMethod] = useState<PaymentMethod | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [celebrateFrom, setCelebrateFrom] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -148,7 +203,15 @@ export function HostedPayPage({ token }: { token: string }) {
   }, [token])
 
   const isTerminal = view?.status === 'COMPLETED' || view?.status === 'REJECTED'
+  const submitted = Boolean(view?.utr_submitted) && !isTerminal
   const method: PayinPaymentMethod = view?.payment_method ?? 'PENDING_METHOD'
+  const redirectSecondsLeft =
+    celebrateFrom === null || !view?.return_url
+      ? null
+      : Math.min(
+          REDIRECT_AFTER_MS / 1000,
+          Math.max(0, Math.ceil((REDIRECT_AFTER_MS - Math.max(0, now - celebrateFrom)) / 1000)),
+        )
   const awaitingMethod = method === 'PENDING_METHOD'
 
   useEffect(() => {
@@ -166,10 +229,12 @@ export function HostedPayPage({ token }: { token: string }) {
   }, [isTerminal, load, state])
 
   useEffect(() => {
-    if (!isTerminal || !view?.return_url) return
-    const timer = window.setTimeout(() => window.location.assign(view.return_url!), REDIRECT_AFTER_MS)
+    const returnUrl = view?.return_url
+    if (celebrateFrom === null || !returnUrl) return
+    const wait = Math.max(0, REDIRECT_AFTER_MS - (Date.now() - celebrateFrom))
+    const timer = window.setTimeout(() => window.location.assign(returnUrl), wait)
     return () => window.clearTimeout(timer)
-  }, [isTerminal, view?.return_url])
+  }, [celebrateFrom, view?.return_url])
 
   const upiIntent = useMemo(
     () =>
@@ -196,6 +261,7 @@ export function HostedPayPage({ token }: { token: string }) {
         return
       }
       setView(result.view)
+      if (result.view.utr_submitted) setCelebrateFrom((current) => current ?? Date.now())
       setProof(null)
     } catch {
       setSubmitError('Network error. Try again.')
@@ -318,7 +384,7 @@ export function HostedPayPage({ token }: { token: string }) {
                 <CopyButton value={view.transaction_number} label="Copy TXN ID" />
               </div>
 
-              {!isTerminal && remaining ? (
+              {!isTerminal && !submitted && remaining ? (
                 <div className="mt-3 flex items-center justify-center">
                   <div
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
@@ -354,7 +420,15 @@ export function HostedPayPage({ token }: { token: string }) {
                 <ErrorAlert message="This payment link has expired. Do not send payment; restart checkout from the merchant." />
               ) : null}
 
-              {!isTerminal && !expired ? (
+              {!isTerminal && !expired && submitted ? (
+                <SubmitSuccess
+                  animate={celebrateFrom !== null}
+                  secondsLeft={redirectSecondsLeft}
+                  returnUrl={view.return_url}
+                />
+              ) : null}
+
+              {!isTerminal && !expired && !submitted ? (
                 <>
                   {/* Stage 1: Method Picker */}
                   {awaitingMethod ? (
@@ -459,16 +533,7 @@ export function HostedPayPage({ token }: { token: string }) {
 
                   {!awaitingMethod ? (
                     <form className="mt-2 flex flex-col gap-3" onSubmit={(event) => void handleReference(event)}>
-                      {view.utr_submitted ? (
-                        <ErrorAlert
-                          type="success"
-                          message={
-                            method === 'USDT_TRC20'
-                              ? 'TxID received. We are confirming your transfer; this page updates automatically.'
-                              : 'UTR received. We are confirming your payment; this page updates automatically.'
-                          }
-                        />
-                      ) : method === 'USDT_TRC20' ? (
+                      {method === 'USDT_TRC20' ? (
                         <>
                           <FormField label="Transaction hash (TxID)" required htmlFor="pay-txid" error={submitError}>
                             <Input
@@ -541,15 +606,6 @@ export function HostedPayPage({ token }: { token: string }) {
                     </form>
                   ) : null}
                 </>
-              ) : null}
-
-              {isTerminal && view.return_url ? (
-                <div className="mt-2 flex flex-col items-center gap-2">
-                  <p className="text-xs text-slate-500">
-                    Returning to the merchant in a few seconds…
-                  </p>
-                  <PrimaryButton href={view.return_url}>Return to merchant</PrimaryButton>
-                </div>
               ) : null}
             </div>
           </>
