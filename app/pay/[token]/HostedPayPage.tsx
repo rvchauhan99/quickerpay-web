@@ -19,6 +19,7 @@ const REDIRECT_AFTER_MS = 5_000
 const PROOF_MAX_BYTES = 5 * 1024 * 1024
 const PROOF_ACCEPT = 'image/png,image/jpeg,image/webp'
 const UTR_PATTERN = /^\d{12}$/
+const BANK_REF_PATTERN = /^\d{9,22}$/
 const TXID_PATTERN = /^[a-fA-F0-9]{64}$/
 
 const SUBTITLE: Record<PayinPaymentMethod, string> = {
@@ -219,11 +220,19 @@ export function HostedPayPage({ token }: { token: string }) {
   const handleReference = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const value = reference.trim()
-    if (method === 'USDT_TRC20' ? !TXID_PATTERN.test(value) : !UTR_PATTERN.test(value)) {
+    const referenceOk =
+      method === 'USDT_TRC20'
+        ? TXID_PATTERN.test(value)
+        : method === 'MANUAL_BANK'
+          ? BANK_REF_PATTERN.test(value)
+          : UTR_PATTERN.test(value)
+    if (!referenceOk) {
       setSubmitError(
         method === 'USDT_TRC20'
           ? 'Enter the 64 character transaction hash (TxID) from your wallet'
-          : 'Enter the 12 digit UTR / reference number from your UPI app',
+          : method === 'MANUAL_BANK'
+            ? 'Enter the 9 to 22 digit reference from your bank transfer'
+            : 'Enter the 12 digit UTR / reference number from your UPI app',
       )
       return
     }
@@ -432,13 +441,13 @@ export function HostedPayPage({ token }: { token: string }) {
                           <ErrorAlert type="success" message="UTR received. We are confirming your payment; this page updates automatically." />
                         ) : (
                           <>
-                            <FormField label="12-digit UTR" required htmlFor="pay-bank-utr" error={submitError}>
+                            <FormField label="UTR / reference" required htmlFor="pay-bank-utr" error={submitError}>
                               <Input
                                 id="pay-bank-utr"
                                 inputMode="numeric"
                                 autoComplete="off"
-                                maxLength={12}
-                                placeholder="429381029482"
+                                maxLength={22}
+                                placeholder="At least 9 digits"
                                 value={reference}
                                 onChange={(event) => setReference(event.target.value.replace(/\D/g, ''))}
                                 aria-label="UTR reference number"
