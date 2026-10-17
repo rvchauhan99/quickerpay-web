@@ -16,7 +16,7 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
-import { agentLabel } from '@/lib/labels'
+import { agentLabel, bankerLabel } from '@/lib/labels'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -26,6 +26,7 @@ interface AgentListItem {
   display_name: string
   status: string
   exchange_count: number
+  banker_count: number
   created_at: string
 }
 
@@ -154,6 +155,7 @@ export default function AgentsPage() {
             { key: 'username', heading: 'USERNAME' },
             { key: 'name', heading: 'NAME' },
             { key: 'exchanges', heading: 'EXCHANGES' },
+            { key: 'bankers', heading: bankerLabel({ plural: true }).toUpperCase() },
             { key: 'status', heading: 'STATUS' },
             { key: 'created', heading: 'CREATED' },
             { key: 'actions', heading: 'ACTION' },
@@ -162,6 +164,7 @@ export default function AgentsPage() {
             username: row.username,
             name: row.display_name,
             exchanges: row.exchange_count,
+            bankers: row.banker_count ?? 0,
             status: <StatusBadge status={row.status} />,
             created: formatDateTimeIst(row.created_at),
             actions: (

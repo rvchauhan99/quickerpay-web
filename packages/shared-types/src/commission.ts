@@ -8,24 +8,29 @@ import type { RateKind } from './domain'
 export interface CommissionSnapshot {
   rate_kind: RateKind
   eligible_amount_minor: number
-  merchant_rate_bp: number
-  banker_rate_bp: number
-  agent_rate_bp: number
-  margin_rate_bp: number
-  merchant_commission_minor: number
-  banker_commission_minor: number
-  agent_commission_minor: number
-  margin_minor: number
+  merchant_rate_bp?: number
+  banker_rate_bp?: number
+  agent_rate_bp?: number
+  margin_rate_bp?: number
+  merchant_commission_minor?: number
+  banker_commission_minor?: number
+  agent_commission_minor?: number
+  margin_minor?: number
   agent_user_id?: string | null
+  banker_agent_user_id?: string | null
+  banker_agent_rate_bp?: number
+  banker_agent_commission_minor?: number
+  banker_agent_rate_id?: string | null
 }
 
 export interface CommissionKindTotals {
   rate_kind: RateKind
   eligible_volume_minor: number
-  merchant_commission_minor: number
-  banker_commission_minor: number
-  agent_commission_minor: number
-  margin_minor: number
+  merchant_commission_minor?: number
+  banker_commission_minor?: number
+  agent_commission_minor?: number
+  banker_agent_commission_minor?: number
+  margin_minor?: number
   reversals_minor: number
   net_minor: number
 }
@@ -41,15 +46,18 @@ export interface CommissionEntry {
   rate_kind: RateKind
   /** Omitted for Banker / Operator / Auditor (canSeeMerchants). Null for unclaimed orphan settlement. */
   merchant_id?: string | null
-  banker_user_id: string
+  banker_user_id?: string
   agent_user_id?: string | null
+  banker_agent_user_id?: string | null
   eligible_amount_minor: number
-  merchant_rate_bp: number
-  banker_rate_bp: number
-  agent_rate_bp: number
-  merchant_commission_minor: number
-  banker_commission_minor: number
-  agent_commission_minor: number
-  margin_minor: number | null
+  merchant_rate_bp?: number
+  banker_rate_bp?: number
+  agent_rate_bp?: number
+  banker_agent_rate_bp?: number
+  merchant_commission_minor?: number
+  banker_commission_minor?: number
+  agent_commission_minor?: number
+  banker_agent_commission_minor?: number
+  margin_minor?: number | null
   created_at: string
 }

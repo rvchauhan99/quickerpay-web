@@ -72,8 +72,6 @@ export default function CommissionPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const hideMargin = user?.role === 'BANKER' || user?.role === 'AGENT'
-
   const load = useCallback(async () => {
     if (!accessToken) return
     setLoading(true)
@@ -121,6 +119,11 @@ export default function CommissionPage() {
 
   const payinKind = summary.kinds.find((row) => row.rate_kind === 'PAYIN') ?? EMPTY.kinds[0]!
   const payoutKind = summary.kinds.find((row) => row.rate_kind === 'PAYOUT') ?? EMPTY.kinds[1]!
+  const showMerchant = payinKind.merchant_commission_minor !== undefined
+  const showBanker = payinKind.banker_commission_minor !== undefined
+  const showAgent = payinKind.agent_commission_minor !== undefined
+  const showBroker = payinKind.banker_agent_commission_minor !== undefined
+  const showMargin = payinKind.margin_minor !== undefined
 
   const handleClear = () => {
     void setFilters({ date_from: '', date_to: '', rate_kind: '', banker_user_id: '', merchant_id: '' })
@@ -186,14 +189,23 @@ export default function CommissionPage() {
           </thead>
           <tbody>
             <SummaryRow label="Eligible volume" a={payinKind.eligible_volume_minor} b={payoutKind.eligible_volume_minor} c={summary.total.eligible_volume_minor} />
-            <SummaryRow label={`${merchantLabel()} commission`} a={payinKind.merchant_commission_minor} b={payoutKind.merchant_commission_minor} c={summary.total.merchant_commission_minor} />
-            <SummaryRow label={`${bankerLabel()} commission`} a={payinKind.banker_commission_minor} b={payoutKind.banker_commission_minor} c={summary.total.banker_commission_minor} />
-            <SummaryRow label={`${agentLabel()} commission`} a={payinKind.agent_commission_minor} b={payoutKind.agent_commission_minor} c={summary.total.agent_commission_minor} />
-            {hideMargin ? null : (
-              <SummaryRow label="Your margin" a={payinKind.margin_minor} b={payoutKind.margin_minor} c={summary.total.margin_minor} />
-            )}
+            {showMerchant ? (
+              <SummaryRow label={`${merchantLabel()} commission`} a={payinKind.merchant_commission_minor ?? 0} b={payoutKind.merchant_commission_minor ?? 0} c={summary.total.merchant_commission_minor ?? 0} />
+            ) : null}
+            {showBanker ? (
+              <SummaryRow label={`${bankerLabel()} commission`} a={payinKind.banker_commission_minor ?? 0} b={payoutKind.banker_commission_minor ?? 0} c={summary.total.banker_commission_minor ?? 0} />
+            ) : null}
+            {showAgent ? (
+              <SummaryRow label={`${agentLabel()} (Exchange) commission`} a={payinKind.agent_commission_minor ?? 0} b={payoutKind.agent_commission_minor ?? 0} c={summary.total.agent_commission_minor ?? 0} />
+            ) : null}
+            {showBroker ? (
+              <SummaryRow label={`${agentLabel()} (Banker) commission`} a={payinKind.banker_agent_commission_minor ?? 0} b={payoutKind.banker_agent_commission_minor ?? 0} c={summary.total.banker_agent_commission_minor ?? 0} />
+            ) : null}
+            {showMargin ? (
+              <SummaryRow label="Your margin" a={payinKind.margin_minor ?? 0} b={payoutKind.margin_minor ?? 0} c={summary.total.margin_minor ?? 0} />
+            ) : null}
             <SummaryRow label="Reversals" a={payinKind.reversals_minor} b={payoutKind.reversals_minor} c={summary.total.reversals_minor} />
-            <SummaryRow label={hideMargin ? 'Net' : 'Net margin'} a={payinKind.net_minor} b={payoutKind.net_minor} c={summary.total.net_minor} />
+            <SummaryRow label={showMargin ? 'Net margin' : 'Net'} a={payinKind.net_minor} b={payoutKind.net_minor} c={summary.total.net_minor} />
           </tbody>
         </table>
       </div>
@@ -213,13 +225,11 @@ export default function CommissionPage() {
           { key: 'created_at', heading: 'Created' },
           { key: 'rate_kind', heading: 'Kind' },
           { key: 'eligible', heading: 'Eligible volume' },
-          { key: 'merchant_rate', heading: `${merchantLabel()} rate` },
-          { key: 'admin_rate', heading: `${bankerLabel()} rate` },
-          { key: 'agent_rate', heading: `${agentLabel()} rate` },
-          { key: 'merchant', heading: `${merchantLabel()} commission` },
-          { key: 'admin', heading: `${bankerLabel()} commission` },
-          { key: 'agent', heading: `${agentLabel()} commission` },
-          ...(hideMargin ? [] : [{ key: 'margin', heading: 'Margin' }]),
+          ...(showMerchant ? [{ key: 'merchant_rate', heading: `${merchantLabel()} rate` }, { key: 'merchant', heading: `${merchantLabel()} commission` }] : []),
+          ...(showBanker ? [{ key: 'admin_rate', heading: `${bankerLabel()} rate` }, { key: 'admin', heading: `${bankerLabel()} commission` }] : []),
+          ...(showAgent ? [{ key: 'agent_rate', heading: `${agentLabel()} (Exchange) rate` }, { key: 'agent', heading: `${agentLabel()} (Exchange) commission` }] : []),
+          ...(showBroker ? [{ key: 'broker_rate', heading: `${agentLabel()} (Banker) rate` }, { key: 'broker', heading: `${agentLabel()} (Banker) commission` }] : []),
+          ...(showMargin ? [{ key: 'margin', heading: 'Margin' }] : []),
         ]}
         rows={entries.map((row) => ({
           created_at: row.created_at,
@@ -228,9 +238,11 @@ export default function CommissionPage() {
           merchant_rate: <RateDisplay rateBp={row.merchant_rate_bp} />,
           admin_rate: <RateDisplay rateBp={row.banker_rate_bp} />,
           agent_rate: <RateDisplay rateBp={row.agent_rate_bp} />,
+          broker_rate: <RateDisplay rateBp={row.banker_agent_rate_bp} />,
           merchant: <MoneyDisplay amountMinor={row.merchant_commission_minor} />,
           admin: <MoneyDisplay amountMinor={row.banker_commission_minor} />,
           agent: <MoneyDisplay amountMinor={row.agent_commission_minor} />,
+          broker: <MoneyDisplay amountMinor={row.banker_agent_commission_minor} />,
           margin: <MoneyDisplay amountMinor={row.margin_minor} />,
         }))}
         empty={<EmptyState message="No records match these filters" onClear={handleClear} />}

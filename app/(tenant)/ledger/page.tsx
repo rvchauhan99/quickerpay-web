@@ -33,8 +33,12 @@ export default function LedgerPage() {
   const [filters, setFilters] = useQueryStates({
     date_from: parseAsString.withDefault(todayIso()),
     date_to: parseAsString.withDefault(todayIso()),
+    account_kind: parseAsString.withDefault('BANKER'),
     owner_user_id: parseAsString.withDefault(''),
     bank_account_id: parseAsString.withDefault(''),
+    party_id: parseAsString.withDefault(''),
+    merchant_id: parseAsString.withDefault(''),
+    agent_user_id: parseAsString.withDefault(''),
     q: parseAsString.withDefault(''),
     event_type: parseAsString.withDefault(''),
     direction: parseAsString.withDefault(''),
@@ -42,6 +46,9 @@ export default function LedgerPage() {
     page_size: parseAsInteger.withDefault(100),
   })
   const [admins, setAdmins] = useState<UserListItem[]>([])
+  const [parties, setParties] = useState<Array<{ id: string; party_code: string; display_name: string }>>([])
+  const [exchanges, setExchanges] = useState<Array<{ id: string; merchant_code: string; legal_name: string }>>([])
+  const [agents, setAgents] = useState<Array<{ id: string; username: string; display_name: string | null }>>([])
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
   const [statement, setStatement] = useState<LedgerStatement | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -53,12 +60,23 @@ export default function LedgerPage() {
   const [pending, setPending] = useState<LedgerAdjustment | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  const isWide = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
 
   const load = useCallback(async () => {
-    if (isSuperAdmin && !filters.owner_user_id && !filters.bank_account_id) {
+    const holderMissing =
+      isWide &&
+      filters.account_kind === 'BANKER' &&
+      !filters.owner_user_id &&
+      !filters.bank_account_id
+    const otherMissing =
+      isWide &&
+      ((filters.account_kind === 'PARTY' && !filters.party_id) ||
+        (filters.account_kind === 'EXCHANGE' && !filters.merchant_id) ||
+        (filters.account_kind === 'AGENT' && !filters.agent_user_id))
+    if (holderMissing || otherMissing) {
       setStatement(null)
-      setError(`Pick a ${bankerLabel()} or a bank account`)
+      setError('Pick an account')
       return
     }
     setLoading(true)
@@ -66,11 +84,15 @@ export default function LedgerPage() {
     const query = new URLSearchParams()
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
-    if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
-    if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
     if (filters.q) query.set('q', filters.q)
     if (filters.event_type) query.set('event_type', filters.event_type)
     if (filters.direction) query.set('direction', filters.direction)
+    if (!isWide || filters.account_kind === 'BANKER') {
+      if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
+      if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
+    } else if (filters.account_kind === 'PARTY' && filters.party_id) query.set('party_id', filters.party_id)
+    else if (filters.account_kind === 'EXCHANGE' && filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+    else if (filters.account_kind === 'AGENT' && filters.agent_user_id) query.set('agent_user_id', filters.agent_user_id)
     query.set('page', String(filters.page))
     query.set('page_size', String(filters.page_size))
     try {
@@ -80,22 +102,25 @@ export default function LedgerPage() {
     } finally {
       setLoading(false)
     }
-  }, [isSuperAdmin, filters.date_from, filters.date_to, filters.owner_user_id, filters.bank_account_id, filters.q, filters.event_type, filters.direction, filters.page, filters.page_size])
+  }, [isWide, filters])
 
   useEffect(() => {
     if (!ready || !allowed) return
-    if (isSuperAdmin) {
-      void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100').then((result) =>
-        setAdmins(result.items),
+    if (isWide) {
+      void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100').then((result) => setAdmins(result.items))
+      void apiListRequest<{ id: string; party_code: string; display_name: string }>('/api/v1/parties?page_size=100').then((result) =>
+        setParties(result.items),
       )
-      void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100').then((result) =>
-        setBanks(result.items),
+      void apiListRequest<{ id: string; merchant_code: string; legal_name: string }>('/api/v1/merchants?page_size=100').then((result) =>
+        setExchanges(result.items),
+      )
+      void apiListRequest<{ id: string; username: string; display_name: string | null }>('/api/v1/agents?page_size=100').then((result) =>
+        setAgents(result.items),
       )
     }
-    if (!isSuperAdmin || filters.owner_user_id || filters.bank_account_id) {
-      void load()
-    }
-  }, [ready, allowed, isSuperAdmin, load, filters.owner_user_id, filters.bank_account_id])
+    void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100').then((result) => setBanks(result.items))
+    void load()
+  }, [ready, allowed, isWide, load])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -154,30 +179,83 @@ export default function LedgerPage() {
           ) : null
         }
       />
-      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: todayIso(), date_to: todayIso(), owner_user_id: '', bank_account_id: '', q: '', event_type: '', direction: '', page: 1, page_size: 100 }); void (!isSuperAdmin && load()) }} onReload={() => void load()}>
-        {isSuperAdmin ? (
-          <>
-            <FormField label={bankerLabel()}>
-              <Select value={filters.owner_user_id} onChange={(event) => void setFilters({ owner_user_id: event.target.value, bank_account_id: '' })} aria-label={bankerLabel()}>
-                <option value="">Pick a {bankerLabel()}</option>
-                {admins.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.display_name} ({row.username})
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Bank">
-              <Select value={filters.bank_account_id} onChange={(event) => void setFilters({ bank_account_id: event.target.value, owner_user_id: '' })} aria-label="Bank">
-                <option value="">Pick a bank</option>
-                {banks.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.label}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-          </>
+      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: todayIso(), date_to: todayIso(), account_kind: 'BANKER', owner_user_id: '', bank_account_id: '', party_id: '', merchant_id: '', agent_user_id: '', q: '', event_type: '', direction: '', page: 1, page_size: 100 }) }} onReload={() => void load()}>
+        <FormField label="Account">
+          <Select
+            value={isWide ? filters.account_kind : 'BANKER'}
+            disabled={!isWide}
+            onChange={(event) =>
+              void setFilters({
+                account_kind: event.target.value,
+                owner_user_id: '',
+                bank_account_id: '',
+                party_id: '',
+                merchant_id: '',
+                agent_user_id: '',
+                page: 1,
+              })
+            }
+            aria-label="Account kind"
+          >
+            <option value="BANKER">{bankerLabel()}</option>
+            {isWide ? (
+              <>
+                <option value="PARTY">Party</option>
+                <option value="EXCHANGE">Exchange Master</option>
+                <option value="AGENT">Agent</option>
+              </>
+            ) : null}
+          </Select>
+        </FormField>
+        {isWide && filters.account_kind === 'BANKER' ? (
+          <FormField label={bankerLabel()}>
+            <Select value={filters.owner_user_id} onChange={(event) => void setFilters({ owner_user_id: event.target.value, bank_account_id: '', page: 1 })} aria-label={bankerLabel()}>
+              <option value="">Pick a {bankerLabel()}</option>
+              {admins.map((row) => (
+                <option key={row.id} value={row.id}>{row.display_name} ({row.username})</option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
+        {isWide && filters.account_kind === 'PARTY' ? (
+          <FormField label="Party">
+            <Select value={filters.party_id} onChange={(event) => void setFilters({ party_id: event.target.value, page: 1 })} aria-label="Party">
+              <option value="">Pick a Party</option>
+              {parties.map((row) => (
+                <option key={row.id} value={row.id}>{row.display_name} ({row.party_code})</option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
+        {isWide && filters.account_kind === 'EXCHANGE' ? (
+          <FormField label="Exchange Master">
+            <Select value={filters.merchant_id} onChange={(event) => void setFilters({ merchant_id: event.target.value, page: 1 })} aria-label="Exchange Master">
+              <option value="">Pick an Exchange Master</option>
+              {exchanges.map((row) => (
+                <option key={row.id} value={row.id}>{row.legal_name} ({row.merchant_code})</option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
+        {isWide && filters.account_kind === 'AGENT' ? (
+          <FormField label="Agent">
+            <Select value={filters.agent_user_id} onChange={(event) => void setFilters({ agent_user_id: event.target.value, page: 1 })} aria-label="Agent">
+              <option value="">Pick an Agent</option>
+              {agents.map((row) => (
+                <option key={row.id} value={row.id}>{row.display_name ?? row.username} ({row.username})</option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
+        {!isWide || filters.account_kind === 'BANKER' ? (
+          <FormField label="Bank">
+            <Select value={filters.bank_account_id} onChange={(event) => void setFilters({ bank_account_id: event.target.value, owner_user_id: '', page: 1 })} aria-label="Bank">
+              <option value="">All banks</option>
+              {banks.map((row) => (
+                <option key={row.id} value={row.id}>{row.label}</option>
+              ))}
+            </Select>
+          </FormField>
         ) : null}
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
@@ -213,6 +291,9 @@ export default function LedgerPage() {
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
               if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
+              if (filters.party_id) query.set('party_id', filters.party_id)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.agent_user_id) query.set('agent_user_id', filters.agent_user_id)
               if (filters.q) query.set('q', filters.q)
               if (filters.event_type) query.set('event_type', filters.event_type)
               if (filters.direction) query.set('direction', filters.direction)

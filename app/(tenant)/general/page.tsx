@@ -31,6 +31,7 @@ const SECTION_LABELS: Record<string, string> = {
   PARTY: 'PARTY',
   BANKER: 'BANKER',
   EXCHANGE: 'EXCHANGE',
+  AGENT: 'AGENT',
 }
 
 export default function GeneralPage() {

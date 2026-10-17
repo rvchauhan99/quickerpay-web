@@ -58,6 +58,29 @@ export interface UserListItem {
   created_at: string
 }
 
+/** One closed commercial period. Banker percent is what remained after the agent. */
+export interface BankerCommercialHistory {
+  rate_kind: RateKind
+  banker_after_bp: number
+  agent_rate_bp: number
+  effective_from: string
+  effective_to: string
+}
+
+/**
+ * Current Banker commercial terms.
+ * Super Admin and Admin receive the agent and history.
+ * A Banker or Operator receives only the two after-agent percents.
+ */
+export interface BankerCommercial {
+  banker_payin_bp: number
+  banker_payout_bp: number
+  agent_user_id?: string | null
+  agent_payin_bp?: number
+  agent_payout_bp?: number
+  history?: BankerCommercialHistory[]
+}
+
 export interface UserDetail extends UserListItem {
   /** The granted ids. An Operator's effective scope is this intersected with their Banker's. */
   scope: BankingScope

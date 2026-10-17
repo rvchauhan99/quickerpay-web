@@ -29,6 +29,13 @@ interface DirectoryUser {
   role: string
 }
 
+function kindLabel(kind: HawalaPartyKind): string {
+  if (kind === 'MERCHANT') return 'Exchange Master'
+  if (kind === 'PARTY') return 'Party'
+  if (kind === 'AGENT') return 'Agent'
+  return 'Banker'
+}
+
 interface SideBalance {
   balance_minor: number
   label: string
@@ -57,6 +64,7 @@ export default function HawalaPage() {
   const [parties, setParties] = useState<PartyListItem[]>([])
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [bankers, setBankers] = useState<DirectoryUser[]>([])
+  const [agents, setAgents] = useState<DirectoryUser[]>([])
 
   const canCreate = user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_create')
 
@@ -77,14 +85,16 @@ export default function HawalaPage() {
   const loadDirectories = useCallback(async () => {
     if (!accessToken || !canCreate) return
     try {
-      const [partyRes, merchantRes, userRes] = await Promise.all([
+      const [partyRes, merchantRes, userRes, agentRes] = await Promise.all([
         apiListRequest<PartyListItem>('/api/v1/parties?page_size=100&status=ACTIVE', { token: accessToken }).catch(() => ({ items: [] as PartyListItem[] })),
         apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100&status=ACTIVE', { token: accessToken }).catch(() => ({ items: [] as MerchantListItem[] })),
         apiListRequest<DirectoryUser>('/api/v1/users?page_size=100&role=BANKER&status=ACTIVE', { token: accessToken }).catch(() => ({ items: [] as DirectoryUser[] })),
+        apiListRequest<DirectoryUser>('/api/v1/agents?page_size=100&status=ACTIVE', { token: accessToken }).catch(() => ({ items: [] as DirectoryUser[] })),
       ])
       setParties(partyRes.items)
       setMerchants(merchantRes.items)
       setBankers(userRes.items)
+      setAgents(agentRes.items)
     } catch {
       /* directories optional for Banker view */
     }
@@ -131,6 +141,9 @@ export default function HawalaPage() {
     }
     if (kind === 'MERCHANT') {
       return merchants.map((row) => ({ id: row.id, label: row.display_name }))
+    }
+    if (kind === 'AGENT') {
+      return agents.map((row) => ({ id: row.id, label: row.display_name || row.username }))
     }
     return bankers.map((row) => ({ id: row.id, label: row.display_name || row.username }))
   }
@@ -201,9 +214,9 @@ export default function HawalaPage() {
                     }}
                     aria-label="Debit kind"
                   >
-                    {HAWALA_PARTY_KINDS.map((kind) => (
+                    {HAWALA_PARTY_KINDS.filter((kind) => kind !== 'AGENT').map((kind) => (
                       <option key={kind} value={kind}>
-                        {kind === 'MERCHANT' ? 'Exchange Master' : kind === 'PARTY' ? 'Party' : 'Banker'}
+                        {kindLabel(kind)}
                       </option>
                     ))}
                   </Select>
@@ -229,7 +242,7 @@ export default function HawalaPage() {
                   >
                     {HAWALA_PARTY_KINDS.map((kind) => (
                       <option key={kind} value={kind}>
-                        {kind === 'MERCHANT' ? 'Exchange Master' : kind === 'PARTY' ? 'Party' : 'Banker'}
+                        {kindLabel(kind)}
                       </option>
                     ))}
                   </Select>
@@ -313,8 +326,8 @@ export default function HawalaPage() {
           _rowKey: row.id,
           created: formatDateTimeIst(row.created_at),
           ref: row.reference,
-          debit: `${row.debit.kind === 'MERCHANT' ? 'Exchange' : row.debit.kind}: ${row.debit.label}`,
-          credit: `${row.credit.kind === 'MERCHANT' ? 'Exchange' : row.credit.kind}: ${row.credit.label}`,
+          debit: `${kindLabel(row.debit.kind)}: ${row.debit.label}`,
+          credit: `${kindLabel(row.credit.kind)}: ${row.credit.label}`,
           amount: <MoneyDisplay amountMinor={row.amount_minor} />,
           remark: row.remark ?? '—',
           utr: row.utrs.join(', ') || '—',
