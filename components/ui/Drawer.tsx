@@ -5,7 +5,7 @@ interface DrawerProps {
   isOpen: boolean
   onClose: () => void
   title: string
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'
   /** Optional left rail (e.g. DrawerSectionNav). Body becomes rail | scrollable panel. */
   aside?: React.ReactNode
   children: React.ReactNode
@@ -18,6 +18,7 @@ const sizeClasses = {
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
   '3xl': 'max-w-3xl',
+  '4xl': 'max-w-5xl',
 }
 
 export function Drawer({ isOpen, onClose, title, size = 'md', aside, children }: DrawerProps) {
@@ -74,7 +75,7 @@ export function Drawer({ isOpen, onClose, title, size = 'md', aside, children }:
             >
               {aside}
             </aside>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4">{children}</div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-4">{children}</div>
