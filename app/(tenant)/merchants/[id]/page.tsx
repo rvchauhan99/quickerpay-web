@@ -709,14 +709,19 @@ export default function MerchantDetailPage() {
       ) : (
         <FormShell compact width="full">
           <FormSection title={merchantLabel()}>
-            <FormGrid cols={5}>
-              <FormField label={`${merchantLabel()} Code`}>
+            <FormGrid cols={3}>
+              <FormField label={`${merchantLabel()} Code`} wrap>
                 <Input value={merchant.merchant_code} readOnly />
               </FormField>
-              <FormField label="Exchange Name">
+              <FormField label="Exchange Name" wrap>
                 <Input value={merchant.legal_name} readOnly />
               </FormField>
-              <FormField label="Deposit Charge (%)">
+              <FormField label="Display Name" wrap>
+                <Input value={merchant.display_name} readOnly />
+              </FormField>
+            </FormGrid>
+            <FormGrid cols={2} className="mt-qp-gap">
+              <FormField label="Deposit Charge (%)" wrap>
                 <RateInput
                   id="edit-payin"
                   valueBp={payinBp}
@@ -724,7 +729,7 @@ export default function MerchantDetailPage() {
                   disabled={!canEdit || savingPrimary}
                 />
               </FormField>
-              <FormField label="Withdrawal Charge (%)">
+              <FormField label="Withdrawal Charge (%)" wrap>
                 <RateInput
                   id="edit-payout"
                   valueBp={payoutBp}
@@ -732,24 +737,24 @@ export default function MerchantDetailPage() {
                   disabled={!canEdit || savingPrimary}
                 />
               </FormField>
-              <FormField label="Display Name">
-                <Input value={merchant.display_name} readOnly />
-              </FormField>
-
-              <FormField label="URL (Webhook)">
-                <div className="flex items-center gap-1">
+            </FormGrid>
+            <div className="mt-qp-gap flex flex-col gap-qp-field-y">
+              <FormField label="URL (Webhook)" wrap>
+                <div className="flex min-w-0 items-center gap-2">
                   {gatewayConfig?.enabled && isSuperAdmin && canEdit ? (
                     <>
                       <Input
                         value={webhookUrlDraft}
                         onChange={(e) => setWebhookUrlDraft(e.target.value)}
                         placeholder="https://panel.example.com/webhook"
-                        className="font-mono text-xs"
+                        className="min-w-0 flex-1 font-mono text-xs"
                         disabled={savingPrimary}
                         aria-label="Webhook URL"
                       />
                       {webhookUrlDraft.trim() ? (
-                        <CopyButton value={webhookUrlDraft.trim()} label="Copy webhook URL" />
+                        <span className="shrink-0">
+                          <CopyButton value={webhookUrlDraft.trim()} label="Copy webhook URL" />
+                        </span>
                       ) : null}
                     </>
                   ) : (
@@ -760,112 +765,112 @@ export default function MerchantDetailPage() {
                           (gatewayConfig?.enabled ? '—' : 'Enable Gateway in Advanced Settings')
                         }
                         readOnly
-                        className="font-mono text-xs"
+                        className="min-w-0 flex-1 font-mono text-xs"
                       />
                       {gatewayConfig?.webhook_url ? (
-                        <CopyButton value={gatewayConfig.webhook_url} label="Copy webhook URL" />
+                        <span className="shrink-0">
+                          <CopyButton value={gatewayConfig.webhook_url} label="Copy webhook URL" />
+                        </span>
                       ) : null}
                     </>
                   )}
                 </div>
               </FormField>
-              <FormField label="Payout URL (API path)">
+              <FormField label="Payout URL (API path)" wrap>
                 <Input
                   value={gatewayConfig?.base_url_path?.trim() || '—'}
                   readOnly
                   className="font-mono text-xs"
                 />
               </FormField>
-              <div className="col-span-1 md:col-span-2">
-                <FormField label={`Assigned Bankers (Deposit Managed By)`}>
-                  <Select
-                    value={bankAdminMode}
-                    onChange={(e) => setBankAdminMode(e.target.value as BankAdminMode)}
-                    disabled={savingPrimary || !canEditBankAdmins}
-                    className="flex-1"
-                  >
-                    <option value="ALL">All {bankerLabel({ plural: true })}</option>
-                    <option value="SELECTED">Selected {bankerLabel({ plural: true })}</option>
-                  </Select>
-                  {bankAdminMode === 'SELECTED' && (
-                    <div className="mt-2 flex flex-col gap-1 max-h-32 overflow-y-auto border rounded p-2 bg-white">
-                      {activeAdmins.map((admin) => (
-                        <label key={admin.id} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={bankAdminIds.includes(admin.id)}
-                            onChange={() => handleToggleBankAdmin(admin.id)}
-                            disabled={savingPrimary || !canEditBankAdmins}
-                          />
-                          {admin.username}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </FormField>
-              </div>
-              <div className="col-span-1 md:col-span-3">
-                <FormField label="API Key">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1">
-                      <Input
-                        value={
-                          activeKeyPrefix
-                            ? `${activeKeyPrefix}…`
-                            : gatewayConfig?.enabled
-                              ? 'No keys — create in Advanced Settings'
-                              : 'Enable Gateway in Advanced Settings'
-                        }
-                        readOnly
-                        className="font-mono"
-                        aria-label="API key prefix"
-                      />
-                      {isSuperAdmin && canEdit && activeKey ? (
+              <FormField label="Assigned Bankers (Deposit Managed By)" wrap>
+                <Select
+                  value={bankAdminMode}
+                  onChange={(e) => setBankAdminMode(e.target.value as BankAdminMode)}
+                  disabled={savingPrimary || !canEditBankAdmins}
+                  className="flex-1"
+                >
+                  <option value="ALL">All {bankerLabel({ plural: true })}</option>
+                  <option value="SELECTED">Selected {bankerLabel({ plural: true })}</option>
+                </Select>
+                {bankAdminMode === 'SELECTED' && (
+                  <div className="mt-2 flex max-h-32 flex-col gap-1 overflow-y-auto rounded border bg-white p-2">
+                    {activeAdmins.map((admin) => (
+                      <label key={admin.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={bankAdminIds.includes(admin.id)}
+                          onChange={() => handleToggleBankAdmin(admin.id)}
+                          disabled={savingPrimary || !canEditBankAdmins}
+                        />
+                        {admin.username}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </FormField>
+              <FormField label="API Key" wrap>
+                <div className="flex flex-col gap-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Input
+                      value={
+                        activeKeyPrefix
+                          ? `${activeKeyPrefix}…`
+                          : gatewayConfig?.enabled
+                            ? 'No keys — create in Advanced Settings'
+                            : 'Enable Gateway in Advanced Settings'
+                      }
+                      readOnly
+                      className="min-w-0 flex-1 font-mono"
+                      aria-label="API key prefix"
+                    />
+                    {isSuperAdmin && canEdit && activeKey ? (
+                      <span className="shrink-0">
                         <PrimaryButton
                           disabled={keyRotateBusy || savingPrimary}
                           onClick={() => setKeyRotateConfirm(true)}
                         >
                           Rotate key
                         </PrimaryButton>
-                      ) : null}
-                    </div>
-                    <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-                      Prefix only on this screen. Full key is shown once when you enable, create, or rotate
-                      (use Rotate key).
-                    </p>
+                      </span>
+                    ) : null}
                   </div>
-                </FormField>
-              </div>
-              <div className="col-span-1 md:col-span-3">
-                <FormField label="Webhook secret (verifies x-sp-signature)">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1">
-                      <Input
-                        value={
-                          gatewayConfig?.enabled
-                            ? 'whsec_••••••••'
-                            : 'Enable Gateway in Advanced Settings'
-                        }
-                        readOnly
-                        className="font-mono"
-                        aria-label="Webhook secret"
-                      />
-                      {isSuperAdmin && canEdit && gatewayConfig?.enabled ? (
+                  <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
+                    Prefix only on this screen. Full key is shown once when you enable, create, or rotate
+                    (use Rotate key).
+                  </p>
+                </div>
+              </FormField>
+              <FormField label="Webhook secret (verifies x-sp-signature)" wrap>
+                <div className="flex flex-col gap-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Input
+                      value={
+                        gatewayConfig?.enabled
+                          ? 'whsec_••••••••'
+                          : 'Enable Gateway in Advanced Settings'
+                      }
+                      readOnly
+                      className="min-w-0 flex-1 font-mono"
+                      aria-label="Webhook secret"
+                    />
+                    {isSuperAdmin && canEdit && gatewayConfig?.enabled ? (
+                      <span className="shrink-0">
                         <PrimaryButton
                           disabled={secretRegenBusy || savingPrimary}
                           onClick={() => setSecretRegenConfirm(true)}
                         >
                           Regenerate
                         </PrimaryButton>
-                      ) : null}
-                    </div>
-                    <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
-                      Secret is shown once when you enable Gateway or regenerate. It cannot be read again.
-                    </p>
+                      </span>
+                    ) : null}
                   </div>
-                </FormField>
-              </div>
-            </FormGrid>
+                  <p className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
+                    Secret is shown once when you enable Gateway or regenerate. It cannot be read again.
+                  </p>
+                </div>
+              </FormField>
+            </div>
             {(canEdit || canEditBankAdmins) ? (
               <div className="mt-qp-gap flex justify-end">
                 <PrimaryButton disabled={savingPrimary} onClick={() => void handlePrimaryUpdate()}>
@@ -925,7 +930,7 @@ export default function MerchantDetailPage() {
             isOpen={isDrawerOpen}
             onClose={() => setIsDrawerOpen(false)}
             title="Advanced Settings"
-            size="3xl"
+            size="4xl"
             aside={
               <DrawerSectionNav
                 sections={advancedNavSections}
@@ -936,7 +941,7 @@ export default function MerchantDetailPage() {
           >
           {advancedSection === 'contacts' ? (
             <FormSection title="Contacts">
-              <FormGrid>
+              <FormGrid cols={2}>
                 <FormField label="Contact Email">
                   <Input value={merchant.contact_email ?? '—'} readOnly />
                 </FormField>
@@ -961,7 +966,7 @@ export default function MerchantDetailPage() {
             >
               {merchant.portal_user_id && merchant.portal_user_status === 'ACTIVE' ? (
                 <div className="space-y-3">
-                  <FormGrid>
+                  <FormGrid cols={2}>
                     <FormField label="Portal username">
                       <Input value={merchant.portal_username ?? merchant.merchant_code} readOnly />
                     </FormField>
@@ -1067,7 +1072,7 @@ export default function MerchantDetailPage() {
                 ) : null
               }
             >
-              <FormGrid>
+              <FormGrid cols={2}>
                 <FormField label="Portal username">
                   <Input value={merchant.portal_username ?? merchant.merchant_code} readOnly />
                 </FormField>
@@ -1083,7 +1088,7 @@ export default function MerchantDetailPage() {
               title={agentLabel()}
               description="Brokerage from Super Admin margin; Banker rates ≤ Exchange − Agent."
             >
-              <FormGrid>
+              <FormGrid cols={2}>
                 <FormField label={agentLabel()}>
                   <Select
                     id="merchant-agent"
@@ -1210,7 +1215,7 @@ export default function MerchantDetailPage() {
               </div>
             ) : null}
 
-            <FormGrid>
+            <FormGrid cols={2}>
               <FormField label="Integration">
                 <Select
                   id="panel-integration-type"
@@ -1235,7 +1240,7 @@ export default function MerchantDetailPage() {
               <div className="mt-qp-gap">
                 {supagoStatus?.connected ? (
                   <>
-                    <FormGrid>
+                    <FormGrid cols={2}>
                       <FormField label="Username">
                         <Input value={supagoStatus.uname ?? ''} readOnly />
                       </FormField>
@@ -1297,7 +1302,7 @@ export default function MerchantDetailPage() {
                         className="mt-3 rounded-lg border p-3"
                         style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
                       >
-                        <FormGrid>
+                        <FormGrid cols={2}>
                           <FormField label="Username" required>
                             <Input
                               value={supagoUsername}
@@ -1347,7 +1352,7 @@ export default function MerchantDetailPage() {
                         Credentials cleared. Reconnect Supago to resume panel sync.
                       </p>
                     ) : null}
-                    <FormGrid>
+                    <FormGrid cols={2}>
                       <FormField label="Supago Username" required>
                         <Input
                           value={supagoUsername}
@@ -1400,7 +1405,7 @@ export default function MerchantDetailPage() {
               <div className="mt-qp-gap">
                 {criciStatus?.connected ? (
                   <>
-                    <FormGrid>
+                    <FormGrid cols={2}>
                       <FormField label="Username">
                         <Input value={criciStatus.username ?? ''} readOnly />
                       </FormField>
@@ -1461,7 +1466,7 @@ export default function MerchantDetailPage() {
                         className="mt-3 rounded-lg border p-3"
                         style={{ borderColor: 'var(--qp-border)', backgroundColor: '#f8fafc' }}
                       >
-                        <FormGrid>
+                        <FormGrid cols={2}>
                           <FormField label="Username" required>
                             <Input
                               value={criciUsername}
@@ -1520,7 +1525,7 @@ export default function MerchantDetailPage() {
                         {criciStatus.last_error}
                       </p>
                     ) : null}
-                    <FormGrid>
+                    <FormGrid cols={2}>
                       <FormField label="Crici Username" required>
                         <Input
                           value={criciUsername}

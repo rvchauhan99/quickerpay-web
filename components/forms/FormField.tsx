@@ -19,6 +19,7 @@ export function FormField({
   hint,
   width,
   htmlFor,
+  wrap = false,
   children,
 }: {
   label: string
@@ -28,13 +29,15 @@ export function FormField({
   /** Fixed width inside flex rows (FilterBar). Grid layouts ignore it on mobile. */
   width?: keyof typeof WIDTH_CLASS
   htmlFor?: string
+  /** Show the full label on a second line. Default keeps a single truncated line. */
+  wrap?: boolean
   children: React.ReactNode
 }) {
   return (
     <div className={`flex min-w-0 flex-col gap-qp-label ${width ? WIDTH_CLASS[width] : ''}`}>
       <label
         htmlFor={htmlFor}
-        className="truncate text-qp-label font-medium leading-tight"
+        className={`${wrap ? 'whitespace-normal' : 'truncate'} text-qp-label font-medium leading-tight`}
         style={{ color: 'var(--qp-text-secondary)' }}
       >
         {label}

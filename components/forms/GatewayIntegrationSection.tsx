@@ -253,31 +253,37 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
           </div>
         ) : null}
 
-        <FormGrid>
-          <FormField label="Status">
+        <FormGrid cols={2}>
+          <FormField label="Status" wrap>
             <div className="flex h-qp-ctl items-center gap-2">
               <StatusBadge status={config.status ?? 'DISABLED'} />
             </div>
           </FormField>
-          <FormField label="Base URL">
-            <div className="flex items-center gap-1">
-              <Input value={baseUrl} readOnly aria-label="Gateway base URL" />
-              <CopyButton value={baseUrl} label="Copy base URL" />
-            </div>
-          </FormField>
+          <div className="md:col-span-2">
+            <FormField label="Base URL" wrap>
+              <div className="flex min-w-0 items-center gap-2">
+                <Input value={baseUrl} readOnly className="min-w-0 flex-1" aria-label="Gateway base URL" />
+                <span className="shrink-0">
+                  <CopyButton value={baseUrl} label="Copy base URL" />
+                </span>
+              </div>
+            </FormField>
+          </div>
         </FormGrid>
 
         <div className="mt-qp-gap">
-          <FormGrid>
-            <FormField label="Webhook URL" hint="https only outside local. Events are signed with x-sp-signature.">
-              <Input
-                value={webhookUrl}
-                onChange={(event) => setWebhookUrl(event.target.value)}
-                placeholder="https://panel.example.com/safepay247/webhook"
-                disabled={!canEdit}
-                aria-label="Webhook URL"
-              />
-            </FormField>
+          <FormGrid cols={2}>
+            <div className="md:col-span-2">
+              <FormField label="Webhook URL" wrap hint="https only outside local. Events are signed with x-sp-signature.">
+                <Input
+                  value={webhookUrl}
+                  onChange={(event) => setWebhookUrl(event.target.value)}
+                  placeholder="https://panel.example.com/safepay247/webhook"
+                  disabled={!canEdit}
+                  aria-label="Webhook URL"
+                />
+              </FormField>
+            </div>
             <FormField label="Pay-In expiry (seconds)" hint="60 to 86400. Unpaid pay-ins are rejected as EXPIRED.">
               <Input
                 type="number"
@@ -445,27 +451,31 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
             These values are shown once and cannot be read again. Store them in the panel&apos;s secret store.
           </p>
           {reveal.api_key ? (
-            <FormField label="API key (x-api-key header)">
-              <div className="flex items-center gap-1">
-                <Input value={reveal.api_key} readOnly className="font-mono" aria-label="API key" />
-                <CopyButton
-                  value={reveal.api_key}
-                  label="Copy full API key"
-                  successMessage="Copied full API key"
-                />
+            <FormField label="API key (x-api-key header)" wrap>
+              <div className="flex min-w-0 items-center gap-2">
+                <Input value={reveal.api_key} readOnly className="min-w-0 flex-1 font-mono" aria-label="API key" />
+                <span className="shrink-0">
+                  <CopyButton
+                    value={reveal.api_key}
+                    label="Copy full API key"
+                    successMessage="Copied full API key"
+                  />
+                </span>
               </div>
             </FormField>
           ) : null}
           {reveal.webhook_secret ? (
             <div className="mt-3">
-              <FormField label="Webhook secret (verifies x-sp-signature)">
-                <div className="flex items-center gap-1">
-                  <Input value={reveal.webhook_secret} readOnly className="font-mono" aria-label="Webhook secret" />
-                  <CopyButton
-                    value={reveal.webhook_secret}
-                    label="Copy full webhook secret"
-                    successMessage="Copied full webhook secret"
-                  />
+              <FormField label="Webhook secret (verifies x-sp-signature)" wrap>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Input value={reveal.webhook_secret} readOnly className="min-w-0 flex-1 font-mono" aria-label="Webhook secret" />
+                  <span className="shrink-0">
+                    <CopyButton
+                      value={reveal.webhook_secret}
+                      label="Copy full webhook secret"
+                      successMessage="Copied full webhook secret"
+                    />
+                  </span>
                 </div>
               </FormField>
             </div>
