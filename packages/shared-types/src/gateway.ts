@@ -182,7 +182,7 @@ export interface GatewayConfigView {
   return_url_hosts: string[]
   payin_expiry_seconds: number
   payout_confirm_seconds: number
-  /** True once a pay-out authenticator has been issued. The secret is never returned here. */
+  /** True once a pay-out authenticator has been issued. The secret is on GET .../authenticator, not here. */
   payout_authenticator_issued: boolean
   status: 'ACTIVE' | 'DISABLED' | null
   keys: GatewayApiKeyItem[]
@@ -194,7 +194,7 @@ export interface GatewaySecretReveal {
   api_key?: string
   key?: GatewayApiKeyItem
   webhook_secret?: string
-  /** Pay-out authenticator, shown once. Scan the URI (or QR) into Google Authenticator. */
+  /** Pay-out authenticator. Super Admin can open it again from GET .../authenticator. */
   payout_totp_otpauth_uri?: string
   payout_totp_secret?: string
   payout_totp_qr_data_url?: string

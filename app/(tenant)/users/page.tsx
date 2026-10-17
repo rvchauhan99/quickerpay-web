@@ -293,7 +293,7 @@ export default function UsersPage() {
                 <FormField
                   label="Password"
                   required
-                  hint="6-20 chars, include uppercase + number + special character. They can change it later from Profile."
+                  hint="At least 6 characters. They can change it later from Profile."
                   error={fieldErrors.temporary_password}
                 >
                   <div className="relative">

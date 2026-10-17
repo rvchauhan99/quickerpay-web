@@ -19,6 +19,7 @@ const REDIRECT_AFTER_MS = 5_000
 const PROOF_MAX_BYTES = 5 * 1024 * 1024
 const PROOF_ACCEPT = 'image/png,image/jpeg,image/webp'
 const UTR_PATTERN = /^\d{12}$/
+const BANK_REF_PATTERN = /^\d{9,22}$/
 const TXID_PATTERN = /^[a-fA-F0-9]{64}$/
 
 const SUBTITLE: Record<PayinPaymentMethod, string> = {
@@ -101,6 +102,60 @@ function QrImage({ qr, alt }: { qr: string | null; alt: string }) {
   )
 }
 
+function SubmitSuccess({
+  animate,
+  secondsLeft,
+  returnUrl,
+}: {
+  animate: boolean
+  secondsLeft: number | null
+  returnUrl: string | null
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      <style>{`
+        .pay-success-circle { stroke-dasharray: 166; stroke-dashoffset: 166; animation: pay-circle 0.6s ease-in-out forwards; }
+        .pay-success-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: pay-check 0.4s 0.55s ease-in-out forwards; }
+        .pay-success-copy { opacity: 0; animation: pay-fade 0.35s 0.95s ease-out forwards; }
+        @keyframes pay-circle { to { stroke-dashoffset: 0; } }
+        @keyframes pay-check { to { stroke-dashoffset: 0; } }
+        @keyframes pay-fade { to { opacity: 1; } }
+      `}</style>
+      <svg viewBox="0 0 52 52" className="h-20 w-20" aria-hidden="true">
+        <circle
+          className={animate ? 'pay-success-circle' : undefined}
+          cx="26"
+          cy="26"
+          r="24"
+          fill="none"
+          stroke="var(--qp-success)"
+          strokeWidth="2"
+          strokeDashoffset={animate ? undefined : 0}
+        />
+        <path
+          className={animate ? 'pay-success-check' : undefined}
+          fill="none"
+          stroke="var(--qp-success)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M14 27l8 8 16-16"
+          strokeDashoffset={animate ? undefined : 0}
+        />
+      </svg>
+      <div className={animate ? 'pay-success-copy flex flex-col items-center gap-3' : 'flex flex-col items-center gap-3'}>
+        <p className="text-lg font-bold text-slate-900">Payment submitted successfully</p>
+        {secondsLeft !== null ? (
+          <p className="text-sm text-slate-500">
+            Redirecting in <span className="tabular-nums font-semibold">{secondsLeft}</span> seconds
+          </p>
+        ) : null}
+        {returnUrl ? <PrimaryButton href={returnUrl}>Return to merchant</PrimaryButton> : null}
+      </div>
+    </div>
+  )
+}
+
 function DetailRow({ label, value, copyLabel }: { label: string; value: string | null | undefined; copyLabel: string }) {
   if (!value) return null
   return (
@@ -127,6 +182,7 @@ export function HostedPayPage({ token }: { token: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [loadingMethod, setLoadingMethod] = useState<PaymentMethod | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [celebrateFrom, setCelebrateFrom] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -147,7 +203,15 @@ export function HostedPayPage({ token }: { token: string }) {
   }, [token])
 
   const isTerminal = view?.status === 'COMPLETED' || view?.status === 'REJECTED'
+  const submitted = Boolean(view?.utr_submitted) && !isTerminal
   const method: PayinPaymentMethod = view?.payment_method ?? 'PENDING_METHOD'
+  const redirectSecondsLeft =
+    celebrateFrom === null || !view?.return_url
+      ? null
+      : Math.min(
+          REDIRECT_AFTER_MS / 1000,
+          Math.max(0, Math.ceil((REDIRECT_AFTER_MS - Math.max(0, now - celebrateFrom)) / 1000)),
+        )
   const awaitingMethod = method === 'PENDING_METHOD'
 
   useEffect(() => {
@@ -165,10 +229,12 @@ export function HostedPayPage({ token }: { token: string }) {
   }, [isTerminal, load, state])
 
   useEffect(() => {
-    if (!isTerminal || !view?.return_url) return
-    const timer = window.setTimeout(() => window.location.assign(view.return_url!), REDIRECT_AFTER_MS)
+    const returnUrl = view?.return_url
+    if (celebrateFrom === null || !returnUrl) return
+    const wait = Math.max(0, REDIRECT_AFTER_MS - (Date.now() - celebrateFrom))
+    const timer = window.setTimeout(() => window.location.assign(returnUrl), wait)
     return () => window.clearTimeout(timer)
-  }, [isTerminal, view?.return_url])
+  }, [celebrateFrom, view?.return_url])
 
   const upiIntent = useMemo(
     () =>
@@ -195,6 +261,7 @@ export function HostedPayPage({ token }: { token: string }) {
         return
       }
       setView(result.view)
+      if (result.view.utr_submitted) setCelebrateFrom((current) => current ?? Date.now())
       setProof(null)
     } catch {
       setSubmitError('Network error. Try again.')
@@ -218,11 +285,19 @@ export function HostedPayPage({ token }: { token: string }) {
   const handleReference = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const value = reference.trim()
-    if (method === 'USDT_TRC20' ? !TXID_PATTERN.test(value) : !UTR_PATTERN.test(value)) {
+    const referenceOk =
+      method === 'USDT_TRC20'
+        ? TXID_PATTERN.test(value)
+        : method === 'MANUAL_BANK'
+          ? BANK_REF_PATTERN.test(value)
+          : UTR_PATTERN.test(value)
+    if (!referenceOk) {
       setSubmitError(
         method === 'USDT_TRC20'
           ? 'Enter the 64 character transaction hash (TxID) from your wallet'
-          : 'Enter the 12 digit UTR / reference number from your UPI app',
+          : method === 'MANUAL_BANK'
+            ? 'Enter the 9 to 22 digit reference from your bank transfer'
+            : 'Enter the 12 digit UTR / reference number from your UPI app',
       )
       return
     }
@@ -232,20 +307,6 @@ export function HostedPayPage({ token }: { token: string }) {
     await submit(
       () => postForm(`/api/v1/gateway/pay/${encodeURIComponent(token)}/utr`, form),
       'Could not submit the reference. Try again.',
-    )
-  }
-
-  const handleAttachment = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!proof) {
-      setSubmitError('Choose the payment screenshot to upload')
-      return
-    }
-    const form = new FormData()
-    form.set('image', proof)
-    await submit(
-      () => postForm(`/api/v1/gateway/pay/${encodeURIComponent(token)}/attachment`, form),
-      'Could not upload the screenshot. Try again.',
     )
   }
 
@@ -267,7 +328,7 @@ export function HostedPayPage({ token }: { token: string }) {
   )
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-3 sm:p-6 py-6 sm:py-12 bg-slate-100/70 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+    <main className="min-h-screen flex items-center justify-center p-3 sm:p-6 py-4 sm:py-6 bg-slate-100/70 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
       <div className="w-full max-w-[460px] rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white shadow-[0_20px_50px_-12px_rgba(15,23,42,0.12),0_1px_3px_rgba(15,23,42,0.04)] overflow-hidden transition-all">
         {/* Top Header Bar */}
         <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
@@ -323,7 +384,7 @@ export function HostedPayPage({ token }: { token: string }) {
                 <CopyButton value={view.transaction_number} label="Copy TXN ID" />
               </div>
 
-              {!isTerminal && remaining ? (
+              {!isTerminal && !submitted && remaining ? (
                 <div className="mt-3 flex items-center justify-center">
                   <div
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
@@ -342,7 +403,7 @@ export function HostedPayPage({ token }: { token: string }) {
             </div>
 
             {/* Main Interactive Content */}
-            <div className="p-5 sm:p-6 flex flex-col gap-4">
+            <div className="p-4 flex flex-col gap-4">
               {view.status === 'COMPLETED' ? (
                 <div className="py-2 text-center">
                   <ErrorAlert type="success" message="Payment received successfully. Thank you!" />
@@ -359,7 +420,15 @@ export function HostedPayPage({ token }: { token: string }) {
                 <ErrorAlert message="This payment link has expired. Do not send payment; restart checkout from the merchant." />
               ) : null}
 
-              {!isTerminal && !expired ? (
+              {!isTerminal && !expired && submitted ? (
+                <SubmitSuccess
+                  animate={celebrateFrom !== null}
+                  secondsLeft={redirectSecondsLeft}
+                  returnUrl={view.return_url}
+                />
+              ) : null}
+
+              {!isTerminal && !expired && !submitted ? (
                 <>
                   {/* Stage 1: Method Picker */}
                   {awaitingMethod ? (
@@ -462,36 +531,9 @@ export function HostedPayPage({ token }: { token: string }) {
                     </div>
                   ) : null}
 
-                  {/* Attachment Form for Manual Bank */}
-                  {!awaitingMethod && method === 'MANUAL_BANK' ? (
-                    <form className="mt-2 flex flex-col gap-3" onSubmit={(event) => void handleAttachment(event)}>
-                      {view.proof_submitted ? (
-                        <ErrorAlert type="success" message="Screenshot received. We are verifying your transfer; this page updates automatically." />
-                      ) : null}
-                      <p className="text-xs text-slate-600">
-                        After transferring, upload the payment screenshot to confirm your deposit.
-                      </p>
-                      {submitError ? <ErrorAlert message={submitError} /> : null}
-                      {proofField(view.proof_submitted ? 'Replace screenshot' : 'Payment screenshot')}
-                      <PrimaryButton type="submit" loading={submitting} disabled={submitting || !proof}>
-                        Upload screenshot
-                      </PrimaryButton>
-                    </form>
-                  ) : null}
-
-                  {/* UTR / Reference Form for UPI and USDT */}
-                  {!awaitingMethod && method !== 'MANUAL_BANK' ? (
+                  {!awaitingMethod ? (
                     <form className="mt-2 flex flex-col gap-3" onSubmit={(event) => void handleReference(event)}>
-                      {view.utr_submitted ? (
-                        <ErrorAlert
-                          type="success"
-                          message={
-                            method === 'USDT_TRC20'
-                              ? 'TxID received. We are confirming your transfer; this page updates automatically.'
-                              : 'UTR received. We are confirming your payment; this page updates automatically.'
-                          }
-                        />
-                      ) : method === 'USDT_TRC20' ? (
+                      {method === 'USDT_TRC20' ? (
                         <>
                           <FormField label="Transaction hash (TxID)" required htmlFor="pay-txid" error={submitError}>
                             <Input
@@ -508,6 +550,31 @@ export function HostedPayPage({ token }: { token: string }) {
                           {proofField('Payment screenshot (optional)')}
                           <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
                             Submit TxID
+                          </PrimaryButton>
+                        </>
+                      ) : method === 'MANUAL_BANK' ? (
+                        <>
+                          <FormField
+                            label="UTR / reference"
+                            required
+                            htmlFor="pay-bank-utr"
+                            error={submitError}
+                            hint="9 to 22 digits from your bank transfer"
+                          >
+                            <Input
+                              id="pay-bank-utr"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              maxLength={22}
+                              placeholder="At least 9 digits"
+                              value={reference}
+                              onChange={(event) => setReference(event.target.value.replace(/\D/g, ''))}
+                              aria-label="UTR reference number"
+                            />
+                          </FormField>
+                          {proofField('Payment screenshot (optional)')}
+                          <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
+                            Submit UTR
                           </PrimaryButton>
                         </>
                       ) : (
@@ -539,15 +606,6 @@ export function HostedPayPage({ token }: { token: string }) {
                     </form>
                   ) : null}
                 </>
-              ) : null}
-
-              {isTerminal && view.return_url ? (
-                <div className="mt-2 flex flex-col items-center gap-2">
-                  <p className="text-xs text-slate-500">
-                    Returning to the merchant in a few seconds…
-                  </p>
-                  <PrimaryButton href={view.return_url}>Return to merchant</PrimaryButton>
-                </div>
               ) : null}
             </div>
           </>

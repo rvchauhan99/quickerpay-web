@@ -55,6 +55,10 @@ type BankFormState = {
 
 type OtpChallenge = {
   purpose: 'CREATE' | 'UPDATE'
+  /** Which create/update path Confirm should finish. */
+  kind: 'upi' | 'manual_bank' | 'usdt_trc20'
+  /** Owner whose mobile received the OTP (CREATE for another Banker). */
+  ownerUserId?: string
   verificationId: string
   maskedMobile: string
   countryCode: string
@@ -212,41 +216,85 @@ export default function BanksPage() {
     setAltOwnerId(user?.role === 'BANKER' ? user.id : '')
   }
 
-  const submitAltCreate = async () => {
+  const postAltCreate = async (otp?: { verificationId: string; code: string }) => {
     if (!accessToken || !altCreate) return
+    const otpFields = otp
+      ? { otp_verification_id: otp.verificationId, otp_code: otp.code }
+      : {}
+    const ownerFields = altOwnerId ? { owner_user_id: altOwnerId } : {}
+    if (altCreate === 'MANUAL_BANK') {
+      await apiRequest('/api/v1/payment-methods/manual-bank', {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          label: altLabel,
+          account_holder_name: altHolder,
+          account_number: altAccount,
+          ifsc: altIfsc,
+          ...(altBankName ? { bank_name: altBankName } : {}),
+          ...ownerFields,
+          ...otpFields,
+        },
+      })
+      toast.success('Manual bank method created')
+    } else {
+      await apiRequest('/api/v1/payment-methods/usdt-trc20', {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          label: altLabel,
+          wallet_address: altWallet,
+          ...ownerFields,
+          ...otpFields,
+        },
+      })
+      toast.success('USDT/TRC20 method created')
+    }
+    setOtpChallenge(null)
+    setOtpCode('')
+    setAltCreate(null)
+    await load()
+  }
+
+  const submitAltCreateWithOtp = async () => {
+    if (!accessToken || !altCreate || submitting || otpSending) return
+    if ((user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && !altOwnerId) {
+      toast.error(`Select ${bankerLabel()} owner`)
+      return
+    }
+    const kind: OtpChallenge['kind'] = altCreate === 'MANUAL_BANK' ? 'manual_bank' : 'usdt_trc20'
     setSubmitting('alt-create')
+    setOtpSending(true)
     try {
-      if (altCreate === 'MANUAL_BANK') {
-        await apiRequest('/api/v1/payment-methods/manual-bank', {
-          method: 'POST',
-          token: accessToken,
-          body: {
-            label: altLabel,
-            account_holder_name: altHolder,
-            account_number: altAccount,
-            ifsc: altIfsc,
-            ...(altBankName ? { bank_name: altBankName } : {}),
-            ...(altOwnerId ? { owner_user_id: altOwnerId } : {}),
-          },
-        })
-        toast.success('Manual bank method created')
-      } else {
-        await apiRequest('/api/v1/payment-methods/usdt-trc20', {
-          method: 'POST',
-          token: accessToken,
-          body: {
-            label: altLabel,
-            wallet_address: altWallet,
-            ...(altOwnerId ? { owner_user_id: altOwnerId } : {}),
-          },
-        })
-        toast.success('USDT/TRC20 method created')
-      }
-      setAltCreate(null)
-      void load()
+      const sent = await requestBankOtp('CREATE', altOwnerId || undefined)
+      if (!sent) return
+      setOtpChallenge({
+        purpose: 'CREATE',
+        kind,
+        ...(altOwnerId ? { ownerUserId: altOwnerId } : {}),
+        verificationId: sent.verification_id,
+        maskedMobile: sent.masked_mobile,
+        countryCode: sent.country_code,
+        timeoutSeconds: sent.timeout_seconds,
+      })
+      setOtpCode('')
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Create failed')
+      const message = caught instanceof ApiClientError ? caught.displayMessage() : ''
+      if (
+        caught instanceof ApiClientError &&
+        caught.code === 'VALIDATION_FAILED' &&
+        /SMS OTP is disabled/i.test(message)
+      ) {
+        try {
+          await postAltCreate()
+        } catch (inner) {
+          toast.error(inner instanceof ApiClientError ? inner.displayMessage() : 'Create failed')
+        }
+      } else {
+        toast.error(message || 'Could not send OTP')
+      }
     } finally {
+      setOtpSending(false)
       setSubmitting(null)
     }
   }
@@ -330,11 +378,14 @@ export default function BanksPage() {
     await load()
   }
 
-  const requestBankOtp = async (purpose: 'CREATE' | 'UPDATE') => {
+  const requestBankOtp = async (purpose: 'CREATE' | 'UPDATE', ownerUserId?: string) => {
     if (!accessToken) return null
     const body: Record<string, string> = { purpose }
     if (purpose === 'UPDATE' && editing) {
       body.bank_account_id = editing.id
+    }
+    if (purpose === 'CREATE' && ownerUserId) {
+      body.owner_user_id = ownerUserId
     }
     return apiRequest<{
       verification_id: string
@@ -358,10 +409,12 @@ export default function BanksPage() {
     setSubmitting(purpose === 'CREATE' ? 'create' : `edit-${editing?.id ?? ''}`)
     setOtpSending(true)
     try {
-      const sent = await requestBankOtp(purpose)
+      const sent = await requestBankOtp(purpose, purpose === 'CREATE' ? altOwnerId || undefined : undefined)
       if (!sent) return
       setOtpChallenge({
         purpose,
+        kind: 'upi',
+        ...(purpose === 'CREATE' && altOwnerId ? { ownerUserId: altOwnerId } : {}),
         verificationId: sent.verification_id,
         maskedMobile: sent.masked_mobile,
         countryCode: sent.country_code,
@@ -399,9 +452,16 @@ export default function BanksPage() {
     }
     setSubmitting('otp-confirm')
     try {
-      await mutateBank({ verificationId: otpChallenge.verificationId, code })
+      const otp = { verificationId: otpChallenge.verificationId, code }
+      if (otpChallenge.kind === 'upi') {
+        await mutateBank(otp)
+      } else {
+        await postAltCreate(otp)
+      }
     } catch (caught) {
-      toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save bank')
+      toast.error(
+        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save payment method',
+      )
     } finally {
       setSubmitting(null)
     }
@@ -411,10 +471,10 @@ export default function BanksPage() {
     if (!accessToken || !otpChallenge || otpSending) return
     setOtpSending(true)
     try {
-      const sent = await requestBankOtp(otpChallenge.purpose)
+      const sent = await requestBankOtp(otpChallenge.purpose, otpChallenge.ownerUserId)
       if (!sent) return
       setOtpChallenge({
-        purpose: otpChallenge.purpose,
+        ...otpChallenge,
         verificationId: sent.verification_id,
         maskedMobile: sent.masked_mobile,
         countryCode: sent.country_code,
@@ -705,9 +765,9 @@ export default function BanksPage() {
       {altCreate ? (
         <div className="mb-4">
           <FormShell
-            submitLabel={submitting === 'alt-create' ? 'Saving…' : 'Add'}
+            submitLabel={submitting === 'alt-create' || otpSending ? 'Saving…' : 'Add'}
             onCancel={() => setAltCreate(null)}
-            onSubmit={() => void submitAltCreate()}
+            onSubmit={() => void submitAltCreateWithOtp()}
           >
             <FormSection
               title={altCreate === 'MANUAL_BANK' ? 'Add Manual bank' : 'Add USDT/TRC20'}

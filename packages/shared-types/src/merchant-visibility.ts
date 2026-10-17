@@ -13,3 +13,8 @@ export function canSeeMerchants(role: UserRole | string | null | undefined): boo
 export function canSeeOwnPanelUsernames(role: UserRole | string | null | undefined): boolean {
   return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'MERCHANT'
 }
+
+/** Assigned Banker username on Pending Deposit: Super Admin, Admin, and Auditor. */
+export function canSeePayinBanker(role: UserRole | string | null | undefined): boolean {
+  return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'AUDITOR'
+}

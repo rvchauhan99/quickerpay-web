@@ -33,6 +33,12 @@ export interface PayinListItem {
   merchant_display_name?: string | null
   /** Banker owning the injection (set at create); useful for UPI filtering on accept. */
   banker_user_id?: string | null
+  /**
+   * Username of `transactions.banker_user_id`.
+   * Present for Super Admin, Admin, and Auditor (`canSeePayinBanker`); null when unassigned.
+   * Omitted for Banker, Operator, and Exchange Master.
+   */
+  banker_username?: string | null
   assigned_upi_id: string | null
   assigned_operator_id: string | null
   created_at: string

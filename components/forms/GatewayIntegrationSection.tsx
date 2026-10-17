@@ -218,7 +218,7 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
     return (
       <FormSection
         title="API Integration"
-        description="SafePay247 Gateway API: the exchange master's panel creates Pay-Ins and Pay-Outs by API key and receives signed webhooks."
+        description="Pay-Ins and Pay-Outs by API key; signed webhooks."
       >
         {panelLocked || config.integration_type === 'SUPAGO' || config.integration_type === 'CRICI' ? (
           <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
@@ -245,7 +245,7 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
     <>
       <FormSection
         title="API Integration"
-        description="SafePay247 Gateway API. Keys and the webhook secret are shown once; store them in the panel's secret store."
+        description="Keys and webhook secret are shown once — store them in the panel."
       >
         {error ? (
           <div className="mb-3">

@@ -14,7 +14,7 @@ import { apiRequest, formError } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { useRouter } from 'next/navigation'
 
-const PASSWORD_HINT = '6-20 chars, include uppercase + number + special character'
+const PASSWORD_HINT = 'At least 6 characters'
 
 export default function ProfilePage() {
   const router = useRouter()

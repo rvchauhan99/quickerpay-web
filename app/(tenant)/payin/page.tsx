@@ -23,7 +23,7 @@ import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
-import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
+import { canSeeMerchants, canSeeOwnPanelUsernames, canSeePayinBanker } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
@@ -177,6 +177,7 @@ export default function PayinPage() {
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
   const showPanelUsername = canSeeOwnPanelUsernames(user?.role)
+  const showBanker = canSeePayinBanker(user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -631,6 +632,7 @@ export default function PayinPage() {
             { key: 'method', heading: 'METHOD' },
             ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
+            ...(showBanker ? [{ key: 'bankerName', heading: 'Banker' }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME' },
             { key: 'actionTime', heading: 'ACTION TIME' },
             { key: 'amount', heading: 'AMOUNT' },
@@ -650,6 +652,11 @@ export default function PayinPage() {
             ...(canFilterMerchants
               ? {
                   merchant: row.merchant_display_name?.trim() || '—',
+                }
+              : {}),
+            ...(showBanker
+              ? {
+                  bankerName: row.banker_username?.trim() || '—',
                 }
               : {}),
             inprog: formatDateTimeIst(row.in_progress_at),
