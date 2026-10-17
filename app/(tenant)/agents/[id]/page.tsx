@@ -13,13 +13,21 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { RateDisplay } from '@/lib/money'
 import { apiRequest, ApiClientError } from '@/lib/api'
-import { agentLabel, merchantLabel } from '@/lib/labels'
+import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 interface AgentExchangeLink {
   merchant_id: string
   merchant_code: string
+  display_name: string
+  status: string
+  rates: Array<{ rate_kind: RateKind; rate_bp: number; effective_from: string }>
+}
+
+interface AgentBankerLink {
+  banker_user_id: string
+  username: string
   display_name: string
   status: string
   rates: Array<{ rate_kind: RateKind; rate_bp: number; effective_from: string }>
@@ -33,8 +41,10 @@ interface AgentDetail {
   email: string | null
   mobile: string | null
   exchange_count: number
+  banker_count: number
   created_at: string
   exchanges: AgentExchangeLink[]
+  bankers: AgentBankerLink[]
 }
 
 function openBp(rates: AgentExchangeLink['rates'], kind: RateKind): number | undefined {
@@ -111,7 +121,8 @@ export default function AgentDetailPage() {
       ) : (
         <>
           <p className="mb-3 text-xs text-zinc-500">
-            Status {agent.status} · {agent.exchange_count} linked {merchantLabel({ plural: true })}
+            Status {agent.status} · {agent.exchange_count} linked {merchantLabel({ plural: true })} ·{' '}
+            {agent.banker_count} linked {bankerLabel({ plural: true })}
           </p>
           <FormShell
             title="Profile"
@@ -163,6 +174,26 @@ export default function AgentDetailPage() {
                 status: <StatusBadge status={ex.status} />,
               }))}
               empty={<EmptyState message={`No ${merchantLabel({ plural: true }).toLowerCase()} linked yet. Assign on the Exchange Master page.`} />}
+            />
+          </div>
+          <div className="mt-6">
+            <h2 className="mb-2 text-sm font-semibold text-zinc-800">Linked {bankerLabel({ plural: true })}</h2>
+            <DataTable
+              columns={[
+                { key: 'username', heading: 'USERNAME' },
+                { key: 'name', heading: 'NAME' },
+                { key: 'payin', heading: 'BROKER PAYIN' },
+                { key: 'payout', heading: 'BROKER PAYOUT' },
+                { key: 'status', heading: 'STATUS' },
+              ]}
+              rows={(agent.bankers ?? []).map((link) => ({
+                username: link.username,
+                name: link.display_name,
+                payin: <RateDisplay rateBp={openBp(link.rates, 'PAYIN')} />,
+                payout: <RateDisplay rateBp={openBp(link.rates, 'PAYOUT')} />,
+                status: <StatusBadge status={link.status} />,
+              }))}
+              empty={<EmptyState message={`No ${bankerLabel({ plural: true }).toLowerCase()} linked yet. Assign on Commission configuration.`} />}
             />
           </div>
         </>

@@ -99,11 +99,26 @@ describe('splitCommission', () => {
     const split = splitCommission(10_000_000n, 400, 350)
     expect(split.merchantCommissionMinor).toBe(400_000n)
     expect(split.bankerCommissionMinor).toBe(350_000n)
+    expect(split.bankerAgentCommissionMinor).toBe(0n)
     expect(split.agentCommissionMinor).toBe(0n)
     expect(split.marginMinor).toBe(50_000n)
     expect(split.merchantCommissionMinor).toBe(
-      split.bankerCommissionMinor + split.agentCommissionMinor + split.marginMinor,
+      split.bankerCommissionMinor +
+        split.bankerAgentCommissionMinor +
+        split.agentCommissionMinor +
+        split.marginMinor,
     )
+  })
+
+  it('carves the broker from the Banker and leaves Super Admin margin on the gross rate', () => {
+    const split = splitCommission(10_000_000n, 400, 350, 0, 50)
+    expect(split.bankerCommissionMinor).toBe(300_000n)
+    expect(split.bankerAgentCommissionMinor).toBe(50_000n)
+    expect(split.marginMinor).toBe(50_000n)
+  })
+
+  it('rejects a broker rate above the Banker rate', () => {
+    expect(() => splitCommission(10_000_000n, 400, 350, 0, 400)).toThrow(/cannot exceed the Banker rate/)
   })
 
   it('holds the identity on the worked Pay-Out example', () => {

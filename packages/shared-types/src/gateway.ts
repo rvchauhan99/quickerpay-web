@@ -82,6 +82,7 @@ export interface GatewayPayin {
   return_url: string | null
   /** Short-lived signed URL of the player's payment screenshot, or null. */
   image: string | null
+  /** Set only while status is INITIATE (unpaid session clock). Null after IN_PROCESS or terminal. */
   expires_at: string | null
   created_at: string
   updated_at: string

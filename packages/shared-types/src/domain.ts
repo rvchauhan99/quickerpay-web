@@ -118,7 +118,7 @@ export const TRANSACTION_TYPES = [
 export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 
 /** Hawala debit/credit counterparty kind. */
-export const HAWALA_PARTY_KINDS = ['PARTY', 'MERCHANT', 'BANKER'] as const
+export const HAWALA_PARTY_KINDS = ['PARTY', 'MERCHANT', 'BANKER', 'AGENT'] as const
 export type HawalaPartyKind = (typeof HAWALA_PARTY_KINDS)[number]
 
 export const PARTY_STATUSES = ['ACTIVE', 'DISABLED', 'CLOSED'] as const

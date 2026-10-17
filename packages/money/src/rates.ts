@@ -53,8 +53,12 @@ export function assertRateBp(rateBp: number): void {
 
 export interface CommissionSplit {
   merchantCommissionMinor: bigint
+  /** Net kept by the Banker after the bottom-line broker. */
   bankerCommissionMinor: bigint
+  /** Exchange (upper-line) Agent brokerage. */
   agentCommissionMinor: bigint
+  /** Banker (bottom-line) broker brokerage, carved from the Banker gross. */
+  bankerAgentCommissionMinor: bigint
   marginMinor: bigint
 }
 
@@ -63,17 +67,21 @@ export interface CommissionSplit {
  * identity by assigning the remainder to the margin, per docs/02_DATA_MODEL.md 4.20:
  *
  *   merchant = roundHalfUp(eligible * merchantRate / 10000)
- *   banker   = roundHalfUp(eligible * bankerRate / 10000)
- *   agent    = roundHalfUp(eligible * agentRate / 10000)
- *   margin   = merchant - banker - agent
+ *   banker gross = roundHalfUp(eligible * bankerRate / 10000)
+ *   exchange agent = roundHalfUp(eligible * agentRate / 10000)
+ *   broker = roundHalfUp(eligible * bankerAgentRate / 10000)
+ *   banker net = banker gross - broker
+ *   margin = merchant - banker gross - exchange agent
  *
- * `agentRateBp` defaults to 0 so Exchanges without an Agent keep the old two-way split.
+ * `agentRateBp` and `bankerAgentRateBp` default to 0. A 0 broker leaves banker net
+ * equal to the gross, which is the historic Banker commission.
  */
 export function splitCommission(
   eligibleMinor: bigint,
   merchantRateBp: number,
   bankerRateBp: number,
   agentRateBp = 0,
+  bankerAgentRateBp = 0,
 ): CommissionSplit {
   if (eligibleMinor <= 0n) {
     throw new MoneyError('INVALID_AMOUNT', 'Eligible amount must be positive')
@@ -81,20 +89,30 @@ export function splitCommission(
   assertRateBp(merchantRateBp)
   assertRateBp(bankerRateBp)
   assertRateBp(agentRateBp)
+  assertRateBp(bankerAgentRateBp)
+  if (bankerAgentRateBp > bankerRateBp) {
+    throw new MoneyError('COMMISSION_IDENTITY', 'Banker broker rate cannot exceed the Banker rate')
+  }
 
   const merchantCommissionMinor = applyRateBp(eligibleMinor, merchantRateBp)
-  const bankerCommissionMinor = applyRateBp(eligibleMinor, bankerRateBp)
+  const bankerGrossMinor = applyRateBp(eligibleMinor, bankerRateBp)
   const agentCommissionMinor = applyRateBp(eligibleMinor, agentRateBp)
-  const marginMinor = merchantCommissionMinor - bankerCommissionMinor - agentCommissionMinor
+  const bankerAgentCommissionMinor = applyRateBp(eligibleMinor, bankerAgentRateBp)
+  const bankerCommissionMinor = bankerGrossMinor - bankerAgentCommissionMinor
+  const marginMinor = merchantCommissionMinor - bankerGrossMinor - agentCommissionMinor
 
-  if (merchantCommissionMinor !== bankerCommissionMinor + agentCommissionMinor + marginMinor) {
-    throw new MoneyError('COMMISSION_IDENTITY', 'merchant must equal banker + agent + margin')
+  if (
+    merchantCommissionMinor !==
+    bankerCommissionMinor + bankerAgentCommissionMinor + agentCommissionMinor + marginMinor
+  ) {
+    throw new MoneyError('COMMISSION_IDENTITY', 'merchant must equal banker net + broker + agent + margin')
   }
 
   return {
     merchantCommissionMinor,
     bankerCommissionMinor,
     agentCommissionMinor,
+    bankerAgentCommissionMinor,
     marginMinor,
   }
 }

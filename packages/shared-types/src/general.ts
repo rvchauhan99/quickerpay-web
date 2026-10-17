@@ -4,7 +4,7 @@
  * the column (credit vs debit) encodes the operational sign.
  */
 
-export const GENERAL_SECTION_KEYS = ['PARTY', 'BANKER', 'EXCHANGE'] as const
+export const GENERAL_SECTION_KEYS = ['PARTY', 'BANKER', 'EXCHANGE', 'AGENT'] as const
 export type GeneralSectionKey = (typeof GENERAL_SECTION_KEYS)[number]
 
 export const GENERAL_SYNTHETIC_KEYS = [

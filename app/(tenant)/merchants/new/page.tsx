@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { BankAdminMode, GatewaySecretReveal } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, ErrorAlert, PrimaryButton } from '@/components/ui/PageHeader'
@@ -16,8 +16,8 @@ import { CopyButton } from '@/components/ui/CopyButton'
 import { Modal } from '@/components/ui/Modal'
 import { PayoutAuthenticatorReveal } from '@/components/forms/PayoutAuthenticatorReveal'
 import { toast } from 'sonner'
-import { apiRequest, ApiClientError, formError } from '@/lib/api'
-import { bankerLabel, merchantLabel } from '@/lib/labels'
+import { apiRequest, apiListRequest, ApiClientError, formError } from '@/lib/api'
+import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -34,6 +34,10 @@ export default function NewMerchantPage() {
   const [mobile, setMobile] = useState('')
   const [payinBp, setPayinBp] = useState(400)
   const [payoutBp, setPayoutBp] = useState(200)
+  const [agents, setAgents] = useState<Array<{ id: string; username: string }>>([])
+  const [agentId, setAgentId] = useState('')
+  const [agentPayinBp, setAgentPayinBp] = useState(0)
+  const [agentPayoutBp, setAgentPayoutBp] = useState(0)
   const [portalPassword, setPortalPassword] = useState('')
   const [routingMode, setRoutingMode] = useState<WithdrawRoutingMode>('queue')
   const [routingAdminId, setRoutingAdminId] = useState('')
@@ -44,6 +48,15 @@ export default function NewMerchantPage() {
   const [submitting, setSubmitting] = useState(false)
   const [createdId, setCreatedId] = useState<string | null>(null)
   const [reveal, setReveal] = useState<GatewaySecretReveal | null>(null)
+
+  useEffect(() => {
+    if (!accessToken) return
+    void apiListRequest<{ id: string; username: string }>('/api/v1/agents?page_size=100&status=ACTIVE', {
+      token: accessToken,
+    })
+      .then((page) => setAgents(page.items))
+      .catch(() => setAgents([]))
+  }, [accessToken])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -111,6 +124,15 @@ export default function NewMerchantPage() {
             { rate_kind: 'PAYIN', rate_bp: payinBp },
             { rate_kind: 'PAYOUT', rate_bp: payoutBp },
           ],
+          ...(agentId
+            ? {
+                agent_user_id: agentId,
+                agent_rates: [
+                  { rate_kind: 'PAYIN', rate_bp: agentPayinBp },
+                  { rate_kind: 'PAYOUT', rate_bp: agentPayoutBp },
+                ],
+              }
+            : {}),
           bank_banker_mode: bankAdminMode,
           banker_user_ids: bankAdminMode === 'SELECTED' ? bankAdminIds : [],
         },
@@ -201,6 +223,40 @@ export default function NewMerchantPage() {
             <FormField label="Withdrawal Charge (%)">
               <RateInput id="m-payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
             </FormField>
+            <FormField label={agentLabel()} error={fieldErrors.agent_user_id}>
+              <Select
+                aria-label={agentLabel()}
+                value={agentId}
+                onChange={(event) => {
+                  setAgentId(event.target.value)
+                  if (!event.target.value) {
+                    setAgentPayinBp(0)
+                    setAgentPayoutBp(0)
+                  }
+                }}
+              >
+                <option value="">None</option>
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.username}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            {agentId ? (
+              <>
+                <FormField
+                  label="Agent deposit %"
+                  hint="0 is allowed"
+                  error={fieldErrors.agent_rates ?? fieldErrors['agent_rates.0.rate_bp']}
+                >
+                  <RateInput id="agent-payin" valueBp={agentPayinBp} onChangeBp={setAgentPayinBp} />
+                </FormField>
+                <FormField label="Agent withdrawal %" hint="0 is allowed" error={fieldErrors['agent_rates.1.rate_bp']}>
+                  <RateInput id="agent-payout" valueBp={agentPayoutBp} onChangeBp={setAgentPayoutBp} />
+                </FormField>
+              </>
+            ) : null}
             <FormField label="Display Name" error={fieldErrors.display_name}>
               <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
             </FormField>

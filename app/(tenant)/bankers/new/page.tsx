@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { menusForRole, PHASE_1_BANKER_MENUS, preferredGrantForMenu } from '@quickerpay/shared-types'
 import type { MenuCode } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
@@ -11,10 +11,11 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { RateInput } from '@/components/forms/RateInput'
+import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
-import { apiRequest, ApiClientError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { bankerLabel } from '@/lib/labels'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
@@ -27,6 +28,10 @@ export default function NewBankerPage() {
   const [password, setPassword] = useState('')
   const [payinBp, setPayinBp] = useState(350)
   const [payoutBp, setPayoutBp] = useState(150)
+  const [agentId, setAgentId] = useState('')
+  const [agentPayinBp, setAgentPayinBp] = useState(0)
+  const [agentPayoutBp, setAgentPayoutBp] = useState(0)
+  const [agents, setAgents] = useState<Array<{ id: string; username: string }>>([])
   const [dailyDepositLimitMinor, setDailyDepositLimitMinor] = useState(0)
   const [minDepositMinor, setMinDepositMinor] = useState(0)
   const [maxDepositMinor, setMaxDepositMinor] = useState(0)
@@ -39,6 +44,15 @@ export default function NewBankerPage() {
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!accessToken) return
+    void apiListRequest<{ id: string; username: string }>('/api/v1/agents?page_size=100&status=ACTIVE', {
+      token: accessToken,
+    })
+      .then((page) => setAgents(page.items))
+      .catch(() => setAgents([]))
+  }, [accessToken])
 
   if (!ready || !user) return <p className="p-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>Loading</p>
   if (!allowed) return Forbidden
@@ -101,6 +115,15 @@ export default function NewBankerPage() {
             { rate_kind: 'PAYIN', rate_bp: payinBp },
             { rate_kind: 'PAYOUT', rate_bp: payoutBp },
           ],
+          ...(agentId
+            ? {
+                agent_user_id: agentId,
+                agent_rates: [
+                  { rate_kind: 'PAYIN', rate_bp: agentPayinBp },
+                  { rate_kind: 'PAYOUT', rate_bp: agentPayoutBp },
+                ],
+              }
+            : {}),
           menus: selected.map((code) => ({
             menu_code: code,
             ...preferredGrantForMenu('BANKER', code),
@@ -171,10 +194,44 @@ export default function NewBankerPage() {
             <FormField label="Role">
               <Input value={bankerLabel()} disabled aria-label="Role" />
             </FormField>
-            <FormField label="PAYIN rate (bp)" error={fieldErrors.rates ?? fieldErrors['rates.0.rate_bp']}>
+            <FormField label="Agent">
+              <Select
+                aria-label="Agent"
+                value={agentId}
+                onChange={(event) => {
+                  setAgentId(event.target.value)
+                  if (!event.target.value) {
+                    setAgentPayinBp(0)
+                    setAgentPayoutBp(0)
+                  }
+                }}
+              >
+                <option value="">None</option>
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.username}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            {agentId ? (
+              <>
+                <FormField
+                  label="Agent deposit %"
+                  hint="0 is allowed"
+                  error={fieldErrors.agent_rates ?? fieldErrors['agent_rates.0.rate_bp']}
+                >
+                  <RateInput id="agent-payin" valueBp={agentPayinBp} onChangeBp={setAgentPayinBp} />
+                </FormField>
+                <FormField label="Agent withdrawal %" hint="0 is allowed" error={fieldErrors['agent_rates.1.rate_bp']}>
+                  <RateInput id="agent-payout" valueBp={agentPayoutBp} onChangeBp={setAgentPayoutBp} />
+                </FormField>
+              </>
+            ) : null}
+            <FormField label="Deposit % after agent" error={fieldErrors.rates ?? fieldErrors['rates.0.rate_bp']}>
               <RateInput id="payin" valueBp={payinBp} onChangeBp={setPayinBp} />
             </FormField>
-            <FormField label="PAYOUT rate (bp)" error={fieldErrors['rates.1.rate_bp']}>
+            <FormField label="Withdrawal % after agent" error={fieldErrors['rates.1.rate_bp']}>
               <RateInput id="payout" valueBp={payoutBp} onChangeBp={setPayoutBp} />
             </FormField>
             <FormField

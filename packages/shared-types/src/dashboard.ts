@@ -21,7 +21,7 @@ export interface DashboardBankerRow {
 export interface DashboardKindCommission {
   rate_kind: 'PAYIN' | 'PAYOUT'
   banker_commission_minor: number
-  margin_minor: number
+  margin_minor?: number
 }
 
 export interface DashboardSummary {

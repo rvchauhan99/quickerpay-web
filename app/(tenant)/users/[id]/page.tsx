@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import type { UserDetail } from '@quickerpay/shared-types'
+import type { BankerCommercial, UserDetail } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
@@ -13,9 +13,11 @@ import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { RateInput } from '@/components/forms/RateInput'
+import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
-import { apiRequest, ApiClientError, formError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
 import { bankerLabel, roleLabel } from '@/lib/labels'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
@@ -383,7 +385,7 @@ export default function UserDetailPage() {
                   {detail.scope?.upi_account_ids.length ?? 0} accounts
                 </div>
               </FormField>
-              {detail.rates.map((rate) => (
+              {user?.role === 'SUPER_ADMIN' && detail.role === 'BANKER' ? null : detail.rates.map((rate) => (
                 <FormField key={rate.rate_kind} label={`${rate.rate_kind} rate`}>
                   <div className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold" style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}>
                     <RateDisplay rateBp={rate.rate_bp} />
@@ -392,6 +394,9 @@ export default function UserDetailPage() {
               ))}
             </FormGrid>
           </FormSection>
+          {user?.role === 'SUPER_ADMIN' && detail.role === 'BANKER' && accessToken ? (
+            <BankerCommercialEditor ownerId={detail.id} token={accessToken} />
+          ) : null}
         </FormShell>
       )}
       {statusConfirm && detail ? (
@@ -410,5 +415,131 @@ export default function UserDetailPage() {
         />
       ) : null}
     </AppShell>
+  )
+}
+
+function BankerCommercialEditor({ ownerId, token }: { ownerId: string; token: string }) {
+  const [commercial, setCommercial] = useState<BankerCommercial | null>(null)
+  const [agents, setAgents] = useState<Array<{ id: string; username: string }>>([])
+  const [agentId, setAgentId] = useState('')
+  const [bankerPayinBp, setBankerPayinBp] = useState(0)
+  const [bankerPayoutBp, setBankerPayoutBp] = useState(0)
+  const [agentPayinBp, setAgentPayinBp] = useState(0)
+  const [agentPayoutBp, setAgentPayoutBp] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const apply = (next: BankerCommercial) => {
+    setCommercial(next)
+    setAgentId(next.agent_user_id ?? '')
+    setBankerPayinBp(next.banker_payin_bp)
+    setBankerPayoutBp(next.banker_payout_bp)
+    setAgentPayinBp(next.agent_payin_bp ?? 0)
+    setAgentPayoutBp(next.agent_payout_bp ?? 0)
+  }
+
+  useEffect(() => {
+    void Promise.all([
+      apiRequest<BankerCommercial>(`/api/v1/admins/${ownerId}/commercial`, { token }),
+      apiListRequest<{ id: string; username: string }>('/api/v1/agents?page_size=100&status=ACTIVE', { token }),
+    ])
+      .then(([next, page]) => {
+        apply(next)
+        setAgents(page.items)
+      })
+      .catch((caught) => setError(caught instanceof ApiClientError ? caught.message : 'Could not load rates'))
+  }, [ownerId, token])
+
+  const save = async () => {
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      const next = await apiRequest<BankerCommercial>(`/api/v1/admins/${ownerId}/commercial`, {
+        method: 'POST',
+        token,
+        body: {
+          agent_user_id: agentId || null,
+          banker_payin_bp: bankerPayinBp,
+          banker_payout_bp: bankerPayoutBp,
+          agent_payin_bp: agentId ? agentPayinBp : 0,
+          agent_payout_bp: agentId ? agentPayoutBp : 0,
+        },
+      })
+      apply(next)
+      toast.success('Rates saved')
+    } catch (caught) {
+      setError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not save rates')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!commercial) {
+    return <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>{error ?? 'Loading rates'}</p>
+  }
+
+  return (
+    <FormSection title="Rates">
+      {error ? <ErrorAlert message={error} /> : null}
+      <FormGrid>
+        <FormField label="Agent">
+          <Select
+            aria-label="Agent"
+            value={agentId}
+            onChange={(event) => {
+              setAgentId(event.target.value)
+              if (!event.target.value) {
+                setAgentPayinBp(0)
+                setAgentPayoutBp(0)
+              }
+            }}
+          >
+            <option value="">None</option>
+            {agents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.username}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        {agentId ? (
+          <>
+            <FormField label="Agent deposit %">
+              <RateInput id="edit-agent-payin" valueBp={agentPayinBp} onChangeBp={setAgentPayinBp} />
+            </FormField>
+            <FormField label="Agent withdrawal %">
+              <RateInput id="edit-agent-payout" valueBp={agentPayoutBp} onChangeBp={setAgentPayoutBp} />
+            </FormField>
+          </>
+        ) : null}
+        <FormField label="Deposit % after agent">
+          <RateInput id="edit-banker-payin" valueBp={bankerPayinBp} onChangeBp={setBankerPayinBp} />
+        </FormField>
+        <FormField label="Withdrawal % after agent">
+          <RateInput id="edit-banker-payout" valueBp={bankerPayoutBp} onChangeBp={setBankerPayoutBp} />
+        </FormField>
+      </FormGrid>
+      <div className="mt-3">
+        <PrimaryButton type="button" disabled={saving} onClick={() => void save()}>
+          {saving ? 'Saving…' : 'Save rates'}
+        </PrimaryButton>
+      </div>
+      {(commercial.history ?? []).length > 0 ? (
+        <div className="mt-3 text-xs" style={{ color: 'var(--qp-text-secondary)' }}>
+          <div className="mb-1 font-semibold" style={{ color: 'var(--qp-text-muted)' }}>Previous rates</div>
+          <ul className="space-y-1">
+            {(commercial.history ?? []).map((row) => (
+              <li key={`${row.rate_kind}-${row.effective_to}`}>
+                {row.rate_kind === 'PAYIN' ? 'Deposit' : 'Withdrawal'} ended {row.effective_to.slice(0, 16).replace('T', ' ')}
+                {' — '}
+                Banker <RateDisplay rateBp={row.banker_after_bp} />
+                {row.agent_rate_bp > 0 ? <> · Agent <RateDisplay rateBp={row.agent_rate_bp} /></> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </FormSection>
   )
 }
