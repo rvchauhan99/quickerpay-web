@@ -6,8 +6,9 @@
  * - NODE_ENV is production (a production Next build — even if NEXT_PUBLIC_QP_ENV
  *   was left as "local" by mistake)
  *
- * /mock/gpay does not use this. The page asks GET /health/mock-gpay, which
- * follows the API QP_ENV.
+ * /mock/gpay is also lab-only: AppShell asks GET /health/mock-gpay only when
+ * this is true. Production Next never fires that request. The API still 404s
+ * the health probe when QP_ENV is not local/test.
  */
 const LAB_ENVS = new Set(['local', 'development', 'dev', 'testing', 'test'])
 const PROD_ENVS = new Set(['production', 'prod'])

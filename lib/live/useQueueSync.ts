@@ -93,6 +93,7 @@ export function useQueueSync<T extends { id: string; status: string }>({
 
   useEffect(() => {
     if (!enabled || !accessToken) return
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined
     const handleEvent = (event: LiveEventEnvelope) => {
       if (event.entity !== entity) return
       const applied = applyLiveEnvelope({
@@ -105,10 +106,17 @@ export function useQueueSync<T extends { id: string; status: string }>({
       setRows(applied.rows)
       setPagination(applied.pagination)
       if (applied.shouldPullChanges) {
-        void pullChanges().catch(() => undefined)
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          void pullChanges().catch(() => undefined)
+        }, 750)
       }
     }
-    return subscribe(handleEvent)
+    const unsubscribe = subscribe(handleEvent)
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      unsubscribe()
+    }
   }, [
     enabled,
     accessToken,

@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 const CLOSED_PANEL_BANK_PATHS = ['/supago-banks', '/crici-banks']
+const LAB_MOCK_PATHS = ['/mock/gpay', '/mock/paytm', '/mock/bharatpe']
 
 /**
  * Gateway hosted links are `/payin/{token}` and `/payout/{token}` (FastTag parity).
@@ -18,6 +19,7 @@ const HOSTED_TARGET: Record<string, string> = { payin: '/pay', payout: '/withdra
  * so a dedicated client cannot reach /platform/* on the same build.
  *
  * Supago Banks and Crici Banks 404 while PANEL_BANK_CONSOLE_ENABLED is false.
+ * Mock GPay / Paytm / BharatPe pages 404 on production Next builds.
  *
  * Both rewrite to /closed, which calls notFound() so the response stays HTTP 404
  * and the body is the branded not-found page. /closed is outside the matcher.
@@ -45,6 +47,12 @@ export function middleware(request: NextRequest) {
   ) {
     return rewriteNotFound(request)
   }
+  if (
+    process.env.NODE_ENV === 'production' &&
+    LAB_MOCK_PATHS.some((path) => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`))
+  ) {
+    return rewriteNotFound(request)
+  }
   return NextResponse.next()
 }
 
@@ -55,6 +63,12 @@ export const config = {
     '/supago-banks/:path*',
     '/crici-banks',
     '/crici-banks/:path*',
+    '/mock/gpay',
+    '/mock/gpay/:path*',
+    '/mock/paytm',
+    '/mock/paytm/:path*',
+    '/mock/bharatpe',
+    '/mock/bharatpe/:path*',
     '/payin/:token',
     '/payout/:token',
   ],
