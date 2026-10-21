@@ -138,6 +138,7 @@ export default function PayoutPage() {
     pagination,
     setPagination,
     unassignedFilter: saUnassignedOnly,
+    newestFirst: filters.status !== 'INITIATE',
   })
 
   useEffect(() => {

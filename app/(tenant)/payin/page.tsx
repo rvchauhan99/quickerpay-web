@@ -134,6 +134,7 @@ export default function PayinPage() {
     setRows,
     pagination,
     setPagination,
+    newestFirst: filters.status !== 'IN_PROCESS',
   })
 
   useEffect(() => {

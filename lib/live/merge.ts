@@ -55,6 +55,8 @@ export function mergeQueueRows<T extends MergeableRow>(params: {
   page: number
   pageSize: number
   pagination: Pagination | null
+  /** Default true. Working queues (Pay-In IN_PROCESS, Pay-Out INITIATE) pass false for FIFO. */
+  newestFirst?: boolean
 }): { rows: T[]; pagination: Pagination | null; pendingOnPage1: number } {
   const byId = new Map(params.current.map((row) => [row.id, row]))
   let pendingOnPage1 = 0
@@ -79,7 +81,10 @@ export function mergeQueueRows<T extends MergeableRow>(params: {
   }
 
   let rows = [...byId.values()]
-  rows.sort((a, b) => rowSortKey(b).localeCompare(rowSortKey(a)))
+  const newestFirst = params.newestFirst !== false
+  rows.sort((a, b) =>
+    newestFirst ? rowSortKey(b).localeCompare(rowSortKey(a)) : rowSortKey(a).localeCompare(rowSortKey(b)),
+  )
 
   if (params.page === 1 && rows.length > params.pageSize) {
     rows = rows.slice(0, params.pageSize)
