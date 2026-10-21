@@ -325,6 +325,10 @@ export function AppShell({
   const { user, accessToken, refreshUser } = useSession()
 
   useEffect(() => {
+    if (!isLabConsole()) {
+      setMockGpayAllowed(false)
+      return
+    }
     let cancelled = false
     void fetch('/health/mock-gpay', { cache: 'no-store' })
       .then((response) => {
@@ -375,7 +379,7 @@ export function AppShell({
   }, [role, refreshUser])
 
   useEffect(() => {
-    if (role !== 'SUPER_ADMIN' || !accessToken) {
+    if (!isLabConsole() || role !== 'SUPER_ADMIN' || !accessToken) {
       setCriciAlerts([])
       return
     }
@@ -419,7 +423,7 @@ export function AppShell({
 
   const moreItems = items.filter((item) => MORE_CODES.has(item.code))
   const showLabInMore = isLabConsole() && role !== 'MERCHANT' && !forcePasswordChange
-  const showMockGpay = mockGpayAllowed && role !== 'MERCHANT' && !forcePasswordChange
+  const showMockGpay = isLabConsole() && mockGpayAllowed && role !== 'MERCHANT' && !forcePasswordChange
   const showMoreButton = !forcePasswordChange && (moreItems.length > 0 || showLabInMore || showMockGpay)
   const moreActive = isMorePath(pathname)
   const bankerActive = isBankerPath(pathname)

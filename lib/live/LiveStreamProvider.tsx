@@ -47,9 +47,12 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
     if (!ready || !accessToken) return
 
     let cancelled = false
+    let isLeader = false
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined
     let fallbackTimer: ReturnType<typeof setInterval> | undefined
     let abort: AbortController | undefined
+    let releaseLock: (() => void) | undefined
+    const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('qp-live') : null
 
     const dispatch = (event: LiveEventEnvelope) => {
       if (event.seq && event.seq !== '0-0') {
@@ -57,6 +60,11 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
         setLastSeq(event.seq)
       }
       for (const handler of handlersRef.current) handler(event)
+    }
+
+    const fanout = (event: LiveEventEnvelope) => {
+      dispatch(event)
+      if (isLeader) channel?.postMessage(event)
     }
 
     const parseChunk = (buffer: string): string => {
@@ -69,7 +77,7 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
         if (!json) continue
         try {
           const payload = JSON.parse(json) as { type?: string; event?: LiveEventEnvelope }
-          if (payload.type === 'event' && payload.event) dispatch(payload.event)
+          if (payload.type === 'event' && payload.event) fanout(payload.event)
         } catch {
           // ignore malformed frames
         }
@@ -78,17 +86,17 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
     }
 
     const startFallback = () => {
-      if (fallbackTimer) return
+      if (!isLeader || fallbackTimer) return
       fallbackTimer = setInterval(() => {
         const updated_at = new Date().toISOString()
         for (const entity of FALLBACK_ENTITIES) {
-          dispatch({ ...fallbackTickBase, entity, updated_at })
+          fanout({ ...fallbackTickBase, entity, updated_at })
         }
       }, FALLBACK_POLL_MS)
     }
 
     const connect = async () => {
-      if (cancelled || document.hidden) return
+      if (cancelled || !isLeader || document.hidden) return
       abort?.abort()
       abort = new AbortController()
       const signal = abort.signal
@@ -113,16 +121,16 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let pending = ''
-        while (!cancelled && !signal.aborted) {
+        while (!cancelled && !signal.aborted && isLeader) {
           const { done, value } = await reader.read()
           if (done) break
           pending = parseChunk(pending + decoder.decode(value, { stream: true }))
         }
-        if (!cancelled && !signal.aborted) {
+        if (!cancelled && !signal.aborted && isLeader) {
           reconnectTimer = setTimeout(() => void connect(), 2_000)
         }
       } catch {
-        if (cancelled || signal.aborted) return
+        if (cancelled || signal.aborted || !isLeader) return
         retriesRef.current += 1
         if (retriesRef.current >= MAX_SSE_RETRIES) startFallback()
         reconnectTimer = setTimeout(() => void connect(), 2_000)
@@ -130,6 +138,7 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
     }
 
     const handleVisibility = () => {
+      if (!isLeader) return
       if (document.hidden) {
         abort?.abort()
         if (reconnectTimer) clearTimeout(reconnectTimer)
@@ -138,15 +147,41 @@ export function LiveStreamProvider({ children }: { children: ReactNode }) {
       void connect()
     }
 
-    document.addEventListener('visibilitychange', handleVisibility)
-    void connect()
+    const onChannel = (message: MessageEvent<LiveEventEnvelope>) => {
+      if (isLeader) return
+      if (message.data?.entity) dispatch(message.data)
+    }
+    channel?.addEventListener('message', onChannel)
+
+    const becomeLeader = () => {
+      if (cancelled || isLeader) return
+      isLeader = true
+      document.addEventListener('visibilitychange', handleVisibility)
+      void connect()
+    }
+
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+    if (locks?.request) {
+      void locks.request('qp-live', () => {
+        becomeLeader()
+        return new Promise<void>((resolve) => {
+          releaseLock = resolve
+        })
+      })
+    } else {
+      becomeLeader()
+    }
 
     return () => {
       cancelled = true
+      isLeader = false
       abort?.abort()
       if (reconnectTimer) clearTimeout(reconnectTimer)
       if (fallbackTimer) clearInterval(fallbackTimer)
       document.removeEventListener('visibilitychange', handleVisibility)
+      channel?.removeEventListener('message', onChannel)
+      channel?.close()
+      releaseLock?.()
     }
   }, [accessToken, ready])
 
