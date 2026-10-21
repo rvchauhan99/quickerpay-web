@@ -22,6 +22,8 @@ interface UseQueueSyncOptions<T extends { id: string; status: string }> {
   setPagination: (pagination: Pagination | null) => void
   /** Super Admin Unassigned queue: drop rows when banker_user_id becomes set. */
   unassignedFilter?: boolean
+  /** Default true. Working queues pass false so live merge keeps oldest-first. */
+  newestFirst?: boolean
 }
 
 export function useQueueSync<T extends { id: string; status: string }>({
@@ -37,6 +39,7 @@ export function useQueueSync<T extends { id: string; status: string }>({
   pagination,
   setPagination,
   unassignedFilter = false,
+  newestFirst = true,
 }: UseQueueSyncOptions<T>): { pendingOnPage1: number; clearPending: () => void } {
   const { subscribe } = useLiveStream()
   const cursorRef = useRef('')
@@ -81,11 +84,12 @@ export function useQueueSync<T extends { id: string; status: string }>({
       page,
       pageSize,
       pagination: paginationRef.current,
+      newestFirst,
     })
     setRows(merged.rows)
     setPagination(merged.pagination)
     setPendingOnPage1((count) => count + merged.pendingOnPage1)
-  }, [accessToken, enabled, entity, page, pageSize, query, setPagination, setRows, statusFilter])
+  }, [accessToken, enabled, entity, newestFirst, page, pageSize, query, setPagination, setRows, statusFilter])
 
   useEffect(() => {
     if (!enabled || !accessToken) return
