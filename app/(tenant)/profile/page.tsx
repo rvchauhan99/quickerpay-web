@@ -32,14 +32,25 @@ export default function ProfilePage() {
   const [secret, setSecret] = useState('')
   const [code, setCode] = useState('')
   const [confirmDisable, setConfirmDisable] = useState(false)
+  const [telegramLinked, setTelegramLinked] = useState(false)
+  const [telegramBusy, setTelegramBusy] = useState(false)
+  const [telegramError, setTelegramError] = useState<string | null>(null)
 
   useEffect(() => {
     if (ready && !user) router.replace('/login')
   }, [ready, user, router])
 
-  if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
+  const canLinkTelegram = Boolean(user && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN'))
+  const mustChangePassword = Boolean(user?.require_password_change)
 
-  const mustChangePassword = user.require_password_change
+  useEffect(() => {
+    if (!accessToken || !canLinkTelegram || mustChangePassword) return
+    void apiRequest<{ linked: boolean }>('/api/v1/telegram/me', { token: accessToken })
+      .then((data) => setTelegramLinked(data.linked))
+      .catch(() => setTelegramLinked(false))
+  }, [accessToken, canLinkTelegram, mustChangePassword])
+
+  if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
 
   const handleSubmit = async () => {
     if (!accessToken || changingPassword) return
@@ -102,6 +113,21 @@ export default function ProfilePage() {
       setTotpError(formError(caught, 'Invalid code').banner)
     } finally {
       setTotpBusy(false)
+    }
+  }
+
+  const handleTelegramUnlink = async () => {
+    if (!accessToken || telegramBusy) return
+    setTelegramBusy(true)
+    setTelegramError(null)
+    try {
+      await apiRequest('/api/v1/telegram/unlink', { method: 'POST', token: accessToken, body: {} })
+      setTelegramLinked(false)
+      toast.success('Telegram unlinked')
+    } catch (caught) {
+      setTelegramError(formError(caught, 'Could not unlink Telegram').banner)
+    } finally {
+      setTelegramBusy(false)
     }
   }
 
@@ -224,6 +250,35 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          </FormSection>
+        </FormShell>
+        ) : null}
+
+        {!mustChangePassword && canLinkTelegram ? (
+        <FormShell>
+          <FormSection
+            title="Telegram"
+            description="Log in to SafePay247 Ops from Telegram. Commands work only in a private chat with the bot."
+          >
+            <div className="p-qp-card">
+              {telegramError ? <ErrorAlert message={telegramError} /> : null}
+              {telegramLinked ? (
+                <div className="mt-qp-gap">
+                  <p className="text-sm text-[var(--qp-text-primary)] mb-qp-gap">Telegram is <strong>linked</strong>.</p>
+                  <PrimaryButton disabled={telegramBusy} onClick={() => void handleTelegramUnlink()}>
+                    Unlink Telegram
+                  </PrimaryButton>
+                </div>
+              ) : (
+                <div className="mt-qp-gap">
+                  <p className="text-sm text-[var(--qp-text-primary)] mb-qp-gap">Telegram is <strong>not linked</strong>.</p>
+                  <p className="text-sm text-[var(--qp-text-primary)]">
+                    Open SafePay247 Ops in a private chat and send <span className="font-mono">/login</span> with
+                    your CRM username and password. The bot session lasts 1 hour. CRM login is unchanged.
+                  </p>
                 </div>
               )}
             </div>

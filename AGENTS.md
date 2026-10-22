@@ -37,6 +37,7 @@ pnpm sync:web-packages
 | Route | Purpose |
 | --- | --- |
 | `/settings/extension-devices` | List and revoke device tokens |
+| `/settings/bot-devices` | Super Admin revoke SafePay247 Ops bot token |
 | `/mock/gpay` | Local mock GPay table for the extension scraper |
 
 Extension contract: `../QuickerPay/docs/07_EXTENSION_INTEGRATION.md`. Do not invent BOT as a username; the UI label comes from `utr_entries.source`.
