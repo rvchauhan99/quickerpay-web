@@ -585,6 +585,10 @@ export default function SettingsPage() {
         <a className="underline" href="/settings/extension-devices">
           Extension devices
         </a>
+        {' · '}
+        <a className="underline" href="/settings/bot-devices">
+          Ops bot devices
+        </a>
       </p>
     </AppShell>
   )
