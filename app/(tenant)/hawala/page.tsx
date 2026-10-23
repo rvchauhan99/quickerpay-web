@@ -14,6 +14,8 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
+import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
@@ -65,8 +67,12 @@ export default function HawalaPage() {
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [bankers, setBankers] = useState<DirectoryUser[]>([])
   const [agents, setAgents] = useState<DirectoryUser[]>([])
+  const [confirm, setConfirm] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null)
+  const [acting, setActing] = useState(false)
 
-  const canCreate = user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_create')
+  const canCreate =
+    (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && hasMenu(menus, 'HAWALA', 'can_create')
+  const canApprove = user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_approve')
 
   const loadHistory = useCallback(async () => {
     if (!accessToken) return
@@ -165,7 +171,7 @@ export default function HawalaPage() {
           utr: utr || undefined,
         },
       })
-      toast.success('Hawala submitted')
+      toast.success('Hawala submitted — waiting for Super Admin')
       setAmountMinor(0)
       setRemark('')
       setUtr('')
@@ -182,6 +188,26 @@ export default function HawalaPage() {
       setError(caught instanceof ApiClientError ? caught.message : 'Submit failed')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDecide = async () => {
+    if (!accessToken || !confirm || acting) return
+    setActing(true)
+    setError(null)
+    try {
+      await apiRequest(`/api/v1/hawala/${confirm.id}/${confirm.action}`, {
+        method: 'POST',
+        token: accessToken,
+        body: confirm.action === 'reject' ? {} : undefined,
+      })
+      toast.success(confirm.action === 'approve' ? 'Hawala approved' : 'Hawala rejected')
+      setConfirm(null)
+      await loadHistory()
+    } catch (caught) {
+      setError(caught instanceof ApiClientError ? caught.message : 'Action failed')
+    } finally {
+      setActing(false)
     }
   }
 
@@ -203,6 +229,9 @@ export default function HawalaPage() {
             loading={submitting}
             onSubmit={() => void handleSubmit()}
           >
+            <p className="mb-qp-gap text-xs text-[var(--qp-text-muted)]">
+              CRM Hawala waits for Super Admin. Money does not move until Approve.
+            </p>
             <FormSection title="Parties">
               <FormGrid>
                 <FormField label="Debit kind" required>
@@ -321,6 +350,7 @@ export default function HawalaPage() {
           { key: 'remark', heading: 'REMARK' },
           { key: 'utr', heading: 'UTR' },
           { key: 'status', heading: 'STATUS' },
+          { key: 'actions', heading: 'ACTION' },
         ]}
         rows={rows.map((row) => ({
           _rowKey: row.id,
@@ -332,11 +362,47 @@ export default function HawalaPage() {
           remark: row.remark ?? '—',
           utr: row.utrs.join(', ') || '—',
           status: <StatusBadge status={row.status} />,
+          actions:
+            canApprove && row.status === 'PENDING_APPROVAL' ? (
+              <span className="flex flex-wrap gap-1">
+                <Button
+                  size="sm"
+                  variant="success"
+                  onClick={() => setConfirm({ id: row.id, action: 'approve' })}
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => setConfirm({ id: row.id, action: 'reject' })}
+                >
+                  Reject
+                </Button>
+              </span>
+            ) : (
+              '—'
+            ),
         }))}
         empty={<EmptyState message="No Hawala yet — submit a Hawala transfer to see history here." />}
         pagination={{ page, page_size: 25, total }}
         onPage={setPage}
       />
+      {confirm ? (
+        <ConfirmDialog
+          title={confirm.action === 'approve' ? 'Approve this Hawala?' : 'Reject this Hawala?'}
+          subtitle={
+            confirm.action === 'approve'
+              ? 'Money posts when you confirm.'
+              : 'This Hawala will stay rejected.'
+          }
+          confirmLabel={confirm.action === 'approve' ? 'Approve' : 'Reject'}
+          variant={confirm.action === 'approve' ? 'primary' : 'danger'}
+          loading={acting}
+          onConfirm={() => void handleDecide()}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : null}
     </AppShell>
   )
 }
