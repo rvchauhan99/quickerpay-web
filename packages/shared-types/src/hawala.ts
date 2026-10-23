@@ -43,7 +43,9 @@ export interface HawalaListItem {
   client_reference: string | null
   reversal_of: string | null
   created_by: string
+  created_by_username: string | null
   approved_by: string | null
+  approved_by_username: string | null
   created_at: string
   completed_at: string | null
 }
