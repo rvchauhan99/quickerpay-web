@@ -1,8 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import type { HawalaListItem, HawalaPartyKind, MerchantListItem, PartyListItem } from '@quickerpay/shared-types'
-import { HAWALA_PARTY_KINDS } from '@quickerpay/shared-types'
+import type {
+  HawalaListItem,
+  HawalaPartyKind,
+  HawalaStatus,
+  MerchantListItem,
+  PartyListItem,
+} from '@quickerpay/shared-types'
+import { HAWALA_PARTY_KINDS, HAWALA_STATUSES } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
@@ -14,6 +20,8 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
+import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
@@ -49,6 +57,13 @@ export default function HawalaPage() {
   const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [statusFilter, setStatusFilter] = useState<HawalaStatus | ''>('')
+  const [filterDebitKind, setFilterDebitKind] = useState<HawalaPartyKind | ''>('')
+  const [filterCreditKind, setFilterCreditKind] = useState<HawalaPartyKind | ''>('')
+  const [filterDebitId, setFilterDebitId] = useState('')
+  const [filterCreditId, setFilterCreditId] = useState('')
 
   const [debitKind, setDebitKind] = useState<HawalaPartyKind>('PARTY')
   const [creditKind, setCreditKind] = useState<HawalaPartyKind>('BANKER')
@@ -65,25 +80,83 @@ export default function HawalaPage() {
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [bankers, setBankers] = useState<DirectoryUser[]>([])
   const [agents, setAgents] = useState<DirectoryUser[]>([])
+  const [confirm, setConfirm] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null)
+  const [acting, setActing] = useState(false)
 
-  const canCreate = user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_create')
+  const canCreate =
+    (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && hasMenu(menus, 'HAWALA', 'can_create')
+  const canApprove = user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_approve')
+  const canView = hasMenu(menus, 'HAWALA')
 
-  const loadHistory = useCallback(async () => {
-    if (!accessToken) return
-    setError(null)
-    const query = new URLSearchParams({ page: String(page), page_size: '25' })
-    if (q) query.set('q', q)
-    try {
-      const result = await apiListRequest<HawalaListItem>(`/api/v1/hawala?${query}`, { token: accessToken })
-      setRows(result.items)
-      setTotal(result.pagination.total)
-    } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Could not load Hawala')
-    }
-  }, [accessToken, page, q])
+  const listQueryParams = useCallback(
+    (
+      overrides: {
+        page?: number
+        q?: string
+        dateFrom?: string
+        dateTo?: string
+        statusFilter?: HawalaStatus | ''
+        filterDebitKind?: HawalaPartyKind | ''
+        filterCreditKind?: HawalaPartyKind | ''
+        filterDebitId?: string
+        filterCreditId?: string
+        clearAll?: boolean
+      } = {},
+    ) => {
+      const cleared = overrides.clearAll === true
+      const pageValue = overrides.page ?? page
+      const qValue = cleared ? '' : (overrides.q ?? q)
+      const fromValue = cleared ? '' : (overrides.dateFrom ?? dateFrom)
+      const toValue = cleared ? '' : (overrides.dateTo ?? dateTo)
+      const statusValue = cleared ? '' : (overrides.statusFilter ?? statusFilter)
+      const debitKindValue = cleared ? '' : (overrides.filterDebitKind ?? filterDebitKind)
+      const creditKindValue = cleared ? '' : (overrides.filterCreditKind ?? filterCreditKind)
+      const debitIdValue = cleared ? '' : (overrides.filterDebitId ?? filterDebitId)
+      const creditIdValue = cleared ? '' : (overrides.filterCreditId ?? filterCreditId)
+      const query = new URLSearchParams({ page: String(pageValue), page_size: '25' })
+      if (qValue) query.set('q', qValue)
+      if (fromValue) query.set('date_from', fromValue)
+      if (toValue) query.set('date_to', toValue)
+      if (statusValue) query.set('status', statusValue)
+      if (debitKindValue) query.set('debit_kind', debitKindValue)
+      if (creditKindValue) query.set('credit_kind', creditKindValue)
+      if (debitKindValue && debitIdValue) query.set('debit_id', debitIdValue)
+      if (creditKindValue && creditIdValue) query.set('credit_id', creditIdValue)
+      return query
+    },
+    [
+      page,
+      q,
+      dateFrom,
+      dateTo,
+      statusFilter,
+      filterDebitKind,
+      filterCreditKind,
+      filterDebitId,
+      filterCreditId,
+    ],
+  )
+
+  const loadHistory = useCallback(
+    async (overrides?: Parameters<typeof listQueryParams>[0]) => {
+      if (!accessToken) return
+      setError(null)
+      const query = listQueryParams(overrides)
+      try {
+        const result = await apiListRequest<HawalaListItem>(`/api/v1/hawala?${query}`, {
+          token: accessToken,
+        })
+        setRows(result.items)
+        setTotal(result.pagination.total)
+      } catch (caught) {
+        setError(caught instanceof ApiClientError ? caught.message : 'Could not load Hawala')
+      }
+    },
+    [accessToken, listQueryParams],
+  )
 
   const loadDirectories = useCallback(async () => {
-    if (!accessToken || !canCreate) return
+    if (!accessToken || !canView) return
     try {
       const [partyRes, merchantRes, userRes, agentRes] = await Promise.all([
         apiListRequest<PartyListItem>('/api/v1/parties?page_size=100&status=ACTIVE', { token: accessToken }).catch(() => ({ items: [] as PartyListItem[] })),
@@ -96,9 +169,9 @@ export default function HawalaPage() {
       setBankers(userRes.items)
       setAgents(agentRes.items)
     } catch {
-      /* directories optional for Banker view */
+      /* directories optional when menus are missing */
     }
-  }, [accessToken, canCreate])
+  }, [accessToken, canView])
 
   useEffect(() => {
     if (!ready) return
@@ -165,7 +238,7 @@ export default function HawalaPage() {
           utr: utr || undefined,
         },
       })
-      toast.success('Hawala submitted')
+      toast.success('Hawala submitted — waiting for Super Admin')
       setAmountMinor(0)
       setRemark('')
       setUtr('')
@@ -182,6 +255,26 @@ export default function HawalaPage() {
       setError(caught instanceof ApiClientError ? caught.message : 'Submit failed')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDecide = async () => {
+    if (!accessToken || !confirm || acting) return
+    setActing(true)
+    setError(null)
+    try {
+      await apiRequest(`/api/v1/hawala/${confirm.id}/${confirm.action}`, {
+        method: 'POST',
+        token: accessToken,
+        body: confirm.action === 'reject' ? {} : undefined,
+      })
+      toast.success(confirm.action === 'approve' ? 'Hawala approved' : 'Hawala rejected')
+      setConfirm(null)
+      await loadHistory()
+    } catch (caught) {
+      setError(caught instanceof ApiClientError ? caught.message : 'Action failed')
+    } finally {
+      setActing(false)
     }
   }
 
@@ -203,6 +296,9 @@ export default function HawalaPage() {
             loading={submitting}
             onSubmit={() => void handleSubmit()}
           >
+            <p className="mb-qp-gap text-xs text-[var(--qp-text-muted)]">
+              CRM Hawala waits for Super Admin. Money does not move until Approve.
+            </p>
             <FormSection title="Parties">
               <FormGrid>
                 <FormField label="Debit kind" required>
@@ -292,7 +388,123 @@ export default function HawalaPage() {
         </div>
       ) : null}
 
-      <FilterBar onApply={() => { setPage(1); void loadHistory() }} onClear={() => { setQ(''); setPage(1); void loadHistory() }} onReload={() => void loadHistory()}>
+      <FilterBar
+        onApply={() => {
+          setPage(1)
+          void loadHistory({ page: 1 })
+        }}
+        onClear={() => {
+          setQ('')
+          setDateFrom('')
+          setDateTo('')
+          setStatusFilter('')
+          setFilterDebitKind('')
+          setFilterCreditKind('')
+          setFilterDebitId('')
+          setFilterCreditId('')
+          setPage(1)
+          void loadHistory({ page: 1, clearAll: true })
+        }}
+        onReload={() => void loadHistory()}
+      >
+        <FormField label="Start Date">
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            aria-label="Start Date"
+          />
+        </FormField>
+        <FormField label="End Date">
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            aria-label="End Date"
+          />
+        </FormField>
+        <FormField label="Status">
+          <Select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as HawalaStatus | '')}
+            aria-label="Status"
+          >
+            <option value="">All</option>
+            {HAWALA_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status.replace(/_/g, ' ')}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Debit type">
+          <Select
+            value={filterDebitKind}
+            onChange={(event) => {
+              setFilterDebitKind(event.target.value as HawalaPartyKind | '')
+              setFilterDebitId('')
+            }}
+            aria-label="Debit type"
+          >
+            <option value="">All</option>
+            {HAWALA_PARTY_KINDS.filter((kind) => kind !== 'AGENT').map((kind) => (
+              <option key={kind} value={kind}>
+                {kindLabel(kind)}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Debit party">
+          <Select
+            value={filterDebitId}
+            onChange={(event) => setFilterDebitId(event.target.value)}
+            aria-label="Debit party"
+            disabled={!filterDebitKind}
+          >
+            <option value="">All</option>
+            {filterDebitKind
+              ? optionsFor(filterDebitKind).map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.label}
+                  </option>
+                ))
+              : null}
+          </Select>
+        </FormField>
+        <FormField label="Credit type">
+          <Select
+            value={filterCreditKind}
+            onChange={(event) => {
+              setFilterCreditKind(event.target.value as HawalaPartyKind | '')
+              setFilterCreditId('')
+            }}
+            aria-label="Credit type"
+          >
+            <option value="">All</option>
+            {HAWALA_PARTY_KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {kindLabel(kind)}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label="Credit party">
+          <Select
+            value={filterCreditId}
+            onChange={(event) => setFilterCreditId(event.target.value)}
+            aria-label="Credit party"
+            disabled={!filterCreditKind}
+          >
+            <option value="">All</option>
+            {filterCreditKind
+              ? optionsFor(filterCreditKind).map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.label}
+                  </option>
+                ))
+              : null}
+          </Select>
+        </FormField>
         <FormField label="Reference">
           <Input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Reference" aria-label="Reference" />
         </FormField>
@@ -300,13 +512,12 @@ export default function HawalaPage() {
           <ExportButton
             disabled={rows.length === 0}
             canExport={hasMenu(menus, 'HAWALA', 'can_export')}
-            onExport={() =>
-              void downloadExport(
-                `/api/v1/hawala/export?${new URLSearchParams({ q }).toString()}`,
-                'hawala.csv',
-                accessToken!,
-              )
-            }
+            onExport={() => {
+              const query = listQueryParams()
+              query.delete('page')
+              query.delete('page_size')
+              void downloadExport(`/api/v1/hawala/export?${query}`, 'hawala.csv', accessToken!)
+            }}
           />
         </div>
       </FilterBar>
@@ -321,6 +532,7 @@ export default function HawalaPage() {
           { key: 'remark', heading: 'REMARK' },
           { key: 'utr', heading: 'UTR' },
           { key: 'status', heading: 'STATUS' },
+          { key: 'actions', heading: 'ACTION' },
         ]}
         rows={rows.map((row) => ({
           _rowKey: row.id,
@@ -332,11 +544,47 @@ export default function HawalaPage() {
           remark: row.remark ?? '—',
           utr: row.utrs.join(', ') || '—',
           status: <StatusBadge status={row.status} />,
+          actions:
+            canApprove && row.status === 'PENDING_APPROVAL' ? (
+              <span className="flex flex-wrap gap-1">
+                <Button
+                  size="sm"
+                  variant="success"
+                  onClick={() => setConfirm({ id: row.id, action: 'approve' })}
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => setConfirm({ id: row.id, action: 'reject' })}
+                >
+                  Reject
+                </Button>
+              </span>
+            ) : (
+              '—'
+            ),
         }))}
         empty={<EmptyState message="No Hawala yet — submit a Hawala transfer to see history here." />}
         pagination={{ page, page_size: 25, total }}
         onPage={setPage}
       />
+      {confirm ? (
+        <ConfirmDialog
+          title={confirm.action === 'approve' ? 'Approve this Hawala?' : 'Reject this Hawala?'}
+          subtitle={
+            confirm.action === 'approve'
+              ? 'Money posts when you confirm.'
+              : 'This Hawala will stay rejected.'
+          }
+          confirmLabel={confirm.action === 'approve' ? 'Approve' : 'Reject'}
+          variant={confirm.action === 'approve' ? 'primary' : 'danger'}
+          loading={acting}
+          onConfirm={() => void handleDecide()}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : null}
     </AppShell>
   )
 }
