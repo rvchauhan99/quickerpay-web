@@ -7,11 +7,12 @@ export function MoneyInput({
   id,
   valueMinor,
   onChangeMinor,
-  wholeRupees = false,
+  wholeRupees = true,
 }: {
   id: string
   valueMinor: number | bigint
   onChangeMinor: (amountMinor: number) => void
+  /** Default true: whole rupees only (no decimals). */
   wholeRupees?: boolean
 }) {
   const display = Number(valueMinor) === 0 ? '' : wholeRupees

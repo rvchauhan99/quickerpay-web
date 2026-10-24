@@ -15,6 +15,7 @@ import { ExportButton, TableSkeleton, StatCard } from '@/components/ui/FilterBar
 import { apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
+import { fromMinor } from '@quickerpay/money'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -104,8 +105,8 @@ export default function GeneralPage() {
           <ErrorAlert
             message={
               clearing
-                ? `Position Clearing of ${Math.abs(clearing.amount_minor)} paise is present. Totals match, but investigate null-merchant ledger rows or incomplete Hawala legs.`
-                : `Out of balance by ${Math.abs(position!.difference_minor)} paise. This is a data-integrity alarm — totals should match.`
+                ? `Position Clearing of ${fromMinor(BigInt(Math.abs(clearing.amount_minor)))} is present. Totals match, but investigate null-merchant ledger rows or incomplete Hawala legs.`
+                : `Out of balance by ${fromMinor(BigInt(Math.abs(position!.difference_minor)))}. This is a data-integrity alarm — totals should match.`
             }
             type="error"
           />

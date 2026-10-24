@@ -481,7 +481,7 @@ export default function DashboardPage() {
             </div>
           </>
         ) : (
-          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-3 lg:grid-cols-5">
             <StatCard label="PAY-IN" tone="primary" hint={`${data.payin.count} txns`} href={payinHref(`status=COMPLETED&${range}`)}>
               <MoneyDisplay amountMinor={data.payin.amount_minor} />
             </StatCard>
@@ -498,6 +498,14 @@ export default function DashboardPage() {
             </StatCard>
             <StatCard label="HAWALA" tone="info" hint={`${data.hawala.count} transfers`} href={canView('HAWALA') ? `/hawala?${range}` : undefined}>
               <MoneyDisplay amountMinor={data.hawala.amount_minor} />
+            </StatCard>
+            <StatCard
+              label="Unclaimed amount"
+              tone="warning"
+              hint={`${data.unclaimed_utrs} UTRs`}
+              href={canView('UTR') ? '/utr?status=UNCLAIMED' : undefined}
+            >
+              <MoneyDisplay amountMinor={data.unclaimed_amount_minor} />
             </StatCard>
           </div>
         )}
