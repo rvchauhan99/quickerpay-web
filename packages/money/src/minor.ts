@@ -41,17 +41,18 @@ export function toMinor(input: string): bigint {
 }
 
 /**
- * Format integer paise as `₹1,00,000.00`, matching the observed product
- * (negative sign after the rupee mark: `₹-21,89,387.68`).
+ * Format integer paise as whole rupees with Indian grouping, no decimals:
+ * `₹1,00,000`. Negative sign after the rupee mark: `₹-21,89,388`.
+ *
+ * Leftover paise are HALF_UP to the nearest rupee for display only
+ * (storage stays `_minor`). Display is lossy for sub-rupee remainders.
  */
 export function fromMinor(minor: bigint): string {
   const negative = minor < 0n
   const abs = negative ? -minor : minor
-  const rupees = abs / MINOR_PER_MAJOR
-  const paise = abs % MINOR_PER_MAJOR
+  const rupees = roundHalfUp(abs, MINOR_PER_MAJOR)
   const grouped = groupIndian(rupees.toString())
-  const fraction = paise.toString().padStart(2, '0')
-  return `₹${negative ? '-' : ''}${grouped}.${fraction}`
+  return `₹${negative ? '-' : ''}${grouped}`
 }
 
 /** Whole rupees; leftover paise are dropped. Used only for UTR/pay-in match. */

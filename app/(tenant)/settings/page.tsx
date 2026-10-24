@@ -9,6 +9,7 @@ import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { MoneyInput } from '@/components/forms/MoneyInput'
 import { apiRequest, ApiClientError } from '@/lib/api'
 import {
   accentHexForTheme,
@@ -210,11 +211,14 @@ export default function SettingsPage() {
                 />
               </div>
             </FormField>
-            <FormField label="Hawala approval above (paise)">
-              <Input
-                type="number"
-                value={settings.hawala_approval_above_minor}
-                onChange={(event) => setSettings({ ...settings, hawala_approval_above_minor: Number(event.target.value) })}
+            <FormField label="Hawala approval above (rupees)">
+              <MoneyInput
+                id="hawala-approval-above"
+                valueMinor={settings.hawala_approval_above_minor}
+                onChangeMinor={(amountMinor) =>
+                  setSettings({ ...settings, hawala_approval_above_minor: amountMinor })
+                }
+                wholeRupees
               />
             </FormField>
             <FormField label="Allow negative margin">

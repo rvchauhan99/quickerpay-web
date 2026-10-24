@@ -35,28 +35,34 @@ describe('toMinor', () => {
 })
 
 describe('fromMinor', () => {
-  it('formats the spec example with Indian grouping', () => {
-    expect(fromMinor(10_000_000n)).toBe('₹1,00,000.00')
+  it('formats whole rupees with Indian grouping and no decimals', () => {
+    expect(fromMinor(10_000_000n)).toBe('₹1,00,000')
   })
 
-  it('formats the observed negative ledger balance', () => {
-    expect(fromMinor(-2_189_387_68n)).toBe('₹-21,89,387.68')
+  it('HALF_UP leftover paise on a negative ledger balance for display', () => {
+    // 218938768 paise → 2189387.68 → ₹21,89,388
+    expect(fromMinor(-2_189_387_68n)).toBe('₹-21,89,388')
   })
 
-  it('pads paise to two digits', () => {
-    expect(fromMinor(1n)).toBe('₹0.01')
+  it('HALF_UP 50 paise to ₹1; truncates 49 paise to ₹0', () => {
+    expect(fromMinor(50n)).toBe('₹1')
+    expect(fromMinor(49n)).toBe('₹0')
+    expect(fromMinor(1n)).toBe('₹0')
   })
 
-  it('formats a whole rupee', () => {
-    expect(fromMinor(100n)).toBe('₹1.00')
+  it('formats a whole rupee without a fraction', () => {
+    expect(fromMinor(100n)).toBe('₹1')
   })
 
-  it('round-trips with toMinor', () => {
-    const samples = [1n, 50n, 100n, 10_050n, 10_000_000n, 12_34_56_789_01n]
-    for (const minor of samples) {
+  it('round-trips whole-rupee amounts with toMinor (display is lossy for leftover paise)', () => {
+    const wholeRupeeSamples = [100n, 10_000_000n, 12_34_56_789_00n]
+    for (const minor of wholeRupeeSamples) {
       expect(toMinor(fromMinor(minor))).toBe(minor)
       expect(toMinor(fromMinor(-minor))).toBe(-minor)
     }
+    // 10_050 display → ₹101 (HALF_UP), not a lossless round-trip
+    expect(fromMinor(10_050n)).toBe('₹101')
+    expect(toMinor(fromMinor(10_050n))).toBe(10_100n)
   })
 })
 

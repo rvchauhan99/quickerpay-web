@@ -7,7 +7,7 @@ const UNITS: ReadonlyArray<{ size: bigint; suffix: string }> = [
   { size: 1_000n, suffix: 'K' },
 ]
 
-/** Short axis label for integer paise: `₹8.0L`, `₹1.2Cr`, `₹950`. Never used for exact amounts. */
+/** Short axis label for integer paise: `₹8L`, `₹1Cr`, `₹950`. Whole units only; never used for exact amounts. */
 export function formatCompactMinor(amountMinor: number): string {
   const minor = BigInt(Math.trunc(amountMinor))
   const negative = minor < 0n
@@ -15,8 +15,8 @@ export function formatCompactMinor(amountMinor: number): string {
   const sign = negative ? '-' : ''
   for (const unit of UNITS) {
     if (rupees >= unit.size) {
-      const tenths = (rupees * 10n + unit.size / 2n) / unit.size
-      return `₹${sign}${tenths / 10n}.${tenths % 10n}${unit.suffix}`
+      const rounded = (rupees + unit.size / 2n) / unit.size
+      return `₹${sign}${rounded}${unit.suffix}`
     }
   }
   return `₹${sign}${rupees}`

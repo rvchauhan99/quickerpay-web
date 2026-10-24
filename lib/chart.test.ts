@@ -12,14 +12,14 @@ import {
 } from './chart'
 
 describe('formatCompactMinor', () => {
-  it('formats lakh, crore and thousand scales from paise', () => {
-    expect(formatCompactMinor(80_000_000)).toBe('₹8.0L')
-    expect(formatCompactMinor(1_390_121_00)).toBe('₹13.9L')
-    expect(formatCompactMinor(12_000_000_000)).toBe('₹12.0Cr')
-    expect(formatCompactMinor(4_530_000)).toBe('₹45.3K')
+  it('formats lakh, crore and thousand scales as whole units', () => {
+    expect(formatCompactMinor(80_000_000)).toBe('₹8L')
+    expect(formatCompactMinor(1_390_121_00)).toBe('₹14L')
+    expect(formatCompactMinor(12_000_000_000)).toBe('₹12Cr')
+    expect(formatCompactMinor(4_530_000)).toBe('₹45K')
     expect(formatCompactMinor(95_000)).toBe('₹950')
     expect(formatCompactMinor(0)).toBe('₹0')
-    expect(formatCompactMinor(-21_893_876_8)).toBe('₹-21.9L')
+    expect(formatCompactMinor(-21_893_876_8)).toBe('₹-22L')
   })
 })
 
@@ -43,7 +43,7 @@ describe('axis helpers', () => {
   })
 })
 
-describe('ratios', () => {
+describe('kpi', () => {
   it('computes success rate over decided rows only', () => {
     expect(
       successRate([

@@ -567,7 +567,7 @@ export default function PayinPage() {
                     ))}
                   </Select>
                 </FormField>
-                <FormField label="Amount" required hint="Whole rupees. GPay paise are ignored when matching.">
+                <FormField label="Amount" required hint="Whole rupees. Leftover bank subunits are ignored when matching.">
                   <MoneyInput id="payin-amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} wholeRupees />
                 </FormField>
                 <FormField label="UTR" required hint="GPay UTR, 6 to 32 digits. Match is UTR + UPI + amount.">
