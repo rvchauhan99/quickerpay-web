@@ -1,12 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type {
   GeneralPosition,
+  GeneralRow,
   GeneralSection,
+  GeneralSectionKey,
   GeneralSide,
   GeneralSynthetic,
   GeneralSyntheticKey,
+  MenuGrant,
 } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
@@ -33,6 +37,59 @@ const SECTION_LABELS: Record<string, string> = {
   BANKER: 'BANKER',
   EXCHANGE: 'EXCHANGE',
   AGENT: 'AGENT',
+}
+
+const DRILL_LINK_CLASS =
+  'font-medium text-[var(--qp-primary)] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--qp-primary)]'
+
+function hrefForGeneralRow(sectionKey: GeneralSectionKey, row: GeneralRow): string | null {
+  if (sectionKey === 'BANKER') {
+    return `/ledger?account_kind=BANKER&owner_user_id=${encodeURIComponent(row.id)}`
+  }
+  if (sectionKey === 'PARTY') {
+    return `/ledger?account_kind=PARTY&party_id=${encodeURIComponent(row.id)}`
+  }
+  if (sectionKey === 'EXCHANGE') {
+    if (row.id === 'unallocated') return null
+    return `/ledger?account_kind=EXCHANGE&merchant_id=${encodeURIComponent(row.id)}`
+  }
+  if (sectionKey === 'AGENT') {
+    return `/ledger?account_kind=AGENT&agent_user_id=${encodeURIComponent(row.id)}`
+  }
+  return null
+}
+
+function hrefForSynthetic(key: GeneralSyntheticKey): string | null {
+  if (key === 'ADVANCE_CHARGES') return '/commission'
+  if (key === 'PENDING_WITHDRAWAL') return '/payout?status=INITIATE'
+  if (key === 'IN_PROCESS_WITHDRAWAL') return '/payout?status=INITIATE&assigned=true'
+  return null
+}
+
+function menuAllowsHref(menus: MenuGrant[], href: string): boolean {
+  if (href.startsWith('/ledger')) return hasMenu(menus, 'LEDGER', 'can_view')
+  if (href.startsWith('/commission')) return hasMenu(menus, 'COMMISSION', 'can_view')
+  if (href.startsWith('/payout')) return hasMenu(menus, 'PAYOUT', 'can_view')
+  return false
+}
+
+function DrillLabel({
+  href,
+  menus,
+  children,
+}: {
+  href: string | null
+  menus: MenuGrant[]
+  children: ReactNode
+}) {
+  if (!href || !menuAllowsHref(menus, href)) {
+    return <>{children}</>
+  }
+  return (
+    <Link href={href} className={DRILL_LINK_CLASS}>
+      {children}
+    </Link>
+  )
 }
 
 export default function GeneralPage() {
@@ -129,17 +186,19 @@ export default function GeneralPage() {
               <MoneyDisplay amountMinor={-position.debit.total_minor} />
             </StatCard>
           </div>
-          
+
           <div className="grid gap-qp-gap lg:grid-cols-2">
             <PositionColumn
               title="ASSETS (Credit)"
               tone="credit"
               side={position.credit}
+              menus={menus}
             />
             <PositionColumn
               title="LIABILITIES (Debit)"
               tone="debit"
               side={position.debit}
+              menus={menus}
             />
           </div>
         </>
@@ -152,10 +211,12 @@ function PositionColumn({
   title,
   tone,
   side,
+  menus,
 }: {
   title: string
   tone: 'credit' | 'debit'
   side: GeneralSide
+  menus: MenuGrant[]
 }) {
   const headerClass =
     tone === 'credit'
@@ -189,10 +250,10 @@ function PositionColumn({
               </tr>
             ) : null}
             {side.sections.map((section) => (
-              <SectionBlock key={section.key} section={section} />
+              <SectionBlock key={section.key} section={section} menus={menus} />
             ))}
             {side.synthetics.map((synthetic) => (
-              <SyntheticRow key={synthetic.key} synthetic={synthetic} />
+              <SyntheticRow key={synthetic.key} synthetic={synthetic} menus={menus} />
             ))}
             <tr className="border-t border-[var(--qp-border)] bg-[var(--qp-surface)] font-semibold">
               <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)]" colSpan={2}>
@@ -209,7 +270,13 @@ function PositionColumn({
   )
 }
 
-function SectionBlock({ section }: { section: GeneralSection }) {
+function SectionBlock({
+  section,
+  menus,
+}: {
+  section: GeneralSection
+  menus: MenuGrant[]
+}) {
   return (
     <>
       <tr className="bg-[var(--qp-surface)]">
@@ -222,7 +289,11 @@ function SectionBlock({ section }: { section: GeneralSection }) {
       </tr>
       {section.rows.map((row) => (
         <tr key={row.id} className="border-t border-[var(--qp-border)]">
-          <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] text-[var(--qp-text)]">{row.name}</td>
+          <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] text-[var(--qp-text)]">
+            <DrillLabel href={hrefForGeneralRow(section.key, row)} menus={menus}>
+              {row.name}
+            </DrillLabel>
+          </td>
           <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] text-[var(--qp-text-secondary)]">{row.code}</td>
           <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] text-right tabular-nums">
             <MoneyDisplay amountMinor={row.amount_minor} />
@@ -233,11 +304,19 @@ function SectionBlock({ section }: { section: GeneralSection }) {
   )
 }
 
-function SyntheticRow({ synthetic }: { synthetic: GeneralSynthetic }) {
+function SyntheticRow({
+  synthetic,
+  menus,
+}: {
+  synthetic: GeneralSynthetic
+  menus: MenuGrant[]
+}) {
   return (
     <tr className="border-t border-[var(--qp-border)] bg-[var(--qp-warning-bg)]">
       <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] font-medium text-[var(--qp-text)]" colSpan={2}>
-        {SYNTHETIC_LABELS[synthetic.key]}
+        <DrillLabel href={hrefForSynthetic(synthetic.key)} menus={menus}>
+          {SYNTHETIC_LABELS[synthetic.key]}
+        </DrillLabel>
       </td>
       <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] text-right tabular-nums">
         <MoneyDisplay amountMinor={synthetic.amount_minor} />
