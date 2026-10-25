@@ -181,6 +181,10 @@ const PRIMARY_LINKS: PrimaryLink[] = [
   { key: 'exchange', code: 'MERCHANTS', label: 'Exchange Master', href: '/merchants' },
   { key: 'parties', code: 'PARTIES', label: 'Party Master', href: '/parties' },
   { key: 'pending-deposit', code: 'PAYIN', label: 'Pending Deposit', href: '/payin' },
+  { key: 'pending-withdrawal', code: 'PAYOUT', label: 'Pending Withdrawal', href: '/payout?status=INITIATE' },
+  { key: 'in-process-withdrawal', code: 'PAYOUT', label: 'In Process Withdrawal', href: '/payout?status=INITIATE&assigned=true' },
+  { key: 'hawala', code: 'HAWALA', label: 'Hawala', href: '/hawala' },
+  { key: 'general', code: 'GENERAL', label: 'General', href: '/general' },
   {
     key: 'payin-injection',
     code: 'PAYIN',
@@ -189,10 +193,6 @@ const PRIMARY_LINKS: PrimaryLink[] = [
     roles: ['SUPER_ADMIN', 'ADMIN'],
     requireCreate: true,
   },
-  { key: 'pending-withdrawal', code: 'PAYOUT', label: 'Pending Withdrawal', href: '/payout?status=INITIATE' },
-  { key: 'in-process-withdrawal', code: 'PAYOUT', label: 'In Process Withdrawal', href: '/payout?status=INITIATE&assigned=true' },
-  { key: 'hawala', code: 'HAWALA', label: 'Hawala', href: '/hawala' },
-  { key: 'general', code: 'GENERAL', label: 'General', href: '/general' },
 ]
 
 /** Per-link icon overrides where one MenuCode maps to two primary rows. */
