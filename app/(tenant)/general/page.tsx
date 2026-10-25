@@ -51,7 +51,7 @@ function hrefForGeneralRow(sectionKey: GeneralSectionKey, row: GeneralRow): stri
   }
   if (sectionKey === 'EXCHANGE') {
     if (row.id === 'unallocated') return null
-    return `/ledger?account_kind=EXCHANGE&merchant_id=${encodeURIComponent(row.id)}`
+    return `/commission?merchant_id=${encodeURIComponent(row.id)}`
   }
   if (sectionKey === 'AGENT') {
     return `/ledger?account_kind=AGENT&agent_user_id=${encodeURIComponent(row.id)}`
