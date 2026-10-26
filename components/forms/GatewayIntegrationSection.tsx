@@ -18,6 +18,7 @@ import { DataTable, EmptyState, StatusBadge } from '@/components/ui/FilterBar'
 import { Modal } from '@/components/ui/Modal'
 import { DangerButton, ErrorAlert, OutlineButton, PrimaryButton } from '@/components/ui/PageHeader'
 import { ApiClientError, apiRequest } from '@/lib/api'
+import { copyText } from '@/lib/copy'
 import { formatDateTimeIst } from '@/lib/datetime'
 
 interface GatewayIntegrationSectionProps {
@@ -176,6 +177,28 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
       else toast.error(`Not delivered: ${result.last_error ?? `HTTP ${result.last_http_status ?? '—'}`}`)
       await loadDeliveries()
     })
+
+  const handleCopyDelivery = async (delivery: GatewayDeliveryItem) => {
+    const text = JSON.stringify(
+      {
+        id: delivery.id,
+        event: delivery.event,
+        entity_type: delivery.entity_type,
+        entity_id: delivery.entity_id,
+        status: delivery.status,
+        attempts: delivery.attempts,
+        last_http_status: delivery.last_http_status,
+        last_error: delivery.last_error,
+        created_at: delivery.created_at,
+        payload: delivery.payload,
+      },
+      null,
+      2,
+    )
+    const ok = await copyText(text)
+    if (ok) toast.success('Delivery copied')
+    else toast.error('Could not copy')
+  }
 
   const handleConfirm = () => {
     const pending = pendingConfirm
@@ -423,12 +446,20 @@ export function GatewayIntegrationSection({ merchantId, panelLocked, canEdit, on
             attempts: delivery.attempts,
             http: delivery.last_http_status ?? (delivery.last_error ? 'error' : '—'),
             created: formatWhen(delivery.created_at),
-            actions: canEdit ? (
-              <OutlineButton onClick={() => void handleResend(delivery.id)} disabled={busy !== null || !config.webhook_url}>
-                {busy === `resend-${delivery.id}` ? 'Sending…' : 'Resend'}
-              </OutlineButton>
-            ) : (
-              '—'
+            actions: (
+              <div className="flex flex-wrap items-center gap-2">
+                <OutlineButton onClick={() => void handleCopyDelivery(delivery)} disabled={busy !== null}>
+                  Copy
+                </OutlineButton>
+                {canEdit ? (
+                  <OutlineButton
+                    onClick={() => void handleResend(delivery.id)}
+                    disabled={busy !== null || !config.webhook_url}
+                  >
+                    {busy === `resend-${delivery.id}` ? 'Sending…' : 'Resend'}
+                  </OutlineButton>
+                ) : null}
+              </div>
             ),
           }))}
           empty={<EmptyState message="No webhook deliveries yet" />}

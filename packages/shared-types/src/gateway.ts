@@ -213,4 +213,6 @@ export interface GatewayDeliveryItem {
   next_attempt_at: string | null
   delivered_at: string | null
   created_at: string
+  /** Frozen outbound webhook body `{ id, event, created_at, timestamp, data }`. Signing headers are not included. */
+  payload: Record<string, unknown>
 }
