@@ -179,7 +179,8 @@ export function StatCard({
 /* ─── DataTable ─────────────────────────────────────────────────────────────── */
 export type DataTableColumn = {
   key: string
-  heading: string
+  /** Header cell content. A node is normal for a leading selection checkbox. */
+  heading: React.ReactNode
   align?: 'left' | 'right' | 'center'
   nowrap?: boolean
   width?: string

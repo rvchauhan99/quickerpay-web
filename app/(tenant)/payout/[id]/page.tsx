@@ -18,6 +18,7 @@ import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { PayoutActionDialogs } from '@/components/forms/PayoutActionDialogs'
+import { PayoutAssignDialog } from '@/components/forms/PayoutAssignDialog'
 import { PayoutReassignDialog } from '@/components/forms/PayoutReassignDialog'
 import {
   copyPayoutBankDetails,
@@ -29,6 +30,7 @@ import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
+import { canAssignPayoutBanker } from '@/lib/payout-assign'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -62,7 +64,8 @@ export default function PayoutDetailPage() {
   const [acceptFor, setAcceptFor] = useState<PayoutListItem | null>(null)
   const [rejectFor, setRejectFor] = useState<PayoutListItem | null>(null)
   const [reassignOpen, setReassignOpen] = useState(false)
-  const { isSuperAdmin, admins } = useSuperAdminDirectory(accessToken, user?.role)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const { admins } = useSuperAdminDirectory(accessToken, user?.role)
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
@@ -105,13 +108,19 @@ export default function PayoutDetailPage() {
   const isPending = row?.status === 'INITIATE'
   const canAccept = Boolean(isPending && hasMenu(menus, 'PAYOUT', 'can_edit'))
   const canReject = Boolean(isPending && hasMenu(menus, 'PAYOUT', 'can_edit'))
+  const canAssign = Boolean(
+    isPending &&
+      !row?.banker_user_id &&
+      canAssignPayoutBanker(user?.role) &&
+      hasMenu(menus, 'PAYOUT', 'can_approve'),
+  )
   const canReassign = Boolean(
     isPending &&
-      isSuperAdmin &&
+      canAssignPayoutBanker(user?.role) &&
       row?.banker_user_id &&
       hasMenu(menus, 'PAYOUT', 'can_approve'),
   )
-  const showActions = Boolean(row && (canAccept || canReject || canReassign))
+  const showActions = Boolean(row && (canAccept || canReject || canAssign || canReassign))
   const activeAssignees = admins.filter((admin) => admin.role === 'BANKER' && admin.status === 'ACTIVE')
 
   const accountDisplay = row ? payoutAccountNumber(row) || '—' : '—'
@@ -135,6 +144,11 @@ export default function PayoutDetailPage() {
           actions={
             showActions ? (
               <>
+                {canAssign ? (
+                  <OutlineButton type="button" onClick={() => setAssignOpen(true)}>
+                    Assign {bankerLabel()}
+                  </OutlineButton>
+                ) : null}
                 {canReassign ? (
                   <OutlineButton type="button" onClick={() => setReassignOpen(true)}>
                     Reassign {bankerLabel()}
@@ -275,6 +289,16 @@ export default function PayoutDetailPage() {
             }}
             onRejected={async () => {
               setRejectFor(null)
+              await load()
+            }}
+          />
+          <PayoutAssignDialog
+            row={assignOpen ? row : null}
+            assignees={activeAssignees}
+            accessToken={accessToken}
+            onClose={() => setAssignOpen(false)}
+            onAssigned={async () => {
+              setAssignOpen(false)
               await load()
             }}
           />

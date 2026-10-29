@@ -96,6 +96,17 @@ export function isTenantWideRole(role: UserRole): boolean {
   return role === 'SUPER_ADMIN' || role === 'AUDITOR' || role === 'ADMIN'
 }
 
+/**
+ * Who may put a Banker on a withdrawal: view the unassigned queue, bulk-assign
+ * by amount, and reassign. Super Admin and Admin only — a Banker never assigns
+ * to itself and an Operator never assigns for its Banker.
+ *
+ * Accepts `undefined` so a screen can ask before the session user has loaded.
+ */
+export function canAssignPayoutBanker(role: UserRole | undefined): boolean {
+  return role === 'SUPER_ADMIN' || role === 'ADMIN'
+}
+
 export const MERCHANT_PORTAL_MENUS: readonly MenuCode[] = [
   'DASHBOARD',
   'PAYIN',
