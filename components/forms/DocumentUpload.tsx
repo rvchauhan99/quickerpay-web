@@ -21,6 +21,8 @@ export interface DocumentUploadProps {
   disabled?: boolean
   error?: string | null
   hint?: string
+  /** False for data files (CSV) where a photo makes no sense. */
+  allowCamera?: boolean
   'aria-label'?: string
 }
 
@@ -67,6 +69,7 @@ export function DocumentUpload({
   disabled = false,
   error = null,
   hint,
+  allowCamera = true,
   'aria-label': ariaLabel = 'Document upload',
 }: DocumentUploadProps) {
   const browseId = useId()
@@ -329,21 +332,23 @@ export function DocumentUpload({
               <Upload size={15} strokeWidth={2} />
               Browse
             </button>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => void openCamera()}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors disabled:opacity-60"
-              style={{
-                borderColor: 'var(--qp-border)',
-                color: 'var(--qp-text-secondary)',
-                backgroundColor: '#fff',
-              }}
-              aria-label="Take photo"
-            >
-              <Camera size={15} strokeWidth={2} />
-              Take photo
-            </button>
+            {allowCamera ? (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => void openCamera()}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors disabled:opacity-60"
+                style={{
+                  borderColor: 'var(--qp-border)',
+                  color: 'var(--qp-text-secondary)',
+                  backgroundColor: '#fff',
+                }}
+                aria-label="Take photo"
+              >
+                <Camera size={15} strokeWidth={2} />
+                Take photo
+              </button>
+            ) : null}
           </div>
         </div>
       )}

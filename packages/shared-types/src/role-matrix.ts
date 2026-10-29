@@ -55,10 +55,11 @@ const AUDITOR_CEILING: MenuCeiling = Object.fromEntries(
   MENU_CODES.filter((menu) => menu !== 'SETTINGS').map((menu) => [menu, VIEW_EXPORT]),
 )
 
+/** Exchange Master portal: read-only except bank-only withdrawal entry (POST /payout/merchant*). */
 const MERCHANT_CEILING: MenuCeiling = {
   DASHBOARD: VIEW_ONLY,
   PAYIN: VIEW_ONLY,
-  PAYOUT: VIEW_ONLY,
+  PAYOUT: ['can_view', 'can_create'],
   TRANSACTIONS: VIEW_ONLY,
 }
 

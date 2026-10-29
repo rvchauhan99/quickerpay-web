@@ -77,7 +77,7 @@ export const MERCHANT_INTEGRATION_TYPES = ['NONE', 'SUPAGO', 'CRICI', 'API'] as 
 export type MerchantIntegrationType = (typeof MERCHANT_INTEGRATION_TYPES)[number]
 
 /** Origin of a pay-in / pay-out row. API = SafePay247 Gateway API. */
-export const TXN_SOURCES = ['MANUAL', 'SUPAGO', 'CRICI', 'API', 'INJECTION'] as const
+export const TXN_SOURCES = ['MANUAL', 'SUPAGO', 'CRICI', 'API', 'INJECTION', 'MERCHANT'] as const
 export type TxnSource = (typeof TXN_SOURCES)[number]
 
 export interface MenuActions {

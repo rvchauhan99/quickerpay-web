@@ -26,6 +26,8 @@ import { PayoutActionDialogs } from '@/components/forms/PayoutActionDialogs'
 import { PayoutReassignDialog } from '@/components/forms/PayoutReassignDialog'
 import { PayoutBankDetailsCell } from '@/components/forms/PayoutBankDetailsCell'
 import { MoneyInput } from '@/components/forms/MoneyInput'
+import { MerchantWithdrawalEntry } from '@/components/forms/MerchantWithdrawalEntry'
+import { Button } from '@/components/ui/Button'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
@@ -63,6 +65,7 @@ export default function PayoutPage() {
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
   const [banks, setBanks] = useState<BankAccountListItem[]>([])
   const [creating, setCreating] = useState(false)
+  const [merchantEntry, setMerchantEntry] = useState<'manual' | 'csv' | null>(null)
   const [createSubmitting, setCreateSubmitting] = useState(false)
   const [merchantId, setMerchantId] = useState('')
   const [amountMinor, setAmountMinor] = useState(0)
@@ -156,7 +159,7 @@ export default function PayoutPage() {
           )
         })
     }
-    if (hasMenu(menus, 'PAYOUT', 'can_create') || hasMenu(menus, 'PAYOUT', 'can_edit')) {
+    if (user?.role !== 'MERCHANT' && (hasMenu(menus, 'PAYOUT', 'can_create') || hasMenu(menus, 'PAYOUT', 'can_edit'))) {
       void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken })
         .then((result) => setBanks(result.items.filter((row) => row.status === 'ACTIVE')))
         .catch((caught) => {
@@ -265,17 +268,42 @@ export default function PayoutPage() {
   }
 
   const payoutTitle = assignedOnly ? 'In Process Withdrawal' : 'Pending Withdrawal'
+  const canMerchantEnter = user.role === 'MERCHANT' && hasMenu(menus, 'PAYOUT', 'can_create')
 
   return (
     <AppShell title={payoutTitle} role={user.role} menus={menus}>
       <PageHeader
         title={payoutTitle}
         action={
-          hasMenu(menus, 'PAYOUT', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
+          canMerchantEnter ? (
+            <span className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => setMerchantEntry('csv')}>
+                Bulk Upload CSV
+              </Button>
+              <PrimaryButton onClick={() => setMerchantEntry('manual')}>New Withdrawal</PrimaryButton>
+            </span>
+          ) : hasMenu(menus, 'PAYOUT', 'can_create') &&
+            isLabConsole() &&
+            user.role !== 'SUPER_ADMIN' &&
+            user.role !== 'MERCHANT' ? (
             <PrimaryButton onClick={() => setCreating(true)}>Create</PrimaryButton>
           ) : null
         }
       />
+      {canMerchantEnter && merchantEntry && accessToken ? (
+        <div className="mb-qp-gap">
+          <MerchantWithdrawalEntry
+            key={merchantEntry}
+            mode={merchantEntry}
+            accessToken={accessToken}
+            onClose={() => setMerchantEntry(null)}
+            onCreated={async () => {
+              await setFilters({ status: 'INITIATE', page: 1 })
+              await load()
+            }}
+          />
+        </div>
+      ) : null}
       {pendingOnPage1 > 0 && filters.page > 1 ? (
         <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {pendingOnPage1} new pay-out{pendingOnPage1 === 1 ? '' : 's'} on page 1.{' '}
@@ -446,11 +474,11 @@ export default function PayoutPage() {
           ]}
           rows={rows.map((row) => ({
             created:
-              row.source === 'API' ? (
+              row.source === 'API' || row.source === 'MERCHANT' ? (
                 <span className="flex flex-col">
                   <span>{formatDateTimeIst(row.created_at)}</span>
                   <span className="text-[11px] font-semibold" style={{ color: 'var(--qp-primary)' }}>
-                    API
+                    {row.source === 'API' ? 'API' : merchantLabel()}
                   </span>
                 </span>
               ) : (
