@@ -10,7 +10,7 @@ import { apiRequest, ApiClientError } from '@/lib/api'
 import { bankerLabel } from '@/lib/labels'
 
 /* ─── PayoutReassignDialog ────────────────────────────────────────────────────
-   Super Admin: move an already-assigned INITIATE pay-out to another assignee.
+   Super Admin / Admin: move an already-assigned INITIATE pay-out to another assignee.
 ──────────────────────────────────────────────────────────────────────────── */
 export function PayoutReassignDialog({
   row,
