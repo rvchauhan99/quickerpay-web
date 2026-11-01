@@ -293,6 +293,11 @@ function SectionBlock({
             <DrillLabel href={hrefForGeneralRow(section.key, row)} menus={menus}>
               {row.name}
             </DrillLabel>
+            {row.code === 'UNALLOC' ? (
+              <p className="mt-0.5 text-[11px] font-normal text-[var(--qp-text-secondary)]">
+                Net of banker commission; no Exchange charge
+              </p>
+            ) : null}
           </td>
           <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] text-[var(--qp-text-secondary)]">{row.code}</td>
           <td className="px-[var(--qp-cell-px)] py-[var(--qp-cell-py)] text-right tabular-nums">
