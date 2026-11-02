@@ -23,16 +23,11 @@ import { bankerLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
-function todayIso() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
-
 export default function LedgerPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('LEDGER')
   const [filters, setFilters] = useQueryStates({
-    date_from: parseAsString.withDefault(todayIso()),
-    date_to: parseAsString.withDefault(todayIso()),
+    date_from: parseAsString.withDefault(''),
+    date_to: parseAsString.withDefault(''),
     account_kind: parseAsString.withDefault('BANKER'),
     owner_user_id: parseAsString.withDefault(''),
     bank_account_id: parseAsString.withDefault(''),
@@ -194,7 +189,7 @@ export default function LedgerPage() {
           ) : null
         }
       />
-      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: todayIso(), date_to: todayIso(), account_kind: 'BANKER', owner_user_id: '', bank_account_id: '', party_id: '', merchant_id: '', agent_user_id: '', q: '', event_type: '', direction: '', page: 1, page_size: 100 }) }} onReload={() => void load()}>
+      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: '', date_to: '', account_kind: 'BANKER', owner_user_id: '', bank_account_id: '', party_id: '', merchant_id: '', agent_user_id: '', q: '', event_type: '', direction: '', page: 1, page_size: 100 }) }} onReload={() => void load()}>
         {!isMerchant ? (
           <>
             <FormField label="Account">
