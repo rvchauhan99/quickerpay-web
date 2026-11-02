@@ -83,7 +83,6 @@ export default function PartiesPage() {
   return (
     <AppShell title="Party Master" role={user.role} menus={menus}>
       <PageHeader
-        title="Party Master"
         action={
           hasMenu(menus, 'PARTIES', 'can_create') ? (
             <PrimaryButton type="button" onClick={() => setShowCreate(true)}>

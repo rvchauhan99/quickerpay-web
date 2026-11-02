@@ -149,7 +149,6 @@ export default function SupagoBanksPage() {
   return (
     <AppShell title="Supago Banks" role={user.role} menus={menus}>
       <PageHeader
-        title="Supago Banks"
         action={
           canEdit ? (
             <PrimaryButton disabled={resyncing} onClick={() => void handleResyncAll()}>

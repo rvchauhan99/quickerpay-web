@@ -132,7 +132,7 @@ export default function PayoutDetailPage() {
 
   return (
     <AppShell title="Pending Withdrawal Detail" role={user.role} menus={menus}>
-      <PageHeader title="Pending Withdrawal Detail" backHref="/payout" backLabel="Pending Withdrawal" />
+      <PageHeader backHref="/payout" backLabel="Pending Withdrawal" />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>

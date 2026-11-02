@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { TenantSettingsView } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
@@ -193,7 +193,6 @@ export default function SettingsPage() {
 
   return (
     <AppShell title="Settings" role={user.role} menus={menus}>
-      <PageHeader title="Settings" />
       <div className="mb-qp-gap">
         {saved ? <ErrorAlert message="Settings saved successfully" type="success" /> : null}
         <ErrorAlert message={error} />

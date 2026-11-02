@@ -172,9 +172,6 @@ export function HawalaEntryForm({
 
   return (
     <section className="mb-qp-gap" aria-label="Hawala Transaction">
-      <h2 className="mb-2 text-base font-semibold" style={{ color: 'var(--qp-text-primary)' }}>
-        Hawala Transaction
-      </h2>
       <div
         className="overflow-visible rounded-qp border"
         style={{ borderColor: 'var(--qp-border)', backgroundColor: 'var(--qp-card)' }}

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { AuditLogItem, Pagination } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, TableSkeleton } from '@/components/ui/FilterBar'
 import { Input } from '@/components/forms/Input'
 import { FormField } from '@/components/forms/FormField'
@@ -70,9 +70,6 @@ export default function AuditPage() {
 
   return (
     <AppShell title="Audit" role={user.role} menus={menus}>
-      <PageHeader
-        title="Audit"
-      />
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', actor: '', action: '', entity_type: '', ip: '', request_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value, page: 1 })} aria-label="Start Date" />

@@ -5,7 +5,7 @@ import { parseAsString, useQueryStates } from 'nuqs'
 import type { ReportRun, ReportType } from '@quickerpay/shared-types'
 import { REPORT_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, TableSkeleton } from '@/components/ui/FilterBar'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
@@ -65,9 +65,6 @@ export default function ReportsPage() {
 
   return (
     <AppShell title="Reports" role={user.role} menus={menus}>
-      <PageHeader
-        title="Reports"
-      />
       <FilterBar onApply={() => void handleRun()} onClear={() => void setFilters({ type: 'commission', date_from: '', date_to: '', owner_user_id: '', banker_user_id: '', merchant_id: '', bank_account_id: '' })} onReload={() => void handleRun()}>
         <FormField label="Report Type">
           <Select value={filters.type} onChange={(event) => void setFilters({ type: event.target.value })} aria-label="Report type">

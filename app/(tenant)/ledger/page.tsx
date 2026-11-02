@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
+import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { BankAccountListItem, LedgerAdjustment, LedgerStatement, UserListItem } from '@quickerpay/shared-types'
 import { LEDGER_DIRECTIONS, LEDGER_EVENT_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
@@ -37,6 +37,7 @@ export default function LedgerPage() {
     q: parseAsString.withDefault(''),
     event_type: parseAsString.withDefault(''),
     direction: parseAsString.withDefault(''),
+    show_deleted_unclaimed: parseAsBoolean.withDefault(false),
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(100),
   })
@@ -91,6 +92,7 @@ export default function LedgerPage() {
       } else {
         if (filters.event_type) query.set('event_type', filters.event_type)
         if (filters.direction) query.set('direction', filters.direction)
+        if (filters.show_deleted_unclaimed) query.set('show_deleted_unclaimed', 'true')
         if (!isWide || filters.account_kind === 'BANKER') {
           if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
           if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
@@ -179,7 +181,6 @@ export default function LedgerPage() {
   return (
     <AppShell title={title} role={user.role} menus={menus}>
       <PageHeader
-        title={title}
         action={
           !isMerchant && isSuperAdmin && filters.owner_user_id ? (
             <PrimaryButton onClick={() => setAdjustOpen(true)}>
@@ -189,7 +190,7 @@ export default function LedgerPage() {
           ) : null
         }
       />
-      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: '', date_to: '', account_kind: 'BANKER', owner_user_id: '', bank_account_id: '', party_id: '', merchant_id: '', agent_user_id: '', q: '', event_type: '', direction: '', page: 1, page_size: 100 }) }} onReload={() => void load()}>
+      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: '', date_to: '', account_kind: 'BANKER', owner_user_id: '', bank_account_id: '', party_id: '', merchant_id: '', agent_user_id: '', q: '', event_type: '', direction: '', show_deleted_unclaimed: false, page: 1, page_size: 100 }) }} onReload={() => void load()}>
         {!isMerchant ? (
           <>
             <FormField label="Account">
@@ -298,6 +299,17 @@ export default function LedgerPage() {
                 ))}
               </Select>
             </FormField>
+            <FormField label="Show deleted unclaimed">
+              <div className="flex h-10 items-center px-1">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-600"
+                  checked={filters.show_deleted_unclaimed}
+                  onChange={(event) => void setFilters({ show_deleted_unclaimed: event.target.checked, page: 1 })}
+                  aria-label="Show deleted unclaimed"
+                />
+              </div>
+            </FormField>
           </>
         ) : null}
         <div>
@@ -319,6 +331,7 @@ export default function LedgerPage() {
               if (filters.agent_user_id) query.set('agent_user_id', filters.agent_user_id)
               if (filters.event_type) query.set('event_type', filters.event_type)
               if (filters.direction) query.set('direction', filters.direction)
+              if (filters.show_deleted_unclaimed) query.set('show_deleted_unclaimed', 'true')
               void downloadExport(`/api/v1/ledger/export?${query}`, accessToken, 'ledger.csv')
             }}
           />

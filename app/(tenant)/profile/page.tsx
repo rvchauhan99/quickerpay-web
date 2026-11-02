@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
+import { PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
 import { FormGrid } from '@/components/forms/FormGrid'
@@ -148,8 +148,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <AppShell title="Profile" role={user.role} menus={menus}>
-      <PageHeader title="Profile & Security" />
+    <AppShell title="Profile & Security" role={user.role} menus={menus}>
       {mustChangePassword ? (
         <div className="mb-qp-gap">
           <ErrorAlert message="Change your temporary password to continue. Sign in again after saving." />

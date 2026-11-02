@@ -111,7 +111,6 @@ export default function MerchantsPage() {
   return (
     <AppShell title={merchantLabel({ plural: true })} role={user.role} menus={menus}>
       <PageHeader
-        title={merchantLabel({ plural: true })}
         action={
           hasMenu(menus, 'MERCHANTS', 'can_create') ? (
             <PrimaryButton href="/merchants/new">

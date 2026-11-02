@@ -114,7 +114,7 @@ export default function AgentDetailPage() {
 
   return (
     <AppShell title={agent?.username ?? agentLabel()} role={user.role} menus={menus}>
-      <PageHeader title={agent?.username ?? agentLabel()} />
+      <PageHeader backHref="/agents" backLabel={agentLabel({ plural: true })} />
       {error ? <ErrorAlert message={error} /> : null}
       {loading || !agent ? (
         <TableSkeleton />

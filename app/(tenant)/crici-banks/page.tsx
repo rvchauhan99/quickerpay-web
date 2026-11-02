@@ -149,7 +149,6 @@ export default function CriciBanksPage() {
   return (
     <AppShell title="Crici Banks" role={user.role} menus={menus}>
       <PageHeader
-        title="Crici Banks"
         action={
           canEdit ? (
             <PrimaryButton disabled={resyncing} onClick={() => void handleResyncAll()}>

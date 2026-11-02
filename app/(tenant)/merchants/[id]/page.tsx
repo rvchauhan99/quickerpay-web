@@ -677,9 +677,8 @@ export default function MerchantDetailPage() {
   ]
 
   return (
-    <AppShell title={`${merchantLabel()} Detail`} role={user.role} menus={menus}>
+    <AppShell title={merchant?.display_name ?? `${merchantLabel()} Detail`} role={user.role} menus={menus}>
       <PageHeader
-        title={merchant?.display_name ?? `${merchantLabel()} Detail`}
         {...(merchant ? { subtitle: `${merchant.merchant_code} · ${merchant.legal_name}` } : {})}
         backHref="/merchants"
         backLabel={merchantLabel({ plural: true })}

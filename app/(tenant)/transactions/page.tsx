@@ -6,7 +6,7 @@ import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { Pagination, TransactionListItem } from '@quickerpay/shared-types'
 import { TRANSACTION_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, FilterBar, StatusBadge, TableSkeleton, EmptyState, ExportButton } from '@/components/ui/FilterBar'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
@@ -73,9 +73,6 @@ export default function TransactionsPage() {
 
   return (
     <AppShell title="Transactions" role={user.role} menus={menus}>
-      <PageHeader
-        title="Transactions"
-      />
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', banker_user_id: '', page: 1 })} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />

@@ -199,7 +199,7 @@ export default function NewMerchantPage() {
 
   return (
     <AppShell title={`Create ${label}`} role={user.role} menus={menus}>
-      <PageHeader title={`Create ${label}`} backHref="/merchants" backLabel={merchantLabel({ plural: true })} />
+      <PageHeader backHref="/merchants" backLabel={merchantLabel({ plural: true })} />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>

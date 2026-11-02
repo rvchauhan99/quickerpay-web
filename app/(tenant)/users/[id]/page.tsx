@@ -155,9 +155,8 @@ export default function UserDetailPage() {
   ) : null
 
   return (
-    <AppShell title="User Detail" role={user.role} menus={menus}>
+    <AppShell title={detail ? detail.display_name : 'User Detail'} role={user.role} menus={menus}>
       <PageHeader
-        title={detail ? `${detail.display_name}` : 'User Detail'}
         {...(detail ? { subtitle: `@${detail.username} · ${roleLabel(detail.role)}` } : {})}
         backHref="/users"
         backLabel="Users"

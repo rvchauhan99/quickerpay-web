@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { Pagination, UpiAccountListItem, UpiStatusHistoryItem } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, FilterBar, StatusBadge, TableSkeleton, EmptyState, ExportButton } from '@/components/ui/FilterBar'
 import { Input } from '@/components/forms/Input'
 import { FormField } from '@/components/forms/FormField'
@@ -70,9 +70,6 @@ export default function UpiPage() {
 
   return (
     <AppShell title="UPI" role={user.role} menus={menus}>
-      <PageHeader
-        title="UPI"
-      />
       <FilterBar onApply={() => void load()} onClear={() => void setFilters({ page: 1, q: '', owner_user_id: '' })} onReload={() => void load()}>
         <FormField label="Search">
           <Input placeholder="Search" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />

@@ -4,33 +4,33 @@ import Link from 'next/link'
 import { Button } from './Button'
 
 /* ─── PageHeader ──────────────────────────────────────────────────────────────
-   Standard header for all list and detail pages.
+   Toolbar above a page's content: back link, subtitle, meta, actions.
+   The screen title lives only in the AppShell header; this never repeats it.
+   Renders nothing when there is no back link, subtitle, meta or action.
    Usage:
      <PageHeader
-       title="User Management"
        subtitle="12 users"
        action={<a href="/users/new">+ New User</a>}
      />
 ──────────────────────────────────────────────────────────────────────────── */
 export function PageHeader({
-  title,
   subtitle,
   backHref,
   backLabel,
   action,
   meta,
 }: {
-  title: string
   subtitle?: string
   backHref?: string
   backLabel?: string
   action?: React.ReactNode
-  /** Inline secondary info rendered after the title (counts, live indicators). */
+  /** Inline secondary info (counts, live indicators, as-of time). */
   meta?: React.ReactNode
 }) {
+  if (!backHref && !subtitle && !meta && !action) return null
   return (
     <div className="mb-qp-gap flex min-h-qp-ctl flex-wrap items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
         {backHref ? (
           <Link
             href={backHref}
@@ -43,17 +43,12 @@ export function PageHeader({
             {backLabel ?? 'Back'}
           </Link>
         ) : null}
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-          <h2 className="truncate text-[15px] font-semibold leading-tight" style={{ color: 'var(--qp-text-primary)' }}>
-            {title}
-          </h2>
-          {subtitle ? (
-            <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>{subtitle}</p>
-          ) : null}
-          {meta ? <div className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>{meta}</div> : null}
-        </div>
+        {subtitle ? (
+          <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>{subtitle}</p>
+        ) : null}
+        {meta ? <div className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>{meta}</div> : null}
       </div>
-      {action ? <div className="flex flex-wrap items-center gap-1.5">{action}</div> : null}
+      {action ? <div className="ml-auto flex flex-wrap items-center gap-1.5">{action}</div> : null}
     </div>
   )
 }

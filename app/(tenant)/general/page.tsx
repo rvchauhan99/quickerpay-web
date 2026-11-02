@@ -129,7 +129,6 @@ export default function GeneralPage() {
   return (
     <AppShell title="General Management" role={user.role} menus={menus}>
       <PageHeader
-        title="General Management"
         meta={
           position ? (
             <span>
