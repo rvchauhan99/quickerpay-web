@@ -113,7 +113,12 @@ export default function BankersPage() {
           ) : null
         }
       />
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ status: '', q: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={() => void setFilters({ status: '', q: '', page: 1 })}
+        onReload={() => void load()}
+        actions={<ExportButton disabled={rows.length === 0} />}
+      >
         <FormField label="Status">
           <Select value={filters.status} onChange={(event) => void setFilters({ status: event.target.value })} aria-label="Status">
             <option value="">All statuses</option>
@@ -125,9 +130,6 @@ export default function BankersPage() {
         <FormField label="Search">
           <Input placeholder="Search" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
-        <div>
-          <ExportButton disabled={rows.length === 0} />
-        </div>
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />

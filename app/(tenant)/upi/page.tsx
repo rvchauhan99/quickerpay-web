@@ -70,7 +70,12 @@ export default function UpiPage() {
 
   return (
     <AppShell title="UPI" role={user.role} menus={menus}>
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ page: 1, q: '', owner_user_id: '' })} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={() => void setFilters({ page: 1, q: '', owner_user_id: '' })}
+        onReload={() => void load()}
+        actions={<ExportButton disabled={rows.length === 0} />}
+      >
         <FormField label="Search">
           <Input placeholder="Search" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
@@ -83,9 +88,6 @@ export default function UpiPage() {
             showMerchant={false}
           />
         ) : null}
-        <div>
-          <ExportButton disabled={rows.length === 0} />
-        </div>
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />

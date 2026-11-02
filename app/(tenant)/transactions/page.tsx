@@ -73,7 +73,28 @@ export default function TransactionsPage() {
 
   return (
     <AppShell title="Transactions" role={user.role} menus={menus}>
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', banker_user_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={() => void setFilters({ date_from: '', date_to: '', type: '', status: '', q: '', merchant_id: '', banker_user_id: '', page: 1 })}
+        onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'TRANSACTIONS', 'can_export')}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.type) query.set('type', filters.type)
+              if (filters.status) query.set('status', filters.status)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+              void downloadExport(`/api/v1/transactions/export?${query}`, accessToken, 'transactions.csv')
+            }}
+          />
+        }
+      >
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -101,23 +122,6 @@ export default function TransactionsPage() {
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
-        <div>
-          <ExportButton
-            disabled={rows.length === 0}
-            canExport={hasMenu(menus, 'TRANSACTIONS', 'can_export')}
-            onExport={() => {
-              const query = new URLSearchParams()
-              if (filters.date_from) query.set('date_from', filters.date_from)
-              if (filters.date_to) query.set('date_to', filters.date_to)
-              if (filters.type) query.set('type', filters.type)
-              if (filters.status) query.set('status', filters.status)
-              if (filters.q) query.set('q', filters.q)
-              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
-              void downloadExport(`/api/v1/transactions/export?${query}`, 'transactions.csv', accessToken!)
-            }}
-          />
-        </div>
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />

@@ -496,7 +496,7 @@ export function ExportButton({
   }
   const isDisabled = disabled || !canExport || !onExport
   return (
-    <Button variant="secondary" disabled={isDisabled} onClick={handleClick} icon={<DownloadIcon />}>
+    <Button variant="success" disabled={isDisabled} onClick={handleClick} icon={<DownloadIcon />}>
       Export Excel
     </Button>
   )

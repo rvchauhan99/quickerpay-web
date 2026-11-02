@@ -665,6 +665,7 @@ export default function BanksPage() {
         onApply={() => void load()}
         onClear={() => void setFilters({ q: '', status: '', owner_user_id: '', page: 1 })}
         onReload={() => void load()}
+        actions={<ExportButton disabled={rows.length === 0} />}
       >
         <FormField label="Search">
           <Input placeholder="Search" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
@@ -690,9 +691,6 @@ export default function BanksPage() {
             showMerchant={false}
           />
         ) : null}
-        <div>
-          <ExportButton disabled={rows.length === 0} />
-        </div>
       </FilterBar>
 
       {formOpen ? (

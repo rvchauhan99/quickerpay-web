@@ -245,7 +245,12 @@ export default function UsersPage() {
           .
         </p>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ role: '', status: '', q: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={() => void setFilters({ role: '', status: '', q: '', page: 1 })}
+        onReload={() => void load()}
+        actions={<ExportButton disabled={rows.length === 0} />}
+      >
         {isBanker ? null : (
           <FormField label="Role">
             <Select value={filters.role} onChange={(event) => void setFilters({ role: event.target.value })} aria-label="Role">
@@ -267,9 +272,6 @@ export default function UsersPage() {
         <FormField label="Search">
           <Input placeholder="Search" value={filters.q} onChange={(event) => void setFilters({ q: event.target.value })} aria-label="Search" />
         </FormField>
-        <div>
-          <ExportButton disabled={rows.length === 0} />
-        </div>
       </FilterBar>
       {creating ? (
         <div className="mb-qp-gap">

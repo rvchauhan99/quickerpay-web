@@ -61,5 +61,7 @@ export interface CommissionEntry {
   margin_minor?: number | null
   /** True once a refund or an unclaimed delete reversed this snapshot's commission. */
   reversed: boolean
+  /** From the linked transaction; null when the txn has no UTR. */
+  utr: string | null
   created_at: string
 }

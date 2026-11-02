@@ -460,6 +460,23 @@ export default function PayinPage() {
           })
         }
         onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'PAYIN', 'can_export')}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (filters.status) query.set('status', filters.status)
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+              if (isInjectMode) query.set('injection', 'true')
+              void downloadExport(`/api/v1/payin/export?${query}`, accessToken, 'payins.csv')
+            }}
+          />
+        }
       >
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
@@ -489,23 +506,6 @@ export default function PayinPage() {
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
-        <div>
-          <ExportButton
-            disabled={rows.length === 0}
-            canExport={hasMenu(menus, 'PAYIN', 'can_export')}
-            onExport={() => {
-              const query = new URLSearchParams()
-              if (filters.status) query.set('status', filters.status)
-              if (filters.date_from) query.set('date_from', filters.date_from)
-              if (filters.date_to) query.set('date_to', filters.date_to)
-              if (filters.q) query.set('q', filters.q)
-              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
-              if (isInjectMode) query.set('injection', 'true')
-              void downloadExport(`/api/v1/payin/export?${query}`, 'payins.csv', accessToken!)
-            }}
-          />
-        </div>
       </FilterBar>
 
       {canCreateInjection ? (

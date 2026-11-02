@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { parseAsString, useQueryStates } from 'nuqs'
+import { parseAsBoolean, parseAsString, useQueryStates } from 'nuqs'
 import type { ReportRun, ReportType } from '@quickerpay/shared-types'
 import { REPORT_TYPES } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
@@ -27,10 +27,13 @@ export default function ReportsPage() {
     banker_user_id: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
     bank_account_id: parseAsString.withDefault(''),
+    show_deleted_unclaimed: parseAsBoolean.withDefault(false),
   })
   const [run, setRun] = useState<ReportRun | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const showDeletedFilter = filters.type === 'commission' || filters.type === 'ledger'
 
   const queryString = () => {
     const query = new URLSearchParams()
@@ -40,6 +43,7 @@ export default function ReportsPage() {
     if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
+    if (showDeletedFilter && filters.show_deleted_unclaimed) query.set('show_deleted_unclaimed', 'true')
     return query.toString()
   }
 
@@ -65,7 +69,35 @@ export default function ReportsPage() {
 
   return (
     <AppShell title="Reports" role={user.role} menus={menus}>
-      <FilterBar onApply={() => void handleRun()} onClear={() => void setFilters({ type: 'commission', date_from: '', date_to: '', owner_user_id: '', banker_user_id: '', merchant_id: '', bank_account_id: '' })} onReload={() => void handleRun()}>
+      <FilterBar
+        onApply={() => void handleRun()}
+        onClear={() =>
+          void setFilters({
+            type: 'commission',
+            date_from: '',
+            date_to: '',
+            owner_user_id: '',
+            banker_user_id: '',
+            merchant_id: '',
+            bank_account_id: '',
+            show_deleted_unclaimed: false,
+          })
+        }
+        onReload={() => void handleRun()}
+        actions={
+          <ExportButton
+            disabled={!run || run.rows.length === 0}
+            canExport={hasMenu(menus, 'REPORTS', 'can_export')}
+            onExport={() =>
+              void downloadExport(
+                `/api/v1/reports/${filters.type as ReportType}/export?${queryString()}`,
+                accessToken,
+                `${filters.type}-report.csv`,
+              )
+            }
+          />
+        }
+      >
         <FormField label="Report Type">
           <Select value={filters.type} onChange={(event) => void setFilters({ type: event.target.value })} aria-label="Report type">
             {REPORT_TYPES.map((type) => (
@@ -97,13 +129,19 @@ export default function ReportsPage() {
             <Input placeholder="Bank account id" value={filters.bank_account_id} onChange={(event) => void setFilters({ bank_account_id: event.target.value, owner_user_id: '' })} aria-label="Bank" />
           </FormField>
         ) : null}
-        <div>
-          <ExportButton
-            disabled={!run || run.rows.length === 0}
-            canExport={hasMenu(menus, 'REPORTS', 'can_export')}
-            onExport={() => void downloadExport(`/api/v1/reports/${filters.type as ReportType}/export?${queryString()}`, `${filters.type}-report.csv`, accessToken!)}
-          />
-        </div>
+        {showDeletedFilter ? (
+          <FormField label="Show deleted unclaimed">
+            <div className="flex h-10 items-center px-1">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-600"
+                checked={filters.show_deleted_unclaimed}
+                onChange={(event) => void setFilters({ show_deleted_unclaimed: event.target.checked })}
+                aria-label="Show deleted unclaimed"
+              />
+            </div>
+          </FormField>
+        ) : null}
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />

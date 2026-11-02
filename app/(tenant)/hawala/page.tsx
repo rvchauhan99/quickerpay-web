@@ -245,6 +245,22 @@ export default function HawalaPage() {
           void loadHistory({ page: 1, clearAll: true })
         }}
         onReload={() => void loadHistory()}
+        actions={
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'HAWALA', 'can_export')}
+            onExport={() => {
+              const query = listQueryParams()
+              query.delete('page')
+              query.delete('page_size')
+              void downloadExport(
+                `/api/v1/hawala/export?${query}`,
+                accessToken,
+                portalMode ? 'inter-transfer.csv' : 'hawala.csv',
+              )
+            }}
+          />
+        }
       >
         <FormField label="Start Date">
           <Input
@@ -351,22 +367,6 @@ export default function HawalaPage() {
             </FormField>
           </>
         )}
-        <div>
-          <ExportButton
-            disabled={rows.length === 0}
-            canExport={hasMenu(menus, 'HAWALA', 'can_export')}
-            onExport={() => {
-              const query = listQueryParams()
-              query.delete('page')
-              query.delete('page_size')
-              void downloadExport(
-                `/api/v1/hawala/export?${query}`,
-                portalMode ? 'inter-transfer.csv' : 'hawala.csv',
-                accessToken!,
-              )
-            }}
-          />
-        </div>
       </FilterBar>
 
       <DataTable

@@ -107,6 +107,31 @@ export default function BankTransactionsHistoryPage() {
           })
         }
         onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={
+              !statement ||
+              statement.pagination.total === 0 ||
+              !(hasMenu(menus, 'BANKS', 'can_export') || hasMenu(menus, 'LEDGER', 'can_export'))
+            }
+            onExport={() =>
+              void downloadExport(
+                `/api/v1/ledger/export?${filterQuery(
+                  {
+                    date_from: filters.date_from,
+                    date_to: filters.date_to,
+                    q: filters.q,
+                    event_type: filters.event_type,
+                    direction: filters.direction,
+                  },
+                  params.id,
+                )}`,
+                accessToken,
+                'ledger.csv',
+              )
+            }
+          />
+        }
       >
         <FormField label="From Date">
           <Input
@@ -160,31 +185,6 @@ export default function BankTransactionsHistoryPage() {
             ))}
           </Select>
         </FormField>
-        <div>
-          <ExportButton
-            disabled={
-              !statement ||
-              statement.pagination.total === 0 ||
-              !(hasMenu(menus, 'BANKS', 'can_export') || hasMenu(menus, 'LEDGER', 'can_export'))
-            }
-            onExport={() =>
-              void downloadExport(
-                `/api/v1/ledger/export?${filterQuery(
-                  {
-                    date_from: filters.date_from,
-                    date_to: filters.date_to,
-                    q: filters.q,
-                    event_type: filters.event_type,
-                    direction: filters.direction,
-                  },
-                  params.id,
-                )}`,
-                accessToken,
-                'ledger.csv',
-              )
-            }
-          />
-        </div>
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
