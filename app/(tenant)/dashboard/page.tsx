@@ -5,6 +5,7 @@ import { parseAsString, useQueryStates } from 'nuqs'
 import type {
   BankAccountListItem,
   DashboardInsights,
+  DashboardMyAccountKind,
   DashboardSummary,
   MenuCode,
   MerchantListItem,
@@ -39,6 +40,7 @@ const EMPTY: DashboardSummary = {
   hawala: { amount_minor: 0, count: 0 },
   refunded_minor: 0,
   my_account_minor: null,
+  my_account_kind: null,
   banker_wise: [],
   pending_approvals: 0,
   failed_transactions: 0,
@@ -53,6 +55,26 @@ const EMPTY: DashboardSummary = {
     { rate_kind: 'PAYIN', banker_commission_minor: 0, margin_minor: 0 },
     { rate_kind: 'PAYOUT', banker_commission_minor: 0, margin_minor: 0 },
   ],
+}
+
+function myAccountHint(kind: DashboardMyAccountKind | null | undefined): string {
+  if (kind === 'COMMISSION_PROFIT') return 'Lifetime commission profit'
+  if (kind === 'EXCHANGE_POSITION') return 'Exchange position'
+  return 'Live balance'
+}
+
+function myAccountHref(
+  kind: DashboardMyAccountKind | null | undefined,
+  canView: (code: MenuCode) => boolean,
+): string | undefined {
+  if (kind === 'COMMISSION_PROFIT') return canView('COMMISSION') ? '/commission' : undefined
+  if (kind === 'BANKER_BALANCE') return canView('LEDGER') ? '/ledger' : undefined
+  if (kind === 'EXCHANGE_POSITION') {
+    if (canView('LEDGER')) return '/ledger'
+    if (canView('TRANSACTIONS')) return '/transactions'
+    if (canView('PAYIN')) return '/payin'
+  }
+  return undefined
 }
 
 const EMPTY_INSIGHTS: DashboardInsights = {
@@ -442,11 +464,21 @@ export default function DashboardPage() {
       ) : null}
       <div className="space-y-qp-gap" aria-busy={loading}>
         {isOperator ? (
-          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-5">
             <StatCard label="Assigned queue" tone="info" href={payinHref('status=IN_PROCESS')}>{data.assigned_queue_depth}</StatCard>
             <StatCard label="Processed today" tone="success" href={payinHref(`status=COMPLETED&${range}`)}>{data.processed_today}</StatCard>
             <StatCard label="Pending UTRs" tone="warning" href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.pending_utrs}</StatCard>
             <StatCard label="Failed" tone="danger" href={failedHref}>{data.failed_transactions}</StatCard>
+            {data.my_account_minor !== null ? (
+              <StatCard
+                label="My Account"
+                tone="info"
+                hint={myAccountHint(data.my_account_kind)}
+                href={myAccountHref(data.my_account_kind, canView)}
+              >
+                <MoneyDisplay amountMinor={data.my_account_minor} />
+              </StatCard>
+            ) : null}
           </div>
         ) : isAdmin ? (
           <>
@@ -460,9 +492,16 @@ export default function DashboardPage() {
               <StatCard label="Total Refunded" tone="neutral" href={payinHref(`status=REFUND&${range}`)}>
                 <MoneyDisplay amountMinor={data.refunded_minor} />
               </StatCard>
-              <StatCard label="My Account" tone="info" hint="Live balance" href={canView('LEDGER') ? '/ledger' : undefined}>
-                <MoneyDisplay amountMinor={data.my_account_minor} />
-              </StatCard>
+              {data.my_account_minor !== null ? (
+                <StatCard
+                  label="My Account"
+                  tone="info"
+                  hint={myAccountHint(data.my_account_kind)}
+                  href={myAccountHref(data.my_account_kind, canView)}
+                >
+                  <MoneyDisplay amountMinor={data.my_account_minor} />
+                </StatCard>
+              ) : null}
             </div>
             <div className="grid grid-cols-2 gap-qp-gap sm:grid-cols-3 lg:grid-cols-5">
               <StatCard label="Commission PAYIN" tone="success" href={canView('COMMISSION') ? `/commission?${range}` : undefined}>
@@ -481,7 +520,7 @@ export default function DashboardPage() {
             </div>
           </>
         ) : (
-          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-3 lg:grid-cols-6">
             <StatCard label="PAY-IN" tone="primary" hint={`${data.payin.count} txns`} href={payinHref(`status=COMPLETED&${range}`)}>
               <MoneyDisplay amountMinor={data.payin.amount_minor} />
             </StatCard>
@@ -507,6 +546,16 @@ export default function DashboardPage() {
             >
               <MoneyDisplay amountMinor={data.unclaimed_amount_minor} />
             </StatCard>
+            {data.my_account_minor !== null ? (
+              <StatCard
+                label="My Account"
+                tone="info"
+                hint={myAccountHint(data.my_account_kind)}
+                href={myAccountHref(data.my_account_kind, canView)}
+              >
+                <MoneyDisplay amountMinor={data.my_account_minor} />
+              </StatCard>
+            ) : null}
           </div>
         )}
 

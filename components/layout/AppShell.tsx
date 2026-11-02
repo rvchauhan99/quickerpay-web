@@ -344,8 +344,9 @@ export function AppShell({
 
   useEffect(() => {
     if (isBankerPath(pathname)) setBankerExpanded(true)
-    if (isMorePath(pathname)) setMoreExpanded(true)
-  }, [pathname])
+    // MERCHANT / BANKER flatten More into the primary rail — do not auto-expand More.
+    if (role !== 'MERCHANT' && role !== 'BANKER' && isMorePath(pathname)) setMoreExpanded(true)
+  }, [pathname, role])
 
   useEffect(() => {
     try {
@@ -422,10 +423,13 @@ export function AppShell({
         }))
 
   const moreItems = items.filter((item) => MORE_CODES.has(item.code))
+  /** Merchant / Banker have few menus — show leftovers on the primary rail, not under More. */
+  const flattenNav = role === 'MERCHANT' || role === 'BANKER'
   const showLabInMore = isLabConsole() && role !== 'MERCHANT' && !forcePasswordChange
   const showMockGpay = isLabConsole() && mockGpayAllowed && role !== 'MERCHANT' && !forcePasswordChange
-  const showMoreButton = !forcePasswordChange && (moreItems.length > 0 || showLabInMore || showMockGpay)
-  const moreActive = isMorePath(pathname)
+  const showMoreButton =
+    !flattenNav && !forcePasswordChange && (moreItems.length > 0 || showLabInMore || showMockGpay)
+  const moreActive = !flattenNav && isMorePath(pathname)
   const bankerActive = isBankerPath(pathname)
   const canView = (code: MenuCode) =>
     !forcePasswordChange && menus.some((grant) => grant.menu_code === code && grant.can_view && panelBankNavVisible(code))
@@ -554,6 +558,23 @@ export function AppShell({
         </li>
       ) : null}
       {PRIMARY_LINKS.slice(2).map((link) => renderPrimaryLink(link, onNavigate))}
+
+      {flattenNav
+        ? moreItems.map((item) => (
+            <li key={item.href}>
+              {onNavigate ? (
+                <NavItem href={item.href} label={item.label} code={item.code} onNavigate={onNavigate} />
+              ) : (
+                <NavItem href={item.href} label={item.label} code={item.code} />
+              )}
+            </li>
+          ))
+        : null}
+      {flattenNav && showMockGpay ? (
+        <li>
+          <LabNavItem href="/mock/gpay" label="GPay mock" {...(onNavigate ? { onNavigate } : {})} />
+        </li>
+      ) : null}
 
       {showMoreButton ? (
         <li className="flex flex-col gap-px mt-4 pt-2 border-t border-[var(--qp-sidebar-border)]">
