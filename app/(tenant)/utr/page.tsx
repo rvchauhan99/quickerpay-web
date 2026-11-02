@@ -13,7 +13,7 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { IconButton } from '@/components/ui/IconButton'
-import { Unlock, X } from 'lucide-react'
+import { Trash2, Unlock, X } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
@@ -41,7 +41,7 @@ export default function UtrPage() {
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
-  const [confirm, setConfirm] = useState<{ id: string; action: 'reject' | 'release' } | null>(null)
+  const [confirm, setConfirm] = useState<{ id: string; action: 'reject' | 'release' | 'delete' } | null>(null)
   const [unclaimedBanner, setUnclaimedBanner] = useState<{ count: number; amount_minor: number } | null>(null)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
@@ -145,16 +145,22 @@ export default function UtrPage() {
     setSubmitting(confirm.id)
     try {
       const headers =
-        confirm.action === 'release'
-          ? { 'Idempotency-Key': `utr-release-${confirm.id}-${Date.now()}` }
-          : undefined
+        confirm.action === 'reject'
+          ? undefined
+          : { 'Idempotency-Key': `utr-${confirm.action}-${confirm.id}-${Date.now()}` }
       await apiRequest(`/api/v1/utr/${confirm.id}/${confirm.action}`, {
         method: 'POST',
         token: accessToken,
         headers,
       })
       setConfirm(null)
-      toast.success(confirm.action === 'release' ? 'UTR released for Manual Accept' : 'UTR rejected')
+      toast.success(
+        confirm.action === 'release'
+          ? 'UTR released for Manual Accept'
+          : confirm.action === 'delete'
+            ? 'Unclaimed UTR deleted'
+            : 'UTR rejected',
+      )
       await load()
     } catch (caught) {
       toast.error(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update UTR')
@@ -295,13 +301,21 @@ export default function UtrPage() {
                     onClick={() => setConfirm({ id: row.id, action: 'reject' })}
                   />
                 </span>
-              ) : row.status === 'UNCLAIMED' && !row.released_at && canRelease ? (
+              ) : row.status === 'UNCLAIMED' && canRelease ? (
                 <span className="flex items-center gap-1">
+                  {!row.released_at ? (
+                    <IconButton
+                      variant="primary"
+                      icon={<Unlock size={15} strokeWidth={1.75} />}
+                      tooltip="Release"
+                      onClick={() => setConfirm({ id: row.id, action: 'release' })}
+                    />
+                  ) : null}
                   <IconButton
-                    variant="primary"
-                    icon={<Unlock size={15} strokeWidth={1.75} />}
-                    tooltip="Release"
-                    onClick={() => setConfirm({ id: row.id, action: 'release' })}
+                    variant="danger"
+                    icon={<Trash2 size={15} strokeWidth={1.75} />}
+                    tooltip="Delete"
+                    onClick={() => setConfirm({ id: row.id, action: 'delete' })}
                   />
                 </span>
               ) : null,
@@ -314,8 +328,21 @@ export default function UtrPage() {
       )}
       {confirm ? (
         <ConfirmDialog
-          title={confirm.action === 'release' ? 'Release this unclaimed UTR?' : 'Reject this UTR?'}
-          confirmLabel={confirm.action === 'release' ? 'Release' : 'Reject'}
+          title={
+            confirm.action === 'release'
+              ? 'Release this unclaimed UTR?'
+              : confirm.action === 'delete'
+                ? 'Delete this unclaimed UTR?'
+                : 'Reject this UTR?'
+          }
+          {...(confirm.action === 'delete'
+            ? {
+                subtitle:
+                  'This reverses the orphan settlement (refund, charges and commission). The ledger, statement and General then net to zero. The row is kept as DELETED for audit.',
+              }
+            : {})}
+          variant={confirm.action === 'release' ? 'primary' : 'danger'}
+          confirmLabel={confirm.action === 'release' ? 'Release' : confirm.action === 'delete' ? 'Delete' : 'Reject'}
           loading={submitting === confirm.id}
           onCancel={() => setConfirm(null)}
           onConfirm={() => void handleAction()}
