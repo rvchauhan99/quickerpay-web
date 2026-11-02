@@ -24,6 +24,9 @@ export interface DashboardKindCommission {
   margin_minor?: number
 }
 
+/** What `my_account_minor` represents for the logged-in actor. Date filters never apply. */
+export type DashboardMyAccountKind = 'COMMISSION_PROFIT' | 'BANKER_BALANCE' | 'EXCHANGE_POSITION'
+
 export interface DashboardSummary {
   payin: DashboardCard
   payout: DashboardCard
@@ -32,8 +35,16 @@ export interface DashboardSummary {
   inter_transfer?: DashboardCard
   hawala: DashboardCard
   refunded_minor: number
-  /** Live BANKER_BALANCE. Date filters do not apply. Null when the caller has no Banker ledger. */
+  /**
+   * Role-perspective My Account. Date filters do not apply.
+   * - SUPER_ADMIN / ADMIN / AUDITOR: lifetime SA commission profit (`margin_minor` sum, orphans excluded)
+   * - BANKER / OPERATOR: live `BANKER_BALANCE` (supervisor Banker for Operator)
+   * - MERCHANT: General Exchange signed position for `actor.merchant_id`
+   * Null when the caller has no My Account figure (e.g. Agent).
+   */
   my_account_minor: number | null
+  /** Present when `my_account_minor` is not null. */
+  my_account_kind: DashboardMyAccountKind | null
   banker_wise: DashboardBankerRow[]
   pending_approvals: number
   failed_transactions: number

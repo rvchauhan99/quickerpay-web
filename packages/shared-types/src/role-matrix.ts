@@ -61,6 +61,8 @@ const MERCHANT_CEILING: MenuCeiling = {
   PAYIN: VIEW_ONLY,
   PAYOUT: ['can_view', 'can_create'],
   TRANSACTIONS: VIEW_ONLY,
+  /** Derived Exchange statement (PAYIN/CHARGES/…), not Hawala MERCHANT_BALANCE. */
+  LEDGER: VIEW_EXPORT,
 }
 
 /** Agent: read-only across Exchanges where merchants.agent_user_id = me. */
@@ -112,6 +114,7 @@ export const MERCHANT_PORTAL_MENUS: readonly MenuCode[] = [
   'PAYIN',
   'PAYOUT',
   'TRANSACTIONS',
+  'LEDGER',
 ] as const
 
 export function roleAllows(role: UserRole, menu: MenuCode, action: MenuAction): boolean {
