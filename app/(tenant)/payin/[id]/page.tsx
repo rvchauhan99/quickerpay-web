@@ -74,7 +74,7 @@ export default function PayinDetailPage() {
 
   return (
     <AppShell title="Pending Deposit Detail" role={user.role} menus={menus}>
-      <PageHeader title="Pending Deposit Detail" />
+      <PageHeader backHref="/payin" backLabel="Pending Deposit" />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
       </div>

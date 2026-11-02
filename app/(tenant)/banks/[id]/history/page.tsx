@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
@@ -93,14 +92,7 @@ export default function BankTransactionsHistoryPage() {
 
   return (
     <AppShell title={title} role={user.role} menus={menus}>
-      <PageHeader
-        title={title}
-        action={
-          <Link href="/banks" className="text-xs underline" style={{ color: 'var(--qp-text-secondary)' }}>
-            Back to Bank Details
-          </Link>
-        }
-      />
+      <PageHeader backHref="/banks" backLabel="Bank Details" />
       <FilterBar
         onApply={() => void setFilters({ page: 1 }).then(() => load())}
         onClear={() =>

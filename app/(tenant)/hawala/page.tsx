@@ -11,7 +11,7 @@ import type {
 import { HAWALA_PARTY_KINDS, HAWALA_STATUSES } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge } from '@/components/ui/FilterBar'
 import { FormField } from '@/components/forms/FormField'
 import { HawalaEntryForm } from '@/components/forms/HawalaEntryForm'
@@ -221,7 +221,6 @@ export default function HawalaPage() {
 
   return (
     <AppShell title={pageTitle} role={user.role} menus={menus}>
-      {canCreate ? null : <PageHeader title={pageTitle} />}
       <ErrorAlert message={error} />
 
       {canCreate && accessToken ? (

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { parseAsString, useQueryStates } from 'nuqs'
 import type { CommissionEntry, CommissionSummary } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
+import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatCard, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
@@ -131,9 +131,6 @@ export default function CommissionPage() {
 
   return (
     <AppShell title="Commission" role={user.role} menus={menus}>
-      <PageHeader
-        title="Commission"
-      />
       <FilterBar onApply={() => void load()} onClear={handleClear} onReload={() => void load()}>
         <FormField label="From Date">
           <Input type="date" value={dateFrom} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />

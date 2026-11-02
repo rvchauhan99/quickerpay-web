@@ -6,7 +6,6 @@ import type { Pagination, UpiAccountListItem, UtrListItem } from '@quickerpay/sh
 import { UTR_STATUSES } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormField } from '@/components/forms/FormField'
@@ -172,7 +171,6 @@ export default function UtrPage() {
 
   return (
     <AppShell title="Banker UTR Entries" role={user.role} menus={menus}>
-      <PageHeader title="Banker UTR Entries" />
       <p className="mb-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
         UTR entries are recorded from bank transactions via the extension (BOT). Manual Add on this screen
         is not allowed.

@@ -425,7 +425,6 @@ export default function PayinPage() {
   return (
     <AppShell title={isInjectMode ? 'Payin Injection' : 'Pending Deposit'} role={user.role} menus={menus}>
       <PageHeader
-        title={isInjectMode ? 'Payin Injection' : 'Pending Deposit'}
         action={
           !isInjectMode && hasMenu(menus, 'PAYIN', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
             <PrimaryButton onClick={() => setCreating(true)}>

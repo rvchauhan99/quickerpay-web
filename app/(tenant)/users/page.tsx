@@ -220,7 +220,6 @@ export default function UsersPage() {
   return (
     <AppShell title="User Management" role={user.role} menus={menus}>
       <PageHeader
-        title="User Management"
         action={
           hasMenu(menus, 'USERS', 'can_create') ? (
             isBanker ? (

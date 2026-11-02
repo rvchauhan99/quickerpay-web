@@ -108,7 +108,6 @@ export default function AgentsPage() {
   return (
     <AppShell title={agentLabel({ plural: true })} role={user.role} menus={menus}>
       <PageHeader
-        title={agentLabel({ plural: true })}
         action={
           hasMenu(menus, 'USERS', 'can_create') ? (
             <PrimaryButton href="/agents/new">

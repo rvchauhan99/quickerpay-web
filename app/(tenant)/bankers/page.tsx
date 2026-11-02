@@ -104,7 +104,6 @@ export default function BankersPage() {
   return (
     <AppShell title="Banker Master" role={user.role} menus={menus}>
       <PageHeader
-        title="Banker Master"
         action={
           hasMenu(menus, 'USERS', 'can_create') ? (
             <PrimaryButton href="/bankers/new">

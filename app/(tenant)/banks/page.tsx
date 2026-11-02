@@ -647,7 +647,6 @@ export default function BanksPage() {
   return (
     <AppShell title="Payment Methods" role={user.role} menus={menus}>
       <PageHeader
-        title="Payment Methods"
         subtitle="UPI, Manual bank, and USDT/TRC20 — one row per Banker instrument"
         action={
           hasMenu(menus, 'BANKS', 'can_create') ? (

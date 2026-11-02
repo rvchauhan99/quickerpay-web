@@ -329,7 +329,6 @@ export default function PayoutPage() {
   return (
     <AppShell title={payoutTitle} role={user.role} menus={menus}>
       <PageHeader
-        title={payoutTitle}
         action={
           canMerchantEnter ? (
             <span className="flex flex-wrap gap-2">
