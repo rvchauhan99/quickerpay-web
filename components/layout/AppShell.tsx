@@ -188,7 +188,14 @@ const PRIMARY_LINKS: PrimaryLink[] = [
   { key: 'parties', code: 'PARTIES', label: 'Party Master', href: '/parties' },
   { key: 'pending-deposit', code: 'PAYIN', label: 'Pending Deposit', href: '/payin' },
   { key: 'pending-withdrawal', code: 'PAYOUT', label: 'Pending Withdrawal', href: '/payout?status=INITIATE' },
-  { key: 'in-process-withdrawal', code: 'PAYOUT', label: 'In Process Withdrawal', href: '/payout?status=INITIATE&assigned=true' },
+  {
+    key: 'in-process-withdrawal',
+    code: 'PAYOUT',
+    label: 'In Process Withdrawal',
+    href: '/payout?status=INITIATE&assigned=true',
+    /** MERCHANT + BANKER: one Pending Withdrawal link only (Merchant filter / Banker assigned-self). */
+    roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR', 'AUDITOR', 'AGENT'],
+  },
   { key: 'hawala', code: 'HAWALA', label: 'Hawala', href: '/hawala' },
   { key: 'general', code: 'GENERAL', label: 'General', href: '/general' },
   {
@@ -273,7 +280,7 @@ function isMorePath(pathname: string): boolean {
   return false
 }
 
-function hrefIsActive(href: string, pathname: string, search: string): boolean {
+function hrefIsActive(href: string, pathname: string, search: string, role?: UserRole): boolean {
   const url = new URL(href, 'http://qp.local')
   const pathOk = pathname === url.pathname || pathname.startsWith(`${url.pathname}/`)
   if (!pathOk) return false
@@ -290,6 +297,10 @@ function hrefIsActive(href: string, pathname: string, search: string): boolean {
     const haveStatus = have.get('status') ?? 'INITIATE'
     if (wantStatus !== haveStatus) return false
     const wantAssigned = want.get('assigned') === 'true'
+    // MERCHANT: one Pending link — stay active across All/Assigned/Not assigned.
+    if (role === 'MERCHANT' && !wantAssigned) return true
+    // BANKER: one Pending link (?assigned=true) — stay active for this status.
+    if (role === 'BANKER') return true
     const haveAssigned = have.get('assigned') === 'true'
     return wantAssigned === haveAssigned
   }
@@ -484,23 +495,28 @@ export function AppShell({
       link.code === 'HAWALA' && (role === 'MERCHANT' || role === 'BANKER')
         ? 'Inter Transfer'
         : link.label
+    // Banker Pending Withdrawal always opens assigned-to-self queue.
+    const href =
+      link.key === 'pending-withdrawal' && role === 'BANKER'
+        ? '/payout?status=INITIATE&assigned=true'
+        : link.href
     return (
       <li key={link.key}>
         {onNavigate ? (
           <NavItem
-            href={link.href}
+            href={href}
             label={label}
             code={link.code}
-            active={hrefIsActive(link.href, pathname, search)}
+            active={hrefIsActive(href, pathname, search, role)}
             {...(icon !== undefined ? { icon } : {})}
             onNavigate={onNavigate}
           />
         ) : (
           <NavItem
-            href={link.href}
+            href={href}
             label={label}
             code={link.code}
-            active={hrefIsActive(link.href, pathname, search)}
+            active={hrefIsActive(href, pathname, search, role)}
             {...(icon !== undefined ? { icon } : {})}
           />
         )}
