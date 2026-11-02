@@ -80,7 +80,6 @@ const EMPTY_INSIGHTS: DashboardInsights = {
   payin_status: [],
   payout_status: [],
   by_merchant: [],
-  by_bank: [],
 }
 
 type Metric = 'amount' | 'count'
@@ -238,17 +237,6 @@ export default function DashboardPage() {
     [data.banker_wise, canView, range],
   )
 
-  const bankData = useMemo<BarDatum[]>(
-    () =>
-      insights.by_bank.map((row) => ({
-        id: row.bank_account_id,
-        label: row.label,
-        values: { payin: row.payin_minor, payout: row.payout_minor },
-        href: canView('BANKS') ? `/banks/${row.bank_account_id}` : undefined,
-      })),
-    [insights.by_bank, canView],
-  )
-
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
@@ -259,6 +247,12 @@ export default function DashboardPage() {
   const failedHref = canView('TRANSACTIONS') ? `/transactions?status=REJECTED&${range}` : undefined
   const payinSuccess = successRate(insights.payin_status)
   const payoutSuccess = successRate(insights.payout_status)
+  const pendingPayins = insights.payin_status
+    .filter((slice) => slice.status === 'INITIATE' || slice.status === 'IN_PROCESS')
+    .reduce((sum, slice) => sum + slice.count, 0)
+  const pendingPayouts = insights.payout_status
+    .filter((slice) => slice.status === 'INITIATE')
+    .reduce((sum, slice) => sum + slice.count, 0)
   const avgPayin = averageMinor(data.payin.amount_minor, data.payin.count)
   const avgPayout = averageMinor(data.payout.amount_minor, data.payout.count)
   const netFlow = data.payin.amount_minor - data.payout.amount_minor
@@ -270,12 +264,12 @@ export default function DashboardPage() {
   const formatCountValue = (value: number) => `${value} txns`
 
   const kpiStrip = (
-    <div className="grid grid-cols-2 gap-qp-gap sm:grid-cols-3 lg:grid-cols-6">
-      <StatCard label="Pay-in success" tone="success" hint="Completed ÷ (completed + rejected)" href={payinHref(`status=COMPLETED&${range}`)}>
-        {payinSuccess ?? '—'}
+    <div className="grid grid-cols-2 gap-qp-gap sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
+      <StatCard label="Pending Pay-ins" tone="warning" hint="INITIATE + IN_PROCESS" href={payinHref(`status=IN_PROCESS&${range}`)}>
+        {pendingPayins}
       </StatCard>
-      <StatCard label="Pay-out success" tone="success" hint="Completed ÷ (completed + rejected)" href={payoutHref(`status=COMPLETED&${range}`)}>
-        {payoutSuccess ?? '—'}
+      <StatCard label="Pending Pay-outs" tone="warning" hint="INITIATE" href={payoutHref(`status=INITIATE&${range}`)}>
+        {pendingPayouts}
       </StatCard>
       <StatCard label="Avg Pay-in ticket" tone="info" hint={`${data.payin.count} completed`}>
         <MoneyDisplay amountMinor={avgPayin} />
@@ -288,6 +282,12 @@ export default function DashboardPage() {
       </StatCard>
       <StatCard label="Refunded" tone="neutral" href={payinHref(`status=REFUND&${range}`)}>
         <MoneyDisplay amountMinor={data.refunded_minor} />
+      </StatCard>
+      <StatCard label="Pay-in success" tone="success" hint="Completed ÷ (completed + rejected)" href={payinHref(`status=COMPLETED&${range}`)}>
+        {payinSuccess ?? '—'}
+      </StatCard>
+      <StatCard label="Pay-out success" tone="success" hint="Completed ÷ (completed + rejected)" href={payoutHref(`status=COMPLETED&${range}`)}>
+        {payoutSuccess ?? '—'}
       </StatCard>
     </div>
   )
@@ -333,27 +333,6 @@ export default function DashboardPage() {
           hrefFor={(status) => payoutHref(`status=${status}&${range}`)}
         />
       </div>
-    </ChartCard>
-  )
-
-  const bankCard = (
-    <ChartCard
-      title="Bank Total Pay-in"
-      subtitle="Top bank accounts by completed volume"
-      loading={loading}
-      error={insightsError}
-      empty={insights.by_bank.length === 0}
-      emptyMessage="No completed bank volume in this range"
-      actions={<ChartLegend items={FLOW_SERIES} />}
-    >
-      <BarChart
-        ariaLabel="Bank Total Pay-in"
-        data={bankData}
-        series={FLOW_SERIES}
-        formatAxis={formatMoneyAxis}
-        formatValue={formatMoneyValue}
-        height={180}
-      />
     </ChartCard>
   )
 
@@ -589,28 +568,23 @@ export default function DashboardPage() {
         ) : null}
 
         {isSuperView && user.role !== 'MERCHANT' ? (
-          <div className="grid grid-cols-1 gap-qp-gap lg:grid-cols-2">
-            <ChartCard
-              title={`${bankerLabel()} Total Pay-in`}
-              subtitle={`Completed volume per ${bankerLabel()}`}
-              loading={loading}
-              empty={data.banker_wise.length === 0}
-              emptyMessage={`No ${bankerLabel()} activity in this range`}
-              actions={<ChartLegend items={FLOW_SERIES} />}
-            >
-              <BarChart
-                ariaLabel={`${bankerLabel()} Total Pay-in`}
-                data={bankerData}
-                series={FLOW_SERIES}
-                formatAxis={formatMoneyAxis}
-                formatValue={formatMoneyValue}
-                height={180}
-              />
-            </ChartCard>
-            {bankCard}
-          </div>
-        ) : user.role !== 'MERCHANT' ? (
-          bankCard
+          <ChartCard
+            title={`${bankerLabel()} Total Pay-in`}
+            subtitle={`Completed volume per ${bankerLabel()}`}
+            loading={loading}
+            empty={data.banker_wise.length === 0}
+            emptyMessage={`No ${bankerLabel()} activity in this range`}
+            actions={<ChartLegend items={FLOW_SERIES} />}
+          >
+            <BarChart
+              ariaLabel={`${bankerLabel()} Total Pay-in`}
+              data={bankerData}
+              series={FLOW_SERIES}
+              formatAxis={formatMoneyAxis}
+              formatValue={formatMoneyValue}
+              height={180}
+            />
+          </ChartCard>
         ) : null}
 
         {isSuperView && user.role !== 'MERCHANT' ? (
