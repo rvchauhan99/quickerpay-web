@@ -89,16 +89,6 @@ export interface DashboardMerchantRow {
   payout_count: number
 }
 
-/** COMPLETED Pay-In volume per bank account label. Empty for the Exchange Master portal. */
-export interface DashboardBankRow {
-  bank_account_id: string
-  label: string
-  payin_minor: number
-  payin_count: number
-  payout_minor: number
-  payout_count: number
-}
-
 /** `GET /dashboard/insights` — chart data, same filters and visibility as `/dashboard/summary`. */
 export interface DashboardInsights {
   granularity: DashboardGranularity
@@ -107,5 +97,4 @@ export interface DashboardInsights {
   payin_status: DashboardStatusSlice[]
   payout_status: DashboardStatusSlice[]
   by_merchant: DashboardMerchantRow[]
-  by_bank: DashboardBankRow[]
 }
