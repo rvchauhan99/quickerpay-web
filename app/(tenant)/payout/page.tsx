@@ -80,11 +80,17 @@ export default function PayoutPage() {
   const [assignAmountMinor, setAssignAmountMinor] = useState(0)
   const [assigning, setAssigning] = useState(false)
   const didDefaultSaUnassigned = useRef(false)
+  const didDefaultBankerAssigned = useRef(false)
 
   // Super Admin / Admin: empty URL param means unassigned queue (never All). Explicit `all` browses everything.
   // Assigned=true is In Process Withdrawal — do not force unassigned.
+  // MERCHANT: Banker assignment filter All / Assigned / Not assigned (read-only; no dual nav).
+  // BANKER: one Pending Withdrawal link defaults to assigned=true (SQL scopes banker_user_id = self).
   const canAssign = canAssignPayoutBanker(user?.role)
+  const isMerchant = user?.role === 'MERCHANT'
+  const isBanker = user?.role === 'BANKER'
   const assignedOnly = filters.assigned === 'true'
+  const merchantUnassignedOnly = isMerchant && filters.unassigned === 'true'
   const saUnassignedOnly =
     canAssign && filters.unassigned !== 'all' && !assignedOnly
 
@@ -120,7 +126,7 @@ export default function PayoutPage() {
     if (filters.q) query.set('q', filters.q)
     if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
     if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
-    if (saUnassignedOnly) query.set('unassigned', 'true')
+    if (saUnassignedOnly || merchantUnassignedOnly) query.set('unassigned', 'true')
     if (assignedOnly) query.set('assigned', 'true')
     try {
       const result = await apiListRequest<PayoutListItem>(`/api/v1/payout?${query}`)
@@ -131,7 +137,7 @@ export default function PayoutPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, saUnassignedOnly, assignedOnly])
+  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, saUnassignedOnly, merchantUnassignedOnly, assignedOnly])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -156,6 +162,14 @@ export default function PayoutPage() {
     void setFilters({ unassigned: 'true', status: filters.status || 'INITIATE', page: 1 })
   }, [ready, user, canAssign, setFilters, filters.unassigned, filters.status, filters.assigned])
 
+  // Banker: always open assigned-to-self queue (SQL already scopes banker_user_id = self).
+  useEffect(() => {
+    if (!ready || !user || !isBanker || didDefaultBankerAssigned.current) return
+    didDefaultBankerAssigned.current = true
+    if (filters.assigned === 'true') return
+    void setFilters({ assigned: 'true', unassigned: '', status: filters.status || 'INITIATE', page: 1 })
+  }, [ready, user, isBanker, setFilters, filters.assigned, filters.status])
+
   const { pendingOnPage1 } = useQueueSync({
     entity: 'payout',
     enabled: ready && allowed,
@@ -169,7 +183,7 @@ export default function PayoutPage() {
       q: filters.q || undefined,
       merchant_id: filters.merchant_id || undefined,
       banker_user_id: filters.banker_user_id || undefined,
-      unassigned: saUnassignedOnly ? 'true' : undefined,
+      unassigned: saUnassignedOnly || merchantUnassignedOnly ? 'true' : undefined,
       assigned: assignedOnly ? 'true' : undefined,
     },
     rows,
@@ -303,8 +317,14 @@ export default function PayoutPage() {
     }
   }
 
-  const payoutTitle = assignedOnly ? 'In Process Withdrawal' : 'Pending Withdrawal'
-  const canMerchantEnter = user.role === 'MERCHANT' && hasMenu(menus, 'PAYOUT', 'can_create')
+  const payoutTitle =
+    isMerchant || isBanker || !assignedOnly ? 'Pending Withdrawal' : 'In Process Withdrawal'
+  const canMerchantEnter = isMerchant && hasMenu(menus, 'PAYOUT', 'can_create')
+  const merchantAssignmentValue = assignedOnly
+    ? 'assigned'
+    : merchantUnassignedOnly
+      ? 'unassigned'
+      : 'all'
 
   return (
     <AppShell title={payoutTitle} role={user.role} menus={menus}>
@@ -401,6 +421,45 @@ export default function PayoutPage() {
             </Select>
           </FormField>
         ) : null}
+        {isMerchant ? (
+          <FormField label="Banker assignment">
+            <Select
+              value={merchantAssignmentValue}
+              onChange={(event) => {
+                const value = event.target.value
+                if (value === 'assigned') {
+                  void setFilters({
+                    assigned: 'true',
+                    unassigned: '',
+                    status: 'INITIATE',
+                    page: 1,
+                  })
+                  return
+                }
+                if (value === 'unassigned') {
+                  void setFilters({
+                    assigned: '',
+                    unassigned: 'true',
+                    status: 'INITIATE',
+                    page: 1,
+                  })
+                  return
+                }
+                void setFilters({
+                  assigned: '',
+                  unassigned: '',
+                  status: 'INITIATE',
+                  page: 1,
+                })
+              }}
+              aria-label="Banker assignment"
+            >
+              <option value="all">All</option>
+              <option value="assigned">Assigned</option>
+              <option value="unassigned">Not assigned</option>
+            </Select>
+          </FormField>
+        ) : null}
         {canFilterMerchants ? (
           <SuperAdminDirectoryFilters
             admins={admins}
@@ -424,6 +483,8 @@ export default function PayoutPage() {
               if (filters.q) query.set('q', filters.q)
               if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
               if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+              if (saUnassignedOnly || merchantUnassignedOnly) query.set('unassigned', 'true')
+              if (assignedOnly) query.set('assigned', 'true')
               void downloadExport(`/api/v1/payout/export?${query}`, 'payouts.csv', accessToken!)
             }}
           />
@@ -556,6 +617,7 @@ export default function PayoutPage() {
             ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             ...(isSuperAdmin ? [{ key: 'admin', heading: 'Banker' }] : []),
+            ...(isMerchant ? [{ key: 'assignment', heading: 'ASSIGNMENT' }] : []),
             { key: 'bank', heading: 'BANK DETAILS' },
             { key: 'amount', heading: 'AMOUNT' },
             { key: 'utr', heading: 'UTR' },
@@ -603,6 +665,11 @@ export default function PayoutPage() {
                   admin: row.banker_user_id
                     ? (adminUsernameById.get(row.banker_user_id) ?? '—')
                     : '—',
+                }
+              : {}),
+            ...(isMerchant
+              ? {
+                  assignment: row.banker_user_id ? 'Assigned' : 'Not assigned',
                 }
               : {}),
             bank: <PayoutBankDetailsCell row={row} />,
