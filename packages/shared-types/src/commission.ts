@@ -59,5 +59,7 @@ export interface CommissionEntry {
   agent_commission_minor?: number
   banker_agent_commission_minor?: number
   margin_minor?: number | null
+  /** True once a refund or an unclaimed delete reversed this snapshot's commission. */
+  reversed: boolean
   created_at: string
 }

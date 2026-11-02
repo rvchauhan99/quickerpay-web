@@ -8,13 +8,26 @@ export function MoneyInput({
   valueMinor,
   onChangeMinor,
   wholeRupees = true,
+  live = false,
+  placeholder,
 }: {
   id: string
   valueMinor: number | bigint
   onChangeMinor: (amountMinor: number) => void
   /** Default true: whole rupees only (no decimals). */
   wholeRupees?: boolean
+  /** Report every keystroke, not only on blur, for screens that preview a result as you type. */
+  live?: boolean
+  placeholder?: string
 }) {
+  const report = (value: string) => {
+    try {
+      const raw = wholeRupees ? value.replace(/\.\d+$/, '') : value
+      onChangeMinor(live && raw.trim() === '' ? 0 : Number(toMinor(raw)))
+    } catch {
+      // keep previous
+    }
+  }
   const display = Number(valueMinor) === 0 ? '' : wholeRupees
     ? String(rupeeUnits(BigInt(valueMinor)))
     : fromMinor(BigInt(valueMinor)).replace(/^₹/, '')
@@ -26,14 +39,9 @@ export function MoneyInput({
         className="pl-6 tabular-nums"
         inputMode={wholeRupees ? 'numeric' : 'decimal'}
         defaultValue={display}
-        onBlur={(event) => {
-          try {
-            const raw = wholeRupees ? event.target.value.replace(/\.\d+$/, '') : event.target.value
-            onChangeMinor(Number(toMinor(raw)))
-          } catch {
-            // keep previous
-          }
-        }}
+        placeholder={placeholder}
+        onChange={live ? (event) => report(event.target.value) : undefined}
+        onBlur={(event) => report(event.target.value)}
       />
     </div>
   )

@@ -451,7 +451,7 @@ export function StatusBadge({ status }: { status: string }) {
     dotColor = 'var(--qp-success)'
     bgColor = 'var(--qp-success-bg)'
     textColor = '#065f46'
-  } else if (s === 'FAILED' || s === 'REJECTED' || s === 'CANCELLED' || s === 'DISABLED' || s === 'CLOSED' || s === 'DELETED') {
+  } else if (s === 'FAILED' || s === 'REJECTED' || s === 'CANCELLED' || s === 'DISABLED' || s === 'CLOSED' || s === 'DELETED' || s === 'REVERSED') {
     dotColor = 'var(--qp-danger)'
     bgColor = 'var(--qp-danger-bg)'
     textColor = '#991b1b'

@@ -23,15 +23,11 @@ import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { averageMinor, bucketLabel, formatCompactCount, formatCompactMinor, successRate } from '@/lib/chart'
+import { formatIsoDay, todayIsoIst } from '@/lib/datetime'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { useTenantScreen } from '@/lib/useTenantScreen'
-
-function todayIso() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
 
 const EMPTY: DashboardSummary = {
   payin: { amount_minor: 0, count: 0 },
@@ -108,8 +104,8 @@ function errorText(caught: unknown, fallback: string): string {
 export default function DashboardPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('DASHBOARD')
   const [filters, setFilters] = useQueryStates({
-    date_from: parseAsString.withDefault(todayIso()),
-    date_to: parseAsString.withDefault(todayIso()),
+    date_from: parseAsString.withDefault(todayIsoIst()),
+    date_to: parseAsString.withDefault(todayIsoIst()),
     banker_user_id: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
     bank_account_id: parseAsString.withDefault(''),
@@ -205,7 +201,7 @@ export default function DashboardPage() {
         return {
           id: point.bucket,
           label: bucketLabel(point.bucket, insights.granularity),
-          title: insights.granularity === 'HOUR' ? `${day} ${point.bucket.slice(11, 16)} IST` : day,
+          title: insights.granularity === 'HOUR' ? `${formatIsoDay(day)} ${point.bucket.slice(11, 16)} IST` : formatIsoDay(day),
           values:
             trendMetric === 'amount'
               ? { payin: point.payin_minor, payout: point.payout_minor }
@@ -367,8 +363,8 @@ export default function DashboardPage() {
         onApply={() => void load()}
         onClear={() =>
           void setFilters({
-            date_from: todayIso(),
-            date_to: todayIso(),
+            date_from: todayIsoIst(),
+            date_to: todayIsoIst(),
             banker_user_id: '',
             merchant_id: '',
             bank_account_id: '',

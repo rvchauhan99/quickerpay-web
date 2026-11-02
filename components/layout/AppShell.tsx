@@ -198,6 +198,7 @@ const PRIMARY_LINKS: PrimaryLink[] = [
   },
   { key: 'hawala', code: 'HAWALA', label: 'Hawala', href: '/hawala' },
   { key: 'general', code: 'GENERAL', label: 'General', href: '/general' },
+  { key: 'ledger', code: 'LEDGER', label: 'Ledger', href: '/ledger' },
   {
     key: 'payin-injection',
     code: 'PAYIN',
@@ -235,7 +236,7 @@ const BANKER_CHILD_LINKS: PrimaryLink[] = [
 
 /** More sheet — everything not on the FastTag primary rail. */
 const MORE_SECTION_GROUPS: { label: string; codes: MenuCode[] }[] = [
-  { label: 'Finance', codes: ['TRANSACTIONS', 'LEDGER', 'COMMISSION', 'REPORTS'] },
+  { label: 'Finance', codes: ['TRANSACTIONS', 'COMMISSION', 'REPORTS'] },
   { label: 'Banking', codes: ['UPI'] },
   { label: 'Admin', codes: ['USERS'] },
   { label: 'Panel banks', codes: ['SUPAGO_BANKS', 'CRICI_BANKS'] },

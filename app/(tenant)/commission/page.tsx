@@ -6,7 +6,7 @@ import { parseAsString, useQueryStates } from 'nuqs'
 import type { CommissionEntry, CommissionSummary } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
-import { DataTable, EmptyState, ExportButton, FilterBar, StatCard, TableSkeleton } from '@/components/ui/FilterBar'
+import { DataTable, EmptyState, ExportButton, FilterBar, StatCard, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
@@ -233,7 +233,14 @@ export default function CommissionPage() {
         ]}
         rows={entries.map((row) => ({
           created_at: row.created_at,
-          rate_kind: row.rate_kind,
+          rate_kind: row.reversed ? (
+            <span className="inline-flex items-center gap-1.5">
+              {row.rate_kind}
+              <StatusBadge status="REVERSED" />
+            </span>
+          ) : (
+            row.rate_kind
+          ),
           eligible: <MoneyDisplay amountMinor={row.eligible_amount_minor} />,
           merchant_rate: <RateDisplay rateBp={row.merchant_rate_bp} />,
           admin_rate: <RateDisplay rateBp={row.banker_rate_bp} />,
