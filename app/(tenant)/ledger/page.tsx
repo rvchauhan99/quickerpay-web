@@ -190,7 +190,52 @@ export default function LedgerPage() {
           ) : null
         }
       />
-      <FilterBar onApply={() => void setFilters({ page: 1 })} onClear={() => { void setFilters({ date_from: '', date_to: '', account_kind: 'BANKER', owner_user_id: '', bank_account_id: '', party_id: '', merchant_id: '', agent_user_id: '', q: '', event_type: '', direction: '', show_deleted_unclaimed: false, page: 1, page_size: 100 }) }} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void setFilters({ page: 1 })}
+        onClear={() => {
+          void setFilters({
+            date_from: '',
+            date_to: '',
+            account_kind: 'BANKER',
+            owner_user_id: '',
+            bank_account_id: '',
+            party_id: '',
+            merchant_id: '',
+            agent_user_id: '',
+            q: '',
+            event_type: '',
+            direction: '',
+            show_deleted_unclaimed: false,
+            page: 1,
+            page_size: 100,
+          })
+        }}
+        onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={!statement || statement.pagination.total === 0}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.q) query.set('q', filters.q)
+              if (isMerchant) {
+                void downloadExport(`/api/v1/ledger/exchange/export?${query}`, accessToken, 'exchange-ledger.csv')
+                return
+              }
+              if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
+              if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
+              if (filters.party_id) query.set('party_id', filters.party_id)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.agent_user_id) query.set('agent_user_id', filters.agent_user_id)
+              if (filters.event_type) query.set('event_type', filters.event_type)
+              if (filters.direction) query.set('direction', filters.direction)
+              if (filters.show_deleted_unclaimed) query.set('show_deleted_unclaimed', 'true')
+              void downloadExport(`/api/v1/ledger/export?${query}`, accessToken, 'ledger.csv')
+            }}
+          />
+        }
+      >
         {!isMerchant ? (
           <>
             <FormField label="Account">
@@ -312,30 +357,6 @@ export default function LedgerPage() {
             </FormField>
           </>
         ) : null}
-        <div>
-          <ExportButton
-            disabled={!statement || statement.pagination.total === 0}
-            onExport={() => {
-              const query = new URLSearchParams()
-              if (filters.date_from) query.set('date_from', filters.date_from)
-              if (filters.date_to) query.set('date_to', filters.date_to)
-              if (filters.q) query.set('q', filters.q)
-              if (isMerchant) {
-                void downloadExport(`/api/v1/ledger/exchange/export?${query}`, accessToken, 'exchange-ledger.csv')
-                return
-              }
-              if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
-              if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
-              if (filters.party_id) query.set('party_id', filters.party_id)
-              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.agent_user_id) query.set('agent_user_id', filters.agent_user_id)
-              if (filters.event_type) query.set('event_type', filters.event_type)
-              if (filters.direction) query.set('direction', filters.direction)
-              if (filters.show_deleted_unclaimed) query.set('show_deleted_unclaimed', 'true')
-              void downloadExport(`/api/v1/ledger/export?${query}`, accessToken, 'ledger.csv')
-            }}
-          />
-        </div>
       </FilterBar>
       {adjustOpen ? (
         <div className="mb-qp-gap">

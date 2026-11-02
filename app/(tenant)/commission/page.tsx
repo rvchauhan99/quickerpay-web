@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { parseAsString, useQueryStates } from 'nuqs'
-import type { CommissionEntry, CommissionSummary } from '@quickerpay/shared-types'
+import { parseAsBoolean, parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
+import type { CommissionEntry, CommissionSummary, Pagination } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatCard, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
@@ -11,7 +11,8 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
-import { apiRequest, ApiClientError } from '@/lib/api'
+import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
@@ -61,35 +62,59 @@ export default function CommissionPage() {
     rate_kind: parseAsString.withDefault(''),
     banker_user_id: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
+    show_deleted_unclaimed: parseAsBoolean.withDefault(false),
+    page: parseAsInteger.withDefault(1),
+    page_size: parseAsInteger.withDefault(10),
   })
-  const dateFrom = filters.date_from
-  const dateTo = filters.date_to
-  const rateKind = filters.rate_kind
-  const adminUserId = filters.banker_user_id
-  const merchantId = filters.merchant_id
   const [summary, setSummary] = useState<CommissionSummary>(EMPTY)
   const [entries, setEntries] = useState<CommissionEntry[]>([])
+  const [pagination, setPagination] = useState<Pagination | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const buildQuery = useCallback(
+    (includePage: boolean) => {
+      const query = new URLSearchParams()
+      if (includePage) {
+        query.set('page', String(filters.page))
+        query.set('page_size', String(filters.page_size))
+      }
+      if (filters.date_from) query.set('date_from', filters.date_from)
+      if (filters.date_to) query.set('date_to', filters.date_to)
+      if (filters.rate_kind) query.set('rate_kind', filters.rate_kind)
+      if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+      if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+      if (filters.show_deleted_unclaimed) query.set('show_deleted_unclaimed', 'true')
+      return query
+    },
+    [
+      filters.page,
+      filters.page_size,
+      filters.date_from,
+      filters.date_to,
+      filters.rate_kind,
+      filters.banker_user_id,
+      filters.merchant_id,
+      filters.show_deleted_unclaimed,
+    ],
+  )
 
   const load = useCallback(async () => {
     if (!accessToken) return
     setLoading(true)
     setError(null)
-    const query = new URLSearchParams()
-    if (dateFrom) query.set('date_from', dateFrom)
-    if (dateTo) query.set('date_to', dateTo)
-    if (rateKind) query.set('rate_kind', rateKind)
-    if (adminUserId) query.set('banker_user_id', adminUserId)
-    if (merchantId) query.set('merchant_id', merchantId)
-    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const listQuery = buildQuery(true)
+    const summaryQuery = buildQuery(false)
+    const listSuffix = listQuery.toString() ? `?${listQuery.toString()}` : ''
+    const summarySuffix = summaryQuery.toString() ? `?${summaryQuery.toString()}` : ''
     try {
-      const [nextSummary, nextEntries] = await Promise.all([
-        apiRequest<CommissionSummary>(`/api/v1/commission/summary${suffix}`, { token: accessToken }),
-        apiRequest<CommissionEntry[]>(`/api/v1/commission/entries${suffix}`, { token: accessToken }),
+      const [nextSummary, listed] = await Promise.all([
+        apiRequest<CommissionSummary>(`/api/v1/commission/summary${summarySuffix}`, { token: accessToken }),
+        apiListRequest<CommissionEntry>(`/api/v1/commission/entries${listSuffix}`, { token: accessToken }),
       ])
       setSummary(nextSummary)
-      setEntries(nextEntries)
+      setEntries(listed.items)
+      setPagination(listed.pagination)
     } catch (caught) {
       setError(
         caught instanceof ApiClientError
@@ -99,7 +124,7 @@ export default function CommissionPage() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, dateFrom, dateTo, rateKind, adminUserId, merchantId])
+  }, [accessToken, buildQuery])
 
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
 
@@ -126,20 +151,59 @@ export default function CommissionPage() {
   const showMargin = payinKind.margin_minor !== undefined
 
   const handleClear = () => {
-    void setFilters({ date_from: '', date_to: '', rate_kind: '', banker_user_id: '', merchant_id: '' })
+    void setFilters({
+      date_from: '',
+      date_to: '',
+      rate_kind: '',
+      banker_user_id: '',
+      merchant_id: '',
+      show_deleted_unclaimed: false,
+      page: 1,
+      page_size: 10,
+    })
   }
 
   return (
     <AppShell title="Commission" role={user.role} menus={menus}>
-      <FilterBar onApply={() => void load()} onClear={handleClear} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => {
+          if (filters.page !== 1) void setFilters({ page: 1 })
+          else void load()
+        }}
+        onClear={handleClear}
+        onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={(pagination?.total ?? 0) === 0}
+            onExport={() => {
+              const query = buildQuery(false)
+              void downloadExport(`/api/v1/commission/export?${query}`, accessToken, 'commission.csv')
+            }}
+          />
+        }
+      >
         <FormField label="From Date">
-          <Input type="date" value={dateFrom} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
+          <Input
+            type="date"
+            value={filters.date_from}
+            onChange={(event) => void setFilters({ date_from: event.target.value, page: 1 })}
+            aria-label="Start Date"
+          />
         </FormField>
         <FormField label="To Date">
-          <Input type="date" value={dateTo} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
+          <Input
+            type="date"
+            value={filters.date_to}
+            onChange={(event) => void setFilters({ date_to: event.target.value, page: 1 })}
+            aria-label="End Date"
+          />
         </FormField>
         <FormField label="Rate Kind">
-          <Select value={rateKind} onChange={(event) => void setFilters({ rate_kind: event.target.value })} aria-label="Rate kind">
+          <Select
+            value={filters.rate_kind}
+            onChange={(event) => void setFilters({ rate_kind: event.target.value, page: 1 })}
+            aria-label="Rate kind"
+          >
             <option value="">All kinds</option>
             <option value="PAYIN">PAYIN</option>
             <option value="PAYOUT">PAYOUT</option>
@@ -149,26 +213,25 @@ export default function CommissionPage() {
           <SuperAdminDirectoryFilters
             admins={admins}
             merchants={merchants}
-            adminId={adminUserId}
-            merchantId={merchantId}
-            onAdminChange={(value) => void setFilters({ banker_user_id: value })}
-            onMerchantChange={(value) => void setFilters({ merchant_id: value })}
+            adminId={filters.banker_user_id}
+            merchantId={filters.merchant_id}
+            onAdminChange={(value) => void setFilters({ banker_user_id: value, page: 1 })}
+            onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
-        <div>
-          <ExportButton
-            disabled={entries.length === 0}
-            onExport={() => {
-              const query = new URLSearchParams()
-              if (dateFrom) query.set('date_from', dateFrom)
-              if (dateTo) query.set('date_to', dateTo)
-              if (rateKind) query.set('rate_kind', rateKind)
-              if (adminUserId) query.set('banker_user_id', adminUserId)
-              if (merchantId) query.set('merchant_id', merchantId)
-              void downloadExport(`/api/v1/commission/export?${query}`, 'commission.csv', accessToken!)
-            }}
-          />
-        </div>
+        <FormField label="Show deleted unclaimed">
+          <div className="flex h-10 items-center px-1">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-600"
+              checked={filters.show_deleted_unclaimed}
+              onChange={(event) =>
+                void setFilters({ show_deleted_unclaimed: event.target.checked, page: 1 })
+              }
+              aria-label="Show deleted unclaimed"
+            />
+          </div>
+        </FormField>
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
@@ -219,17 +282,38 @@ export default function CommissionPage() {
       </div>
       <DataTable
         columns={[
-          { key: 'created_at', heading: 'Created' },
+          { key: 'created_at', heading: 'Created', nowrap: true },
           { key: 'rate_kind', heading: 'Kind' },
+          { key: 'utr', heading: 'UTR', nowrap: true },
           { key: 'eligible', heading: 'Eligible volume' },
-          ...(showMerchant ? [{ key: 'merchant_rate', heading: `${merchantLabel()} rate` }, { key: 'merchant', heading: `${merchantLabel()} commission` }] : []),
-          ...(showBanker ? [{ key: 'admin_rate', heading: `${bankerLabel()} rate` }, { key: 'admin', heading: `${bankerLabel()} commission` }] : []),
-          ...(showAgent ? [{ key: 'agent_rate', heading: `${agentLabel()} (Exchange) rate` }, { key: 'agent', heading: `${agentLabel()} (Exchange) commission` }] : []),
-          ...(showBroker ? [{ key: 'broker_rate', heading: `${agentLabel()} (Banker) rate` }, { key: 'broker', heading: `${agentLabel()} (Banker) commission` }] : []),
+          ...(showMerchant
+            ? [
+                { key: 'merchant_rate', heading: `${merchantLabel()} rate` },
+                { key: 'merchant', heading: `${merchantLabel()} commission` },
+              ]
+            : []),
+          ...(showBanker
+            ? [
+                { key: 'admin_rate', heading: `${bankerLabel()} rate` },
+                { key: 'admin', heading: `${bankerLabel()} commission` },
+              ]
+            : []),
+          ...(showAgent
+            ? [
+                { key: 'agent_rate', heading: `${agentLabel()} (Exchange) rate` },
+                { key: 'agent', heading: `${agentLabel()} (Exchange) commission` },
+              ]
+            : []),
+          ...(showBroker
+            ? [
+                { key: 'broker_rate', heading: `${agentLabel()} (Banker) rate` },
+                { key: 'broker', heading: `${agentLabel()} (Banker) commission` },
+              ]
+            : []),
           ...(showMargin ? [{ key: 'margin', heading: 'Margin' }] : []),
         ]}
         rows={entries.map((row) => ({
-          created_at: row.created_at,
+          created_at: formatDateTimeIst(row.created_at),
           rate_kind: row.reversed ? (
             <span className="inline-flex items-center gap-1.5">
               {row.rate_kind}
@@ -238,6 +322,7 @@ export default function CommissionPage() {
           ) : (
             row.rate_kind
           ),
+          utr: row.utr ?? '—',
           eligible: <MoneyDisplay amountMinor={row.eligible_amount_minor} />,
           merchant_rate: <RateDisplay rateBp={row.merchant_rate_bp} />,
           admin_rate: <RateDisplay rateBp={row.banker_rate_bp} />,
@@ -250,6 +335,9 @@ export default function CommissionPage() {
           margin: <MoneyDisplay amountMinor={row.margin_minor} />,
         }))}
         empty={<EmptyState message="No records match these filters" onClear={handleClear} />}
+        pagination={pagination ?? undefined}
+        onPage={(page) => void setFilters({ page })}
+        onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
       />
     </AppShell>
   )

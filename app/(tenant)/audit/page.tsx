@@ -70,7 +70,18 @@ export default function AuditPage() {
 
   return (
     <AppShell title="Audit" role={user.role} menus={menus}>
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', actor: '', action: '', entity_type: '', ip: '', request_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={() => void setFilters({ date_from: '', date_to: '', actor: '', action: '', entity_type: '', ip: '', request_id: '', page: 1 })}
+        onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'AUDIT', 'can_export')}
+            onExport={() => void downloadExport(`/api/v1/audit/export?${queryString()}`, accessToken, 'audit.csv')}
+          />
+        }
+      >
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value, page: 1 })} aria-label="Start Date" />
         </FormField>
@@ -92,13 +103,6 @@ export default function AuditPage() {
         <FormField label="Request ID">
           <Input placeholder="Request id" value={filters.request_id} onChange={(event) => void setFilters({ request_id: event.target.value, page: 1 })} aria-label="Request id" />
         </FormField>
-        <div>
-          <ExportButton
-            disabled={rows.length === 0}
-            canExport={hasMenu(menus, 'AUDIT', 'can_export')}
-            onExport={() => downloadExport(`/api/v1/audit/export?${queryString()}`, 'audit.csv', accessToken!)}
-          />
-        </div>
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />

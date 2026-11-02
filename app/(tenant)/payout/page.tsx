@@ -372,7 +372,29 @@ export default function PayoutPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={handleClearFilters} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={handleClearFilters}
+        onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'PAYOUT', 'can_export')}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (filters.status) query.set('status', filters.status)
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+              if (saUnassignedOnly || merchantUnassignedOnly) query.set('unassigned', 'true')
+              if (assignedOnly) query.set('assigned', 'true')
+              void downloadExport(`/api/v1/payout/export?${query}`, accessToken, 'payouts.csv')
+            }}
+          />
+        }
+      >
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -470,24 +492,6 @@ export default function PayoutPage() {
             onMerchantChange={(value) => void setFilters({ merchant_id: value, page: 1 })}
           />
         ) : null}
-        <div>
-          <ExportButton
-            disabled={rows.length === 0}
-            canExport={hasMenu(menus, 'PAYOUT', 'can_export')}
-            onExport={() => {
-              const query = new URLSearchParams()
-              if (filters.status) query.set('status', filters.status)
-              if (filters.date_from) query.set('date_from', filters.date_from)
-              if (filters.date_to) query.set('date_to', filters.date_to)
-              if (filters.q) query.set('q', filters.q)
-              if (filters.merchant_id) query.set('merchant_id', filters.merchant_id)
-              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
-              if (saUnassignedOnly || merchantUnassignedOnly) query.set('unassigned', 'true')
-              if (assignedOnly) query.set('assigned', 'true')
-              void downloadExport(`/api/v1/payout/export?${query}`, 'payouts.csv', accessToken!)
-            }}
-          />
-        </div>
       </FilterBar>
       {canAssign && saUnassignedOnly && hasMenu(menus, 'PAYOUT', 'can_approve') ? (
         <div className="mb-qp-gap rounded border border-zinc-200 bg-white p-3">

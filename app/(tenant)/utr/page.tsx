@@ -203,7 +203,39 @@ export default function UtrPage() {
           </button>
         </div>
       ) : null}
-      <FilterBar onApply={() => void load()} onClear={() => void setFilters({ date_from: '', date_to: '', status: 'PENDING', upi_account_id: '', q: '', banker_user_id: '', extension_device_id: '', page: 1 })} onReload={() => void load()}>
+      <FilterBar
+        onApply={() => void load()}
+        onClear={() =>
+          void setFilters({
+            date_from: '',
+            date_to: '',
+            status: 'PENDING',
+            upi_account_id: '',
+            q: '',
+            banker_user_id: '',
+            extension_device_id: '',
+            page: 1,
+          })
+        }
+        onReload={() => void load()}
+        actions={
+          <ExportButton
+            disabled={rows.length === 0}
+            canExport={hasMenu(menus, 'UTR', 'can_export')}
+            onExport={() => {
+              const query = new URLSearchParams()
+              if (filters.status) query.set('status', filters.status)
+              if (filters.date_from) query.set('date_from', filters.date_from)
+              if (filters.date_to) query.set('date_to', filters.date_to)
+              if (filters.upi_account_id) query.set('upi_account_id', filters.upi_account_id)
+              if (filters.q) query.set('q', filters.q)
+              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
+              if (filters.extension_device_id) query.set('extension_device_id', filters.extension_device_id)
+              void downloadExport(`/api/v1/utr/export?${query}`, accessToken, 'utrs.csv')
+            }}
+          />
+        }
+      >
         <FormField label="From Date">
           <Input type="date" value={filters.date_from} onChange={(event) => void setFilters({ date_from: event.target.value })} aria-label="Start Date" />
         </FormField>
@@ -241,23 +273,6 @@ export default function UtrPage() {
         <FormField label="Device">
           <Input placeholder="device id" value={filters.extension_device_id} onChange={(event) => void setFilters({ extension_device_id: event.target.value })} aria-label="Extension device" />
         </FormField>
-        <div>
-          <ExportButton
-            disabled={rows.length === 0}
-            canExport={hasMenu(menus, 'UTR', 'can_export')}
-            onExport={() => {
-              const query = new URLSearchParams()
-              if (filters.status) query.set('status', filters.status)
-              if (filters.date_from) query.set('date_from', filters.date_from)
-              if (filters.date_to) query.set('date_to', filters.date_to)
-              if (filters.upi_account_id) query.set('upi_account_id', filters.upi_account_id)
-              if (filters.q) query.set('q', filters.q)
-              if (filters.banker_user_id) query.set('banker_user_id', filters.banker_user_id)
-              if (filters.extension_device_id) query.set('extension_device_id', filters.extension_device_id)
-              void downloadExport(`/api/v1/utr/export?${query}`, 'utrs.csv', accessToken!)
-            }}
-          />
-        </div>
       </FilterBar>
 
       {loading ? <TableSkeleton /> : (
