@@ -39,6 +39,12 @@ const LABELS: Record<MenuCode, string> = {
   CRICI_BANKS: 'Crici Banks',
 }
 
+/** Merchant / Banker see own-leg Hawala as Inter Transfer (FastTag label). */
+function navLabel(code: MenuCode, role: UserRole): string {
+  if (code === 'HAWALA' && (role === 'MERCHANT' || role === 'BANKER')) return 'Inter Transfer'
+  return LABELS[code]
+}
+
 const HREF: Partial<Record<MenuCode, string>> = {
   DASHBOARD: '/dashboard',
   USERS: '/users',
@@ -418,7 +424,7 @@ export function AppShell({
         .sort((a, b) => order.indexOf(a.menu_code) - order.indexOf(b.menu_code))
         .map((row) => ({
           href: HREF[row.menu_code] as string,
-          label: LABELS[row.menu_code],
+          label: navLabel(row.menu_code, role),
           code: row.menu_code,
         }))
 
@@ -474,12 +480,16 @@ export function AppShell({
     if (link.roles && !link.roles.includes(role)) return null
     if (link.requireCreate && !hasMenu(menus, link.code, 'can_create')) return null
     const icon = PRIMARY_LINK_ICONS[link.key]
+    const label =
+      link.code === 'HAWALA' && (role === 'MERCHANT' || role === 'BANKER')
+        ? 'Inter Transfer'
+        : link.label
     return (
       <li key={link.key}>
         {onNavigate ? (
           <NavItem
             href={link.href}
-            label={link.label}
+            label={label}
             code={link.code}
             active={hrefIsActive(link.href, pathname, search)}
             {...(icon !== undefined ? { icon } : {})}
@@ -488,7 +498,7 @@ export function AppShell({
         ) : (
           <NavItem
             href={link.href}
-            label={link.label}
+            label={label}
             code={link.code}
             active={hrefIsActive(link.href, pathname, search)}
             {...(icon !== undefined ? { icon } : {})}
@@ -912,12 +922,12 @@ function LabNavItem({
 
 
 /* ─── Navigation (kept for backward compat if used elsewhere) ─────────────── */
-export function Navigation({ menus, role: _role }: { menus: MenuGrant[]; role: UserRole }) {
+export function Navigation({ menus, role }: { menus: MenuGrant[]; role: UserRole }) {
   const items = [...menus]
     .filter((row) => row.can_view && HREF[row.menu_code] && panelBankNavVisible(row.menu_code))
     .map((row) => ({
       href: HREF[row.menu_code] as string,
-      label: LABELS[row.menu_code],
+      label: navLabel(row.menu_code, role),
       code: row.menu_code,
     }))
 
