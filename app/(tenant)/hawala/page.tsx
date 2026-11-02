@@ -13,13 +13,10 @@ import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, ErrorAlert } from '@/components/ui/PageHeader'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge } from '@/components/ui/FilterBar'
-import { FormShell } from '@/components/forms/FormShell'
-import { FormSection } from '@/components/forms/FormSection'
-import { FormGrid } from '@/components/forms/FormGrid'
 import { FormField } from '@/components/forms/FormField'
+import { HawalaEntryForm } from '@/components/forms/HawalaEntryForm'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
-import { MoneyInput } from '@/components/forms/MoneyInput'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
@@ -45,31 +42,6 @@ function kindLabel(kind: HawalaPartyKind): string {
   return 'Banker'
 }
 
-interface SideBalance {
-  balance_minor: number
-  label: string
-}
-
-/** Positive = we owe that side; negative = that side owes us. */
-function PositionText({ label, amountMinor }: { label: string; amountMinor: number | null }) {
-  if (amountMinor === null) return null
-  if (amountMinor < 0) {
-    return (
-      <>
-        {label} owes us <MoneyDisplay amountMinor={-amountMinor} />
-      </>
-    )
-  }
-  if (amountMinor > 0) {
-    return (
-      <>
-        we owe {label} <MoneyDisplay amountMinor={amountMinor} />
-      </>
-    )
-  }
-  return <>{label} settled</>
-}
-
 export default function HawalaPage() {
   const router = useRouter()
   const { ready, user, menus, accessToken } = useSession()
@@ -85,17 +57,6 @@ export default function HawalaPage() {
   const [filterCreditKind, setFilterCreditKind] = useState<HawalaPartyKind | ''>('')
   const [filterDebitId, setFilterDebitId] = useState('')
   const [filterCreditId, setFilterCreditId] = useState('')
-
-  const [debitKind, setDebitKind] = useState<HawalaPartyKind>('PARTY')
-  const [creditKind, setCreditKind] = useState<HawalaPartyKind>('BANKER')
-  const [debitId, setDebitId] = useState('')
-  const [creditId, setCreditId] = useState('')
-  const [amountMinor, setAmountMinor] = useState(0)
-  const [remark, setRemark] = useState('')
-  const [utr, setUtr] = useState('')
-  const [debitBal, setDebitBal] = useState<SideBalance | null>(null)
-  const [creditBal, setCreditBal] = useState<SideBalance | null>(null)
-  const [submitting, setSubmitting] = useState(false)
 
   const [parties, setParties] = useState<PartyListItem[]>([])
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
@@ -219,26 +180,6 @@ export default function HawalaPage() {
     void loadDirectories()
   }, [ready, user, menus, loadHistory, loadDirectories, router])
 
-  useEffect(() => {
-    if (!accessToken || !debitId) {
-      setDebitBal(null)
-      return
-    }
-    void apiRequest<SideBalance>(`/api/v1/hawala/balance?kind=${debitKind}&id=${debitId}`, { token: accessToken })
-      .then(setDebitBal)
-      .catch(() => setDebitBal(null))
-  }, [accessToken, debitKind, debitId])
-
-  useEffect(() => {
-    if (!accessToken || !creditId) {
-      setCreditBal(null)
-      return
-    }
-    void apiRequest<SideBalance>(`/api/v1/hawala/balance?kind=${creditKind}&id=${creditId}`, { token: accessToken })
-      .then(setCreditBal)
-      .catch(() => setCreditBal(null))
-  }, [accessToken, creditKind, creditId])
-
   if (!ready) return <p className="p-qp-card text-sm text-zinc-500">Loading</p>
   if (!user) return null
   if (!hasMenu(menus, 'HAWALA')) return <ForbiddenPage permission="HAWALA.can_view" />
@@ -254,43 +195,6 @@ export default function HawalaPage() {
       return agents.map((row) => ({ id: row.id, label: row.display_name || row.username }))
     }
     return bankers.map((row) => ({ id: row.id, label: row.display_name || row.username }))
-  }
-
-  const handleSubmit = async () => {
-    if (!accessToken || submitting) return
-    setSubmitting(true)
-    setError(null)
-    try {
-      await apiRequest('/api/v1/hawala', {
-        method: 'POST',
-        token: accessToken,
-        headers: { 'Idempotency-Key': `haw-ui-${Date.now()}` },
-        body: {
-          debit: { kind: debitKind, id: debitId },
-          credit: { kind: creditKind, id: creditId },
-          amount_minor: amountMinor,
-          remark: remark || undefined,
-          utr: utr || undefined,
-        },
-      })
-      toast.success('Hawala submitted — waiting for Super Admin')
-      setAmountMinor(0)
-      setRemark('')
-      setUtr('')
-      await loadHistory()
-      if (debitId) {
-        const bal = await apiRequest<SideBalance>(`/api/v1/hawala/balance?kind=${debitKind}&id=${debitId}`, { token: accessToken })
-        setDebitBal(bal)
-      }
-      if (creditId) {
-        const bal = await apiRequest<SideBalance>(`/api/v1/hawala/balance?kind=${creditKind}&id=${creditId}`, { token: accessToken })
-        setCreditBal(bal)
-      }
-    } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : 'Submit failed')
-    } finally {
-      setSubmitting(false)
-    }
   }
 
   const handleDecide = async () => {
@@ -313,124 +217,15 @@ export default function HawalaPage() {
     }
   }
 
-  // Debit (From) gives money: its balance rises. Credit (To) receives: its balance falls.
-  const debitEffective =
-    debitBal && amountMinor > 0 ? debitBal.balance_minor + amountMinor : debitBal?.balance_minor ?? null
-  const creditEffective =
-    creditBal && amountMinor > 0 ? creditBal.balance_minor - amountMinor : creditBal?.balance_minor ?? null
   const confirmRow = confirm ? rows.find((row) => row.id === confirm.id) ?? null : null
 
   return (
     <AppShell title={pageTitle} role={user.role} menus={menus}>
-      <PageHeader title={pageTitle} />
+      {canCreate ? null : <PageHeader title={pageTitle} />}
       <ErrorAlert message={error} />
 
-      {canCreate ? (
-        <div className="mb-qp-gap">
-          <FormShell
-            title="Submit Hawala"
-            submitLabel={submitting ? 'Submitting…' : 'Submit Hawala'}
-            loading={submitting}
-            onSubmit={() => void handleSubmit()}
-          >
-            <p className="mb-qp-gap text-xs text-[var(--qp-text-muted)]">
-              CRM Hawala waits for Super Admin. Money does not move until Approve.
-            </p>
-            <FormSection title="Parties">
-              <FormGrid>
-                <FormField label="Debit (From) kind" required>
-                  <Select
-                    value={debitKind}
-                    onChange={(event) => {
-                      setDebitKind(event.target.value as HawalaPartyKind)
-                      setDebitId('')
-                    }}
-                    aria-label="Debit (From) kind"
-                  >
-                    {HAWALA_PARTY_KINDS.filter((kind) => kind !== 'AGENT').map((kind) => (
-                      <option key={kind} value={kind}>
-                        {kindLabel(kind)}
-                      </option>
-                    ))}
-                  </Select>
-                </FormField>
-                <FormField label="Debit (From) party" required>
-                  <Select value={debitId} onChange={(event) => setDebitId(event.target.value)} aria-label="Debit (From) party">
-                    <option value="">Select</option>
-                    {optionsFor(debitKind).map((row) => (
-                      <option key={row.id} value={row.id}>
-                        {row.label}
-                      </option>
-                    ))}
-                  </Select>
-                </FormField>
-                <FormField label="Credit (To) kind" required>
-                  <Select
-                    value={creditKind}
-                    onChange={(event) => {
-                      setCreditKind(event.target.value as HawalaPartyKind)
-                      setCreditId('')
-                    }}
-                    aria-label="Credit (To) kind"
-                  >
-                    {HAWALA_PARTY_KINDS.map((kind) => (
-                      <option key={kind} value={kind}>
-                        {kindLabel(kind)}
-                      </option>
-                    ))}
-                  </Select>
-                </FormField>
-                <FormField label="Credit (To) party" required>
-                  <Select value={creditId} onChange={(event) => setCreditId(event.target.value)} aria-label="Credit (To) party">
-                    <option value="">Select</option>
-                    {optionsFor(creditKind).map((row) => (
-                      <option key={row.id} value={row.id}>
-                        {row.label}
-                      </option>
-                    ))}
-                  </Select>
-                </FormField>
-              </FormGrid>
-            </FormSection>
-            <FormSection title="Balances">
-              <FormGrid>
-                <FormField label="From current">
-                  <p className="text-sm"><MoneyDisplay amountMinor={debitBal?.balance_minor} /></p>
-                </FormField>
-                <FormField label="From after">
-                  <p className="text-sm"><MoneyDisplay amountMinor={debitEffective} /></p>
-                </FormField>
-                <FormField label="To current">
-                  <p className="text-sm"><MoneyDisplay amountMinor={creditBal?.balance_minor} /></p>
-                </FormField>
-                <FormField label="To after">
-                  <p className="text-sm"><MoneyDisplay amountMinor={creditEffective} /></p>
-                </FormField>
-              </FormGrid>
-              {debitBal && creditBal && amountMinor > 0 ? (
-                <p className="mt-1 text-xs" data-testid="hawala-outcome">
-                  <strong>{debitBal.label}</strong> gives <MoneyDisplay amountMinor={amountMinor} /> to{' '}
-                  <strong>{creditBal.label}</strong>. After:{' '}
-                  <PositionText label={debitBal.label} amountMinor={debitEffective} /> ·{' '}
-                  <PositionText label={creditBal.label} amountMinor={creditEffective} />
-                </p>
-              ) : null}
-            </FormSection>
-            <FormSection title="Amount">
-              <FormGrid>
-                <FormField label="Amount" required>
-                  <MoneyInput id="hawala-amount" valueMinor={amountMinor} onChangeMinor={setAmountMinor} />
-                </FormField>
-                <FormField label="Remark">
-                  <Input value={remark} onChange={(event) => setRemark(event.target.value)} aria-label="Remark" />
-                </FormField>
-                <FormField label="UTR (optional)">
-                  <Input value={utr} onChange={(event) => setUtr(event.target.value)} aria-label="UTR" />
-                </FormField>
-              </FormGrid>
-            </FormSection>
-          </FormShell>
-        </div>
+      {canCreate && accessToken ? (
+        <HawalaEntryForm accessToken={accessToken} onSubmitted={() => loadHistory()} />
       ) : null}
 
       <FilterBar

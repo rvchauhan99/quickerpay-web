@@ -13,18 +13,13 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { apiRequest, ApiClientError } from '@/lib/api'
-import { formatDateTimeIst } from '@/lib/datetime'
+import { formatDateTimeIst, todayIsoIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 const EVENT_FILTERS = LEDGER_EVENT_TYPES.filter((value) => value !== 'OPENING')
-
-function todayIso() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
 
 function filterQuery(filters: Record<string, string>, bankAccountId: string): string {
   const query = new URLSearchParams()
@@ -39,8 +34,8 @@ export default function BankTransactionsHistoryPage() {
   const params = useParams<{ id: string }>()
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('BANKS')
   const [filters, setFilters] = useQueryStates({
-    date_from: parseAsString.withDefault(todayIso()),
-    date_to: parseAsString.withDefault(todayIso()),
+    date_from: parseAsString.withDefault(todayIsoIst()),
+    date_to: parseAsString.withDefault(todayIsoIst()),
     q: parseAsString.withDefault(''),
     event_type: parseAsString.withDefault(''),
     direction: parseAsString.withDefault(''),
@@ -110,8 +105,8 @@ export default function BankTransactionsHistoryPage() {
         onApply={() => void setFilters({ page: 1 }).then(() => load())}
         onClear={() =>
           void setFilters({
-            date_from: todayIso(),
-            date_to: todayIso(),
+            date_from: todayIsoIst(),
+            date_to: todayIsoIst(),
             q: '',
             event_type: '',
             direction: '',

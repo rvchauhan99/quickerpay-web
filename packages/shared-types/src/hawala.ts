@@ -31,6 +31,14 @@ export interface HawalaPartyRef {
   balance_minor: number | null
 }
 
+/** One pickable Hawala side. `code` is the tenant-wide unique code (party / merchant code, or username). */
+export interface HawalaCounterparty {
+  kind: HawalaPartyKind
+  id: string
+  code: string
+  label: string
+}
+
 export interface HawalaListItem {
   id: string
   transaction_id: string
