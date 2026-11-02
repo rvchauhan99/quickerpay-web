@@ -83,10 +83,24 @@ export default function HawalaPage() {
   const [confirm, setConfirm] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null)
   const [acting, setActing] = useState(false)
 
+  const portalMode = user?.role === 'MERCHANT' || user?.role === 'BANKER'
+  const pageTitle = portalMode ? 'Inter Transfer' : 'Hawala'
   const canCreate =
-    (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && hasMenu(menus, 'HAWALA', 'can_create')
-  const canApprove = user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_approve')
+    !portalMode &&
+    (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') &&
+    hasMenu(menus, 'HAWALA', 'can_create')
+  const canApprove = !portalMode && user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_approve')
   const canView = hasMenu(menus, 'HAWALA')
+
+  const perspectiveDirection = (row: HawalaListItem): 'DEBIT' | 'CREDIT' => {
+    if (user?.role === 'MERCHANT' && user.merchant_id) {
+      return row.debit.kind === 'MERCHANT' && row.debit.id === user.merchant_id ? 'DEBIT' : 'CREDIT'
+    }
+    if (user?.role === 'BANKER') {
+      return row.debit.kind === 'BANKER' && row.debit.id === user.id ? 'DEBIT' : 'CREDIT'
+    }
+    return 'DEBIT'
+  }
 
   const listQueryParams = useCallback(
     (
@@ -156,7 +170,7 @@ export default function HawalaPage() {
   )
 
   const loadDirectories = useCallback(async () => {
-    if (!accessToken || !canView) return
+    if (!accessToken || !canView || portalMode) return
     try {
       const [partyRes, merchantRes, userRes, agentRes] = await Promise.all([
         apiListRequest<PartyListItem>('/api/v1/parties?page_size=100&status=ACTIVE', { token: accessToken }).catch(() => ({ items: [] as PartyListItem[] })),
@@ -171,7 +185,7 @@ export default function HawalaPage() {
     } catch {
       /* directories optional when menus are missing */
     }
-  }, [accessToken, canView])
+  }, [accessToken, canView, portalMode])
 
   useEffect(() => {
     if (!ready) return
@@ -284,8 +298,8 @@ export default function HawalaPage() {
     creditBal && amountMinor > 0 ? creditBal.balance_minor + amountMinor : creditBal?.balance_minor ?? null
 
   return (
-    <AppShell title="Hawala" role={user.role} menus={menus}>
-      <PageHeader title="Hawala" />
+    <AppShell title={pageTitle} role={user.role} menus={menus}>
+      <PageHeader title={pageTitle} />
       <ErrorAlert message={error} />
 
       {canCreate ? (
@@ -423,91 +437,95 @@ export default function HawalaPage() {
             aria-label="End Date"
           />
         </FormField>
-        <FormField label="Status">
-          <Select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as HawalaStatus | '')}
-            aria-label="Status"
-          >
-            <option value="">All</option>
-            {HAWALA_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {status.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-        <FormField label="Debit type">
-          <Select
-            value={filterDebitKind}
-            onChange={(event) => {
-              setFilterDebitKind(event.target.value as HawalaPartyKind | '')
-              setFilterDebitId('')
-            }}
-            aria-label="Debit type"
-          >
-            <option value="">All</option>
-            {HAWALA_PARTY_KINDS.filter((kind) => kind !== 'AGENT').map((kind) => (
-              <option key={kind} value={kind}>
-                {kindLabel(kind)}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-        <FormField label="Debit party">
-          <Select
-            value={filterDebitId}
-            onChange={(event) => setFilterDebitId(event.target.value)}
-            aria-label="Debit party"
-            disabled={!filterDebitKind}
-          >
-            <option value="">All</option>
-            {filterDebitKind
-              ? optionsFor(filterDebitKind).map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.label}
+        {portalMode ? null : (
+          <>
+            <FormField label="Status">
+              <Select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as HawalaStatus | '')}
+                aria-label="Status"
+              >
+                <option value="">All</option>
+                {HAWALA_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status.replace(/_/g, ' ')}
                   </option>
-                ))
-              : null}
-          </Select>
-        </FormField>
-        <FormField label="Credit type">
-          <Select
-            value={filterCreditKind}
-            onChange={(event) => {
-              setFilterCreditKind(event.target.value as HawalaPartyKind | '')
-              setFilterCreditId('')
-            }}
-            aria-label="Credit type"
-          >
-            <option value="">All</option>
-            {HAWALA_PARTY_KINDS.map((kind) => (
-              <option key={kind} value={kind}>
-                {kindLabel(kind)}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-        <FormField label="Credit party">
-          <Select
-            value={filterCreditId}
-            onChange={(event) => setFilterCreditId(event.target.value)}
-            aria-label="Credit party"
-            disabled={!filterCreditKind}
-          >
-            <option value="">All</option>
-            {filterCreditKind
-              ? optionsFor(filterCreditKind).map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.label}
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Debit type">
+              <Select
+                value={filterDebitKind}
+                onChange={(event) => {
+                  setFilterDebitKind(event.target.value as HawalaPartyKind | '')
+                  setFilterDebitId('')
+                }}
+                aria-label="Debit type"
+              >
+                <option value="">All</option>
+                {HAWALA_PARTY_KINDS.filter((kind) => kind !== 'AGENT').map((kind) => (
+                  <option key={kind} value={kind}>
+                    {kindLabel(kind)}
                   </option>
-                ))
-              : null}
-          </Select>
-        </FormField>
-        <FormField label="Reference">
-          <Input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Reference" aria-label="Reference" />
-        </FormField>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Debit party">
+              <Select
+                value={filterDebitId}
+                onChange={(event) => setFilterDebitId(event.target.value)}
+                aria-label="Debit party"
+                disabled={!filterDebitKind}
+              >
+                <option value="">All</option>
+                {filterDebitKind
+                  ? optionsFor(filterDebitKind).map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.label}
+                      </option>
+                    ))
+                  : null}
+              </Select>
+            </FormField>
+            <FormField label="Credit type">
+              <Select
+                value={filterCreditKind}
+                onChange={(event) => {
+                  setFilterCreditKind(event.target.value as HawalaPartyKind | '')
+                  setFilterCreditId('')
+                }}
+                aria-label="Credit type"
+              >
+                <option value="">All</option>
+                {HAWALA_PARTY_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {kindLabel(kind)}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Credit party">
+              <Select
+                value={filterCreditId}
+                onChange={(event) => setFilterCreditId(event.target.value)}
+                aria-label="Credit party"
+                disabled={!filterCreditKind}
+              >
+                <option value="">All</option>
+                {filterCreditKind
+                  ? optionsFor(filterCreditKind).map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.label}
+                      </option>
+                    ))
+                  : null}
+              </Select>
+            </FormField>
+            <FormField label="Reference">
+              <Input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Reference" aria-label="Reference" />
+            </FormField>
+          </>
+        )}
         <div>
           <ExportButton
             disabled={rows.length === 0}
@@ -516,57 +534,104 @@ export default function HawalaPage() {
               const query = listQueryParams()
               query.delete('page')
               query.delete('page_size')
-              void downloadExport(`/api/v1/hawala/export?${query}`, 'hawala.csv', accessToken!)
+              void downloadExport(
+                `/api/v1/hawala/export?${query}`,
+                portalMode ? 'inter-transfer.csv' : 'hawala.csv',
+                accessToken!,
+              )
             }}
           />
         </div>
       </FilterBar>
 
       <DataTable
-        columns={[
-          { key: 'created', heading: 'DATE & TIME' },
-          { key: 'ref', heading: 'Gateway Ref. No' },
-          { key: 'debit', heading: 'DEBIT' },
-          { key: 'credit', heading: 'CREDIT' },
-          { key: 'amount', heading: 'AMOUNT' },
-          { key: 'remark', heading: 'REMARK' },
-          { key: 'utr', heading: 'UTR' },
-          { key: 'status', heading: 'STATUS' },
-          { key: 'actions', heading: 'ACTION' },
-        ]}
-        rows={rows.map((row) => ({
-          _rowKey: row.id,
-          created: formatDateTimeIst(row.created_at),
-          ref: row.reference,
-          debit: `${kindLabel(row.debit.kind)}: ${row.debit.label}`,
-          credit: `${kindLabel(row.credit.kind)}: ${row.credit.label}`,
-          amount: <MoneyDisplay amountMinor={row.amount_minor} />,
-          remark: row.remark ?? '—',
-          utr: row.utrs.join(', ') || '—',
-          status: <StatusBadge status={row.status} />,
-          actions:
-            canApprove && row.status === 'PENDING_APPROVAL' ? (
-              <span className="flex flex-wrap gap-1">
-                <Button
-                  size="sm"
-                  variant="success"
-                  onClick={() => setConfirm({ id: row.id, action: 'approve' })}
+        columns={
+          portalMode
+            ? [
+                { key: 'created', heading: 'DATE & TIME' },
+                { key: 'ref', heading: 'TRANSACTION NO.' },
+                { key: 'type', heading: 'TRANSACTION TYPE' },
+                { key: 'amount', heading: 'AMOUNT' },
+                { key: 'remark', heading: 'REMARK' },
+                { key: 'utr', heading: 'UTR' },
+              ]
+            : [
+                { key: 'created', heading: 'DATE & TIME' },
+                { key: 'ref', heading: 'Gateway Ref. No' },
+                { key: 'debit', heading: 'DEBIT' },
+                { key: 'credit', heading: 'CREDIT' },
+                { key: 'amount', heading: 'AMOUNT' },
+                { key: 'remark', heading: 'REMARK' },
+                { key: 'utr', heading: 'UTR' },
+                { key: 'status', heading: 'STATUS' },
+                { key: 'actions', heading: 'ACTION' },
+              ]
+        }
+        rows={rows.map((row) => {
+          if (portalMode) {
+            const direction = perspectiveDirection(row)
+            return {
+              _rowKey: row.id,
+              created: formatDateTimeIst(row.created_at),
+              ref: row.reference,
+              type: (
+                <span
+                  className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${
+                    direction === 'DEBIT'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
                 >
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => setConfirm({ id: row.id, action: 'reject' })}
-                >
-                  Reject
-                </Button>
-              </span>
-            ) : (
-              '—'
-            ),
-        }))}
-        empty={<EmptyState message="No Hawala yet — submit a Hawala transfer to see history here." />}
+                  {direction}
+                </span>
+              ),
+              amount: <MoneyDisplay amountMinor={row.amount_minor} />,
+              remark: row.remark ?? '—',
+              utr: row.utrs.join(', ') || '—',
+            }
+          }
+          return {
+            _rowKey: row.id,
+            created: formatDateTimeIst(row.created_at),
+            ref: row.reference,
+            debit: `${kindLabel(row.debit.kind)}: ${row.debit.label}`,
+            credit: `${kindLabel(row.credit.kind)}: ${row.credit.label}`,
+            amount: <MoneyDisplay amountMinor={row.amount_minor} />,
+            remark: row.remark ?? '—',
+            utr: row.utrs.join(', ') || '—',
+            status: <StatusBadge status={row.status} />,
+            actions:
+              canApprove && row.status === 'PENDING_APPROVAL' ? (
+                <span className="flex flex-wrap gap-1">
+                  <Button
+                    size="sm"
+                    variant="success"
+                    onClick={() => setConfirm({ id: row.id, action: 'approve' })}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => setConfirm({ id: row.id, action: 'reject' })}
+                  >
+                    Reject
+                  </Button>
+                </span>
+              ) : (
+                '—'
+              ),
+          }
+        })}
+        empty={
+          <EmptyState
+            message={
+              portalMode
+                ? 'No Inter Transfer rows yet.'
+                : 'No Hawala yet — submit a Hawala transfer to see history here.'
+            }
+          />
+        }
         pagination={{ page, page_size: 25, total }}
         onPage={setPage}
       />
