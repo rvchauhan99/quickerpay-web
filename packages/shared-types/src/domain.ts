@@ -121,6 +121,10 @@ export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 export const HAWALA_PARTY_KINDS = ['PARTY', 'MERCHANT', 'BANKER', 'AGENT'] as const
 export type HawalaPartyKind = (typeof HAWALA_PARTY_KINDS)[number]
 
+/** FROM_TO: debit = gives, credit = receives. LEGACY: pre-0056 Agent payment rows. */
+export const HAWALA_DIRECTION_RULES = ['FROM_TO', 'LEGACY'] as const
+export type HawalaDirectionRule = (typeof HAWALA_DIRECTION_RULES)[number]
+
 export const PARTY_STATUSES = ['ACTIVE', 'DISABLED', 'CLOSED'] as const
 export type PartyStatus = (typeof PARTY_STATUSES)[number]
 

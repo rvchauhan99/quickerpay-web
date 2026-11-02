@@ -1,9 +1,10 @@
 /**
  * Party Master + Hawala contracts.
- * Debit/Credit = Party | Exchange Master | Banker. No bank legs.
+ * Debit = From (gives money), Credit = To (receives money).
+ * Party | Exchange Master | Banker (credit may be Agent). No bank legs.
  */
 
-import type { HawalaPartyKind, HawalaStatus, PartyStatus } from './domain'
+import type { HawalaDirectionRule, HawalaPartyKind, HawalaStatus, PartyStatus } from './domain'
 
 export interface PartyListItem {
   id: string
@@ -38,6 +39,7 @@ export interface HawalaListItem {
   status: HawalaStatus
   debit: HawalaPartyRef
   credit: HawalaPartyRef
+  direction_rule: HawalaDirectionRule
   utrs: string[]
   remark: string | null
   client_reference: string | null
