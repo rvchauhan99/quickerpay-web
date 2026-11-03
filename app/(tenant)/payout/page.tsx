@@ -493,31 +493,70 @@ export default function PayoutPage() {
           />
         ) : null}
       </FilterBar>
-      {canAssign && saUnassignedOnly && hasMenu(menus, 'PAYOUT', 'can_approve') ? (
-        <div className="mb-qp-gap rounded border border-zinc-200 bg-white p-3">
-          <FormShell
-            title="Bulk assign unassigned pay-outs"
-            submitLabel={assigning ? 'Assigning…' : 'Assign by amount'}
-            onSubmit={() => void handleBulkAssign()}
+      {canAssignRows ? (
+        <div
+          className="mb-qp-gap flex flex-wrap items-end gap-2 rounded border px-3 py-2"
+          style={{ borderColor: 'var(--qp-border)', backgroundColor: 'var(--qp-card)' }}
+          role="toolbar"
+          aria-label="Assign unassigned pay-outs"
+        >
+          <span className="self-center text-xs font-medium" style={{ color: 'var(--qp-text-primary)' }}>
+            Assign by amount
+          </span>
+          <div className="min-w-[9rem] flex-1 sm:max-w-[14rem]">
+            <label className="mb-0.5 block text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
+              {bankerLabel()}
+            </label>
+            <Select
+              value={assignAdminId}
+              onChange={(event) => setAssignAdminId(event.target.value)}
+              aria-label={`Assign ${bankerLabel()}`}
+            >
+              <option value="">Select {bankerLabel()}</option>
+              {activeAdmins.map((admin) => (
+                <option key={admin.id} value={admin.id}>
+                  {admin.username}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="min-w-[8rem] flex-1 sm:max-w-[11rem]">
+            <label
+              className="mb-0.5 block text-[11px]"
+              style={{ color: 'var(--qp-text-muted)' }}
+              title="Assign oldest unassigned rows whose sum stays within this amount (FIFO)"
+            >
+              Amount cap
+            </label>
+            <MoneyInput id="bulk-assign-amount" valueMinor={assignAmountMinor} onChangeMinor={setAssignAmountMinor} />
+          </div>
+          <Button
+            variant="primary"
+            disabled={assigning}
+            onClick={() => void handleBulkAssign()}
           >
-            <FormSection title="Assign" description="FIFO from the unassigned INITIATE queue until the amount cap is filled.">
-              <FormGrid>
-                <FormField label={bankerLabel()} required>
-                  <Select value={assignAdminId} onChange={(event) => setAssignAdminId(event.target.value)} aria-label={`Assign ${bankerLabel()}`}>
-                    <option value="">Select {bankerLabel()}</option>
-                    {activeAdmins.map((admin) => (
-                      <option key={admin.id} value={admin.id}>
-                        {admin.username}
-                      </option>
-                    ))}
-                  </Select>
-                </FormField>
-                <FormField label="Amount cap" required hint="Assign oldest unassigned rows whose sum stays within this amount">
-                  <MoneyInput id="bulk-assign-amount" valueMinor={assignAmountMinor} onChangeMinor={setAssignAmountMinor} />
-                </FormField>
-              </FormGrid>
-            </FormSection>
-          </FormShell>
+            {assigning ? 'Assigning…' : 'Assign by amount'}
+          </Button>
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>
+              {selectedIds.length > 0
+                ? `${selectedIds.length} selected`
+                : selectableIds.length > 0
+                  ? 'Tick rows to assign'
+                  : null}
+            </span>
+            {selectableIds.length > 0 ? (
+              <Button
+                variant="secondary"
+                disabled={selectedRows.length === 0}
+                onClick={() => setAssignFor(selectedRows)}
+              >
+                {selectedRows.length > 0
+                  ? `Assign ${selectedRows.length} selected`
+                  : `Assign selected`}
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
       {creating && isLabConsole() && canFilterMerchants && user.role !== 'SUPER_ADMIN' ? (
@@ -557,40 +596,6 @@ export default function PayoutPage() {
               </FormGrid>
             </FormSection>
           </FormShell>
-        </div>
-      ) : null}
-      {canAssignRows && selectableIds.length > 0 ? (
-        <div
-          className="mb-qp-gap flex flex-wrap items-center gap-2 rounded border px-3 py-2"
-          style={{ borderColor: 'var(--qp-border)', backgroundColor: 'var(--qp-card)' }}
-          role="toolbar"
-          aria-label="Assign selected pay-outs"
-        >
-          <span className="text-xs" style={{ color: 'var(--qp-text-secondary)' }}>
-            {selectedIds.length > 0
-              ? `${selectedIds.length} selected`
-              : `Tick rows to assign them, or use Assign by amount above`}
-          </span>
-          <div className="ml-auto flex flex-wrap items-center gap-1.5">
-            <Select
-              value={assignAdminId}
-              onChange={(event) => setAssignAdminId(event.target.value)}
-              aria-label={`Assign selected to ${bankerLabel()}`}
-            >
-              <option value="">Select {bankerLabel()}</option>
-              {activeAdmins.map((admin) => (
-                <option key={admin.id} value={admin.id}>
-                  {admin.username}
-                </option>
-              ))}
-            </Select>
-            <Button
-              variant="secondary"
-              disabled={selectedRows.length === 0}
-              onClick={() => setAssignFor(selectedRows)}
-            >
-              {`Assign ${selectedRows.length > 0 ? selectedRows.length : ''} selected to ${bankerLabel()}`}
-            </Button>          </div>
         </div>
       ) : null}
       {loading ? <TableSkeleton /> : (
