@@ -23,7 +23,7 @@ import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
-import { canSeeMerchants, canSeeOwnPanelUsernames, canSeePayinBanker } from '@/lib/merchant-visibility'
+import { canSeeMerchants, canSeePayinBanker } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
@@ -177,7 +177,6 @@ export default function PayinPage() {
   }, [accessToken, allowed, canCreateInjection])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
-  const showPanelUsername = canSeeOwnPanelUsernames(user?.role)
   const showBanker = canSeePayinBanker(user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
@@ -627,28 +626,21 @@ export default function PayinPage() {
       {loading ? <TableSkeleton /> : (
         <DataTable
           columns={[
-            { key: 'ref', heading: 'Gateway Ref. No' },
-            { key: 'utr', heading: 'UTR' },
-            { key: 'method', heading: 'METHOD' },
-            ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
-            ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
-            ...(showBanker ? [{ key: 'bankerName', heading: 'Banker' }] : []),
-            { key: 'inprog', heading: 'IN PROGRESS TIME' },
-            { key: 'actionTime', heading: 'ACTION TIME' },
-            { key: 'amount', heading: 'AMOUNT' },
-            { key: 'type', heading: 'TYPE' },
-            { key: 'status', heading: 'STATUS' },
-            { key: 'actions', heading: 'ACTION' },
+            ...(canFilterMerchants
+              ? [{ key: 'merchant', heading: 'EXCHANGE', width: '5.5rem', nowrap: true }]
+              : []),
+            ...(showBanker ? [{ key: 'bankerName', heading: 'Banker', nowrap: true }] : []),
+            { key: 'amount', heading: 'AMOUNT', nowrap: true },
+            { key: 'ref', heading: 'Gateway Ref. No', nowrap: true },
+            { key: 'utr', heading: 'UTR', nowrap: true },
+            { key: 'method', heading: 'METHOD', nowrap: true },
+            { key: 'inprog', heading: 'IN PROGRESS TIME', nowrap: true },
+            { key: 'actionTime', heading: 'ACTION TIME', nowrap: true },
+            { key: 'type', heading: 'TYPE', nowrap: true },
+            { key: 'status', heading: 'STATUS', align: 'center' as const, nowrap: true },
+            { key: 'actions', heading: 'ACTION', align: 'center' as const, nowrap: true },
           ]}
           rows={rows.map((row) => ({
-            ref: row.reference,
-            utr: row.utr ?? '—',
-            method: row.payment_method ?? 'UPI',
-            ...(showPanelUsername
-              ? {
-                  username: row.customer_ref?.trim() || '—',
-                }
-              : {}),
             ...(canFilterMerchants
               ? {
                   merchant: row.merchant_display_name?.trim() || '—',
@@ -659,13 +651,16 @@ export default function PayinPage() {
                   bankerName: row.banker_username?.trim() || '—',
                 }
               : {}),
+            amount: <MoneyDisplay amountMinor={row.amount_minor} />,
+            ref: row.reference,
+            utr: row.utr ?? '—',
+            method: row.payment_method ?? 'UPI',
             inprog: formatDateTimeIst(row.in_progress_at),
             actionTime: formatDateTimeIst(row.action_at),
-            amount: <MoneyDisplay amountMinor={row.amount_minor} />,
             type: payinTypeLabel(row),
             status: <StatusBadge status={row.status} />,
             actions: (
-              <span className="flex flex-wrap items-center gap-1">
+              <span className="flex flex-nowrap items-center gap-1">
                 <IconButton href={`/payin/${row.id}`} icon={<Eye size={15} strokeWidth={1.75} />} tooltip="View details" />
                 {user.role === 'MERCHANT' && row.is_injection && row.status === 'INITIATE' ? (
                   <IconButton
