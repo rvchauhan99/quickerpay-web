@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import type { GatewayPayPageView, PayinPaymentMethod, PaymentMethod } from '@quickerpay/shared-types'
-import { Clock, ShieldCheck, Lock, Smartphone } from 'lucide-react'
+import { Clock, Paperclip, ShieldCheck, Lock, Smartphone } from 'lucide-react'
 import { PaymentMethodCard } from './PaymentMethodCard'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { DocumentUpload } from '@/components/forms/DocumentUpload'
@@ -18,6 +18,7 @@ const POLL_MS = 5_000
 const REDIRECT_AFTER_MS = 5_000
 const PROOF_MAX_BYTES = 5 * 1024 * 1024
 const PROOF_ACCEPT = 'image/png,image/jpeg,image/webp'
+const QR_PX = 148
 const UTR_PATTERN = /^\d{12}$/
 const BANK_REF_PATTERN = /^\d{9,22}$/
 const TXID_PATTERN = /^[a-fA-F0-9]{64}$/
@@ -77,7 +78,7 @@ function useQr(value: string | null): string | null {
       return
     }
     let cancelled = false
-    void QRCode.toDataURL(value, { width: 220, margin: 1, errorCorrectionLevel: 'M' }).then(
+    void QRCode.toDataURL(value, { width: QR_PX, margin: 1, errorCorrectionLevel: 'M' }).then(
       (url) => {
         if (!cancelled) setQr(url)
       },
@@ -94,9 +95,9 @@ function useQr(value: string | null): string | null {
 
 function QrImage({ qr, alt }: { qr: string | null; alt: string }) {
   return qr ? (
-    <img src={qr} alt={alt} className="h-[220px] w-[220px]" />
+    <img src={qr} alt={alt} className="h-[148px] w-[148px]" />
   ) : (
-    <div className="flex h-[220px] w-[220px] items-center justify-center text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+    <div className="flex h-[148px] w-[148px] items-center justify-center text-xs" style={{ color: 'var(--qp-text-muted)' }}>
       Generating QR…
     </div>
   )
@@ -159,7 +160,7 @@ function SubmitSuccess({
 function DetailRow({ label, value, copyLabel }: { label: string; value: string | null | undefined; copyLabel: string }) {
   if (!value) return null
   return (
-    <div className="flex items-center justify-between gap-3 border-b py-2 last:border-b-0" style={{ borderColor: 'var(--qp-border)' }}>
+    <div className="flex items-center justify-between gap-3 border-b py-1.5 last:border-b-0" style={{ borderColor: 'var(--qp-border)' }}>
       <div className="min-w-0">
         <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
           {label}
@@ -173,12 +174,49 @@ function DetailRow({ label, value, copyLabel }: { label: string; value: string |
   )
 }
 
+/** Optional screenshot: one-line until expanded so Submit stays above the fold. */
+function OptionalProofAttach({
+  proof,
+  onChange,
+  expanded,
+  onExpand,
+}: {
+  proof: File | null
+  onChange: (file: File | null) => void
+  expanded: boolean
+  onExpand: () => void
+}) {
+  const showUpload = expanded || proof !== null
+  if (!showUpload) {
+    return (
+      <button
+        type="button"
+        onClick={onExpand}
+        className="inline-flex w-full items-center justify-center gap-1.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+      >
+        <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        Attach screenshot (optional)
+      </button>
+    )
+  }
+  return (
+    <DocumentUpload
+      value={proof}
+      onChange={onChange}
+      accept={PROOF_ACCEPT}
+      maxBytes={PROOF_MAX_BYTES}
+      aria-label="Payment screenshot"
+    />
+  )
+}
+
 export function HostedPayPage({ token }: { token: string }) {
   const [state, setState] = useState<LoadState>('loading')
   const [view, setView] = useState<GatewayPayPageView | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [reference, setReference] = useState('')
   const [proof, setProof] = useState<File | null>(null)
+  const [proofOpen, setProofOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loadingMethod, setLoadingMethod] = useState<PaymentMethod | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -263,6 +301,7 @@ export function HostedPayPage({ token }: { token: string }) {
       setView(result.view)
       if (result.view.utr_submitted) setCelebrateFrom((current) => current ?? Date.now())
       setProof(null)
+      setProofOpen(false)
     } catch {
       setSubmitError('Network error. Try again.')
     } finally {
@@ -315,24 +354,21 @@ export function HostedPayPage({ token }: { token: string }) {
   const isUrgent = view?.expires_at ? Math.max(0, Math.floor((new Date(view.expires_at).getTime() - now) / 1000)) <= 120 : false
   const instructions = view?.pay_instructions ?? {}
 
-  const proofField = (label: string) => (
-    <FormField label={label}>
-      <DocumentUpload
-        value={proof}
-        onChange={setProof}
-        accept={PROOF_ACCEPT}
-        maxBytes={PROOF_MAX_BYTES}
-        aria-label="Payment screenshot"
-      />
-    </FormField>
+  const proofAttach = (
+    <OptionalProofAttach
+      proof={proof}
+      onChange={setProof}
+      expanded={proofOpen}
+      onExpand={() => setProofOpen(true)}
+    />
   )
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-3 sm:p-6 py-4 sm:py-6 bg-slate-100/70 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+    <main className="min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-6 py-2 sm:py-6 bg-slate-100/70 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
       <div className="w-full max-w-[460px] rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white shadow-[0_20px_50px_-12px_rgba(15,23,42,0.12),0_1px_3px_rgba(15,23,42,0.04)] overflow-hidden transition-all">
         {/* Top Header Bar */}
-        <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-          <BrandLockup size="md" tone="light" subtitle={SUBTITLE[method]} />
+        <div className="px-4 sm:px-6 py-2.5 sm:py-3 border-b border-slate-100 flex items-center justify-between bg-white">
+          <BrandLockup size="sm" tone="light" subtitle={SUBTITLE[method]} />
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70 text-[11px] font-semibold tracking-tight shadow-2xs">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span>100% Secure</span>
@@ -370,14 +406,14 @@ export function HostedPayPage({ token }: { token: string }) {
         {state === 'ready' && view ? (
           <>
             {/* Amount Banner */}
-            <div className="bg-slate-50/70 px-5 sm:px-6 py-5 border-b border-slate-100 text-center">
+            <div className="bg-slate-50/70 px-4 sm:px-6 py-3 border-b border-slate-100 text-center">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Amount to Pay
               </p>
-              <p className="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+              <p className="mt-0.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
                 <MoneyDisplay amountMinor={view.amount_minor} />
               </p>
-              <div className="mt-2 flex items-center justify-center gap-2">
+              <div className="mt-1.5 flex items-center justify-center gap-2">
                 <span className="font-mono text-xs px-2.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 shadow-2xs">
                   {view.transaction_number}
                 </span>
@@ -385,7 +421,7 @@ export function HostedPayPage({ token }: { token: string }) {
               </div>
 
               {!isTerminal && !submitted && remaining ? (
-                <div className="mt-3 flex items-center justify-center">
+                <div className="mt-2 flex items-center justify-center">
                   <div
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
                       isUrgent
@@ -403,7 +439,7 @@ export function HostedPayPage({ token }: { token: string }) {
             </div>
 
             {/* Main Interactive Content */}
-            <div className="p-4 flex flex-col gap-4">
+            <div className="p-3 flex flex-col gap-2.5">
               {view.status === 'COMPLETED' ? (
                 <div className="py-2 text-center">
                   <ErrorAlert type="success" message="Payment received successfully. Thank you!" />
@@ -432,7 +468,7 @@ export function HostedPayPage({ token }: { token: string }) {
                 <>
                   {/* Stage 1: Method Picker */}
                   {awaitingMethod ? (
-                    <div className="flex flex-col gap-3.5">
+                    <div className="flex flex-col gap-3">
                       <div className="text-left">
                         <h2 className="text-sm sm:text-base font-bold text-slate-900">
                           Select Payment Option
@@ -461,7 +497,7 @@ export function HostedPayPage({ token }: { token: string }) {
                         </div>
                       )}
 
-                      <div className="mt-2 pt-3 border-t border-slate-100 flex items-center justify-center gap-1.5 text-center">
+                      <div className="mt-1 pt-2.5 border-t border-slate-100 flex items-center justify-center gap-1.5 text-center">
                         <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <p className="text-[11px] text-slate-400 font-medium">
                           256-Bit SSL Encrypted • Instant Verification
@@ -472,26 +508,23 @@ export function HostedPayPage({ token }: { token: string }) {
 
                   {/* Stage 2: UPI Payment */}
                   {!awaitingMethod && method === 'UPI' ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col items-center gap-3">
-                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex flex-col items-center gap-2">
+                        <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-xs">
                           <QrImage qr={qr} alt={`UPI QR for ${view.upi ?? ''}`} />
                         </div>
-                        <div className="flex max-w-full items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200">
+                        <div className="flex max-w-full items-center gap-2 px-2.5 py-1 rounded-lg bg-white border border-slate-200">
                           <span className="truncate text-xs sm:text-sm font-semibold text-slate-800">
                             {view.upi}
                           </span>
                           <CopyButton value={view.upi} label="Copy UPI ID" />
                         </div>
-                        <p className="text-xs text-center text-slate-500">
-                          Scan QR using Google Pay, PhonePe, Paytm, or any UPI app.
-                        </p>
                       </div>
 
                       {upiIntent ? (
                         <a
                           href={upiIntent}
-                          className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all sm:hidden"
+                          className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all sm:hidden"
                         >
                           <Smartphone className="w-4 h-4" />
                           <span>Open in UPI App</span>
@@ -503,10 +536,10 @@ export function HostedPayPage({ token }: { token: string }) {
                   {/* Stage 2: Manual Bank Transfer */}
                   {!awaitingMethod && method === 'MANUAL_BANK' ? (
                     <div>
-                      <p className="mb-2.5 text-xs text-slate-500 font-medium">
-                        Transfer the exact amount via IMPS, NEFT or RTGS to the bank account below:
+                      <p className="mb-1.5 text-xs text-slate-500 font-medium">
+                        Transfer the exact amount via IMPS, NEFT or RTGS:
                       </p>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 divide-y divide-slate-200/80">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 divide-y divide-slate-200/80">
                         <DetailRow label="Account holder" value={instructions.account_holder_name} copyLabel="Copy account holder" />
                         <DetailRow label="Account number" value={instructions.account_number} copyLabel="Copy account number" />
                         <DetailRow label="IFSC Code" value={instructions.ifsc} copyLabel="Copy IFSC" />
@@ -517,22 +550,22 @@ export function HostedPayPage({ token }: { token: string }) {
 
                   {/* Stage 2: USDT TRC20 */}
                   {!awaitingMethod && method === 'USDT_TRC20' ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-xs">
                         <QrImage qr={qr} alt="USDT TRC20 deposit address QR" />
                       </div>
-                      <div className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 divide-y divide-slate-200/80">
+                      <div className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 divide-y divide-slate-200/80">
                         <DetailRow label="USDT address (TRC20)" value={instructions.address} copyLabel="Copy USDT address" />
                         <DetailRow label="Deposit reference" value={instructions.deposit_ref} copyLabel="Copy deposit reference" />
                       </div>
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-center">
-                        ⚠️ Send USDT on TRON (TRC20) network only. Transfers on other networks cannot be recovered.
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-center">
+                        Send USDT on TRON (TRC20) only. Other networks cannot be recovered.
                       </p>
                     </div>
                   ) : null}
 
                   {!awaitingMethod ? (
-                    <form className="mt-2 flex flex-col gap-3" onSubmit={(event) => void handleReference(event)}>
+                    <form className="mt-0.5 flex flex-col gap-2" onSubmit={(event) => void handleReference(event)}>
                       {method === 'USDT_TRC20' ? (
                         <>
                           <FormField label="Transaction hash (TxID)" required htmlFor="pay-txid" error={submitError}>
@@ -547,45 +580,33 @@ export function HostedPayPage({ token }: { token: string }) {
                               aria-label="USDT transaction hash"
                             />
                           </FormField>
-                          {proofField('Payment screenshot (optional)')}
                           <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
                             Submit TxID
                           </PrimaryButton>
+                          {proofAttach}
                         </>
                       ) : method === 'MANUAL_BANK' ? (
                         <>
-                          <FormField
-                            label="UTR / reference"
-                            required
-                            htmlFor="pay-bank-utr"
-                            error={submitError}
-                            hint="9 to 22 digits from your bank transfer"
-                          >
+                          <FormField label="UTR / reference" required htmlFor="pay-bank-utr" error={submitError}>
                             <Input
                               id="pay-bank-utr"
                               inputMode="numeric"
                               autoComplete="off"
                               maxLength={22}
-                              placeholder="At least 9 digits"
+                              placeholder="9 to 22 digits from bank transfer"
                               value={reference}
                               onChange={(event) => setReference(event.target.value.replace(/\D/g, ''))}
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          {proofField('Payment screenshot (optional)')}
                           <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
                             Submit UTR
                           </PrimaryButton>
+                          {proofAttach}
                         </>
                       ) : (
                         <>
-                          <FormField
-                            label="12-digit UTR / Reference Number"
-                            required
-                            htmlFor="pay-utr"
-                            error={submitError}
-                            hint="Found in your UPI app under transaction details"
-                          >
+                          <FormField label="12-digit UTR" required htmlFor="pay-utr" error={submitError}>
                             <Input
                               id="pay-utr"
                               inputMode="numeric"
@@ -597,10 +618,10 @@ export function HostedPayPage({ token }: { token: string }) {
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          {proofField('Payment screenshot (optional)')}
                           <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
                             Submit UTR
                           </PrimaryButton>
+                          {proofAttach}
                         </>
                       )}
                     </form>

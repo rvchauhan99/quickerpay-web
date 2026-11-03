@@ -621,14 +621,14 @@ export default function PayoutPage() {
                   },
                 ]
               : []),
-            { key: 'created', heading: 'CREATED' },
-            ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
             ...(canFilterMerchants ? [{ key: 'merchant', heading: merchantLabel().toUpperCase() }] : []),
             ...(isSuperAdmin ? [{ key: 'admin', heading: 'Banker' }] : []),
-            ...(isMerchant ? [{ key: 'assignment', heading: 'ASSIGNMENT' }] : []),
-            { key: 'bank', heading: 'BANK DETAILS' },
             { key: 'amount', heading: 'AMOUNT' },
             { key: 'utr', heading: 'UTR' },
+            { key: 'created', heading: 'CREATED' },
+            ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME' }] : []),
+            ...(isMerchant ? [{ key: 'assignment', heading: 'ASSIGNMENT' }] : []),
+            { key: 'bank', heading: 'BANK DETAILS' },
             { key: 'status', heading: 'STATUS' },
             { key: 'actions', heading: 'ACTION' },
           ]}
@@ -647,6 +647,20 @@ export default function PayoutPage() {
                     ) : null,
                 }
               : {}),
+            ...(canFilterMerchants
+              ? {
+                  merchant: row.merchant_display_name?.trim() || '—',
+                }
+              : {}),
+            ...(isSuperAdmin
+              ? {
+                  admin: row.banker_user_id
+                    ? (adminUsernameById.get(row.banker_user_id) ?? '—')
+                    : '—',
+                }
+              : {}),
+            amount: <MoneyDisplay amountMinor={row.amount_minor} />,
+            utr: row.utr ?? '—',
             created:
               row.source === 'API' || row.source === 'MERCHANT' ? (
                 <span className="flex flex-col">
@@ -663,26 +677,12 @@ export default function PayoutPage() {
                   username: row.supago_username ?? '—',
                 }
               : {}),
-            ...(canFilterMerchants
-              ? {
-                  merchant: row.merchant_display_name?.trim() || '—',
-                }
-              : {}),
-            ...(isSuperAdmin
-              ? {
-                  admin: row.banker_user_id
-                    ? (adminUsernameById.get(row.banker_user_id) ?? '—')
-                    : '—',
-                }
-              : {}),
             ...(isMerchant
               ? {
                   assignment: row.banker_user_id ? 'Assigned' : 'Not assigned',
                 }
               : {}),
             bank: <PayoutBankDetailsCell row={row} />,
-            amount: <MoneyDisplay amountMinor={row.amount_minor} />,
-            utr: row.utr ?? '—',
             status: <StatusBadge status={row.status} />,
             actions: (
               <span className="flex flex-wrap items-center gap-1">
