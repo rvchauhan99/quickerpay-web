@@ -23,7 +23,7 @@ import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
-import { canSeeMerchants, canSeeOwnPanelUsernames, canSeePayinBanker } from '@/lib/merchant-visibility'
+import { canSeeMerchants, canSeePayinBanker } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { isLabConsole } from '@/lib/lab'
@@ -177,7 +177,6 @@ export default function PayinPage() {
   }, [accessToken, allowed, canCreateInjection])
 
   const { isSuperAdmin, canFilterMerchants, admins, merchants: directoryMerchants } = useSuperAdminDirectory(accessToken, user?.role)
-  const showPanelUsername = canSeeOwnPanelUsernames(user?.role)
   const showBanker = canSeePayinBanker(user?.role)
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
@@ -628,14 +627,13 @@ export default function PayinPage() {
         <DataTable
           columns={[
             ...(canFilterMerchants
-              ? [{ key: 'merchant', heading: merchantLabel().toUpperCase(), nowrap: true }]
+              ? [{ key: 'merchant', heading: 'EXCHANGE', width: '5.5rem', nowrap: true }]
               : []),
             ...(showBanker ? [{ key: 'bankerName', heading: 'Banker', nowrap: true }] : []),
             { key: 'amount', heading: 'AMOUNT', nowrap: true },
             { key: 'ref', heading: 'Gateway Ref. No', nowrap: true },
             { key: 'utr', heading: 'UTR', nowrap: true },
             { key: 'method', heading: 'METHOD', nowrap: true },
-            ...(showPanelUsername ? [{ key: 'username', heading: 'USERNAME', nowrap: true }] : []),
             { key: 'inprog', heading: 'IN PROGRESS TIME', nowrap: true },
             { key: 'actionTime', heading: 'ACTION TIME', nowrap: true },
             { key: 'type', heading: 'TYPE', nowrap: true },
@@ -657,11 +655,6 @@ export default function PayinPage() {
             ref: row.reference,
             utr: row.utr ?? '—',
             method: row.payment_method ?? 'UPI',
-            ...(showPanelUsername
-              ? {
-                  username: row.customer_ref?.trim() || '—',
-                }
-              : {}),
             inprog: formatDateTimeIst(row.in_progress_at),
             actionTime: formatDateTimeIst(row.action_at),
             type: payinTypeLabel(row),
