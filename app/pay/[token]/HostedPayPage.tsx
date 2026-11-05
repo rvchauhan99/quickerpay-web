@@ -22,6 +22,8 @@ const QR_PX = 148
 const UTR_PATTERN = /^\d{12}$/
 const BANK_REF_PATTERN = /^\d{9,22}$/
 const TXID_PATTERN = /^[a-fA-F0-9]{64}$/
+/** Survives React Strict Mode remount so default UPI is POSTed once per token. */
+const autoUpiStartedTokens = new Set<string>()
 
 const SUBTITLE: Record<PayinPaymentMethod, string> = {
   UPI: 'Secure UPI payment',
@@ -219,6 +221,7 @@ export function HostedPayPage({ token }: { token: string }) {
   const [proofOpen, setProofOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loadingMethod, setLoadingMethod] = useState<PaymentMethod | null>(null)
+  const [autoSelectingUpi, setAutoSelectingUpi] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [celebrateFrom, setCelebrateFrom] = useState<number | null>(null)
 
@@ -251,6 +254,9 @@ export function HostedPayPage({ token }: { token: string }) {
           Math.max(0, Math.ceil((REDIRECT_AFTER_MS - Math.max(0, now - celebrateFrom)) / 1000)),
         )
   const awaitingMethod = method === 'PENDING_METHOD'
+  const availableMethods = view?.available_methods ?? []
+  const switchableMethods = availableMethods.filter((item) => item.payment_method !== method)
+  const canSwitchMethod = !awaitingMethod && !submitted && !isTerminal && switchableMethods.length > 0
 
   useEffect(() => {
     void load()
@@ -320,6 +326,38 @@ export function HostedPayPage({ token }: { token: string }) {
     )
     setLoadingMethod(null)
   }
+
+  const hasUpiAvailable = availableMethods.some((item) => item.payment_method === 'UPI')
+
+  useEffect(() => {
+    if (state !== 'ready' || method !== 'PENDING_METHOD' || !hasUpiAvailable) return
+    if (autoUpiStartedTokens.has(token)) return
+    autoUpiStartedTokens.add(token)
+    setAutoSelectingUpi(true)
+    setLoadingMethod('UPI')
+    setSubmitting(true)
+    setSubmitError(null)
+    void (async () => {
+      try {
+        const result = await postJson(`/api/v1/gateway/pay/${encodeURIComponent(token)}/method`, {
+          payment_method: 'UPI',
+        })
+        if (!result.view) {
+          autoUpiStartedTokens.delete(token)
+          setSubmitError(result.message ?? 'Could not select UPI. Choose another method or retry.')
+          return
+        }
+        setView(result.view)
+      } catch {
+        autoUpiStartedTokens.delete(token)
+        setSubmitError('Network error. Try again.')
+      } finally {
+        setSubmitting(false)
+        setLoadingMethod(null)
+        setAutoSelectingUpi(false)
+      }
+    })()
+  }, [state, token, method, hasUpiAvailable])
 
   const handleReference = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -466,44 +504,51 @@ export function HostedPayPage({ token }: { token: string }) {
 
               {!isTerminal && !expired && !submitted ? (
                 <>
-                  {/* Stage 1: Method Picker */}
+                  {/* Stage 1: Method Picker (only when UPI is not allocatable; otherwise auto-select UPI) */}
                   {awaitingMethod ? (
-                    <div className="flex flex-col gap-3">
-                      <div className="text-left">
-                        <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                          Select Payment Option
-                        </h2>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Choose your preferred payment mode to complete checkout
-                        </p>
+                    autoSelectingUpi || loadingMethod === 'UPI' ? (
+                      <div className="py-10 text-center">
+                        <div className="inline-block h-8 w-8 animate-spin rounded-full border-3 border-blue-600 border-r-transparent align-[-0.125em]" />
+                        <p className="mt-3 text-sm text-slate-500 font-medium">Preparing UPI payment…</p>
                       </div>
-
-                      {submitError ? <ErrorAlert message={submitError} /> : null}
-
-                      {(view.available_methods ?? []).length === 0 ? (
-                        <ErrorAlert message="No payment methods are available for this amount right now. Start a new payment from the merchant." />
-                      ) : (
-                        <div className="flex flex-col gap-2.5">
-                          {(view.available_methods ?? []).map((item) => (
-                            <PaymentMethodCard
-                              key={item.payment_method}
-                              method={item.payment_method}
-                              label={item.label}
-                              isLoading={loadingMethod === item.payment_method}
-                              disabled={submitting}
-                              onClick={() => void selectMethod(item.payment_method)}
-                            />
-                          ))}
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        <div className="text-left">
+                          <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                            Select Payment Option
+                          </h2>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Choose your preferred payment mode to complete checkout
+                          </p>
                         </div>
-                      )}
 
-                      <div className="mt-1 pt-2.5 border-t border-slate-100 flex items-center justify-center gap-1.5 text-center">
-                        <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <p className="text-[11px] text-slate-400 font-medium">
-                          256-Bit SSL Encrypted • Instant Verification
-                        </p>
+                        {submitError ? <ErrorAlert message={submitError} /> : null}
+
+                        {availableMethods.length === 0 ? (
+                          <ErrorAlert message="No payment methods are available for this amount right now. Start a new payment from the merchant." />
+                        ) : (
+                          <div className="flex flex-col gap-2.5">
+                            {availableMethods.map((item) => (
+                              <PaymentMethodCard
+                                key={item.payment_method}
+                                method={item.payment_method}
+                                label={item.label}
+                                isLoading={loadingMethod === item.payment_method}
+                                disabled={submitting}
+                                onClick={() => void selectMethod(item.payment_method)}
+                              />
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="mt-1 pt-2.5 border-t border-slate-100 flex items-center justify-center gap-1.5 text-center">
+                          <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <p className="text-[11px] text-slate-400 font-medium">
+                            256-Bit SSL Encrypted • Instant Verification
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : null}
 
                   {/* Stage 2: UPI Payment */}
@@ -580,7 +625,7 @@ export function HostedPayPage({ token }: { token: string }) {
                               aria-label="USDT transaction hash"
                             />
                           </FormField>
-                          <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
+                          <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
                             Submit TxID
                           </PrimaryButton>
                           {proofAttach}
@@ -599,7 +644,7 @@ export function HostedPayPage({ token }: { token: string }) {
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
+                          <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
                             Submit UTR
                           </PrimaryButton>
                           {proofAttach}
@@ -618,13 +663,34 @@ export function HostedPayPage({ token }: { token: string }) {
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          <PrimaryButton type="submit" loading={submitting} disabled={submitting}>
+                          <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
                             Submit UTR
                           </PrimaryButton>
                           {proofAttach}
                         </>
                       )}
                     </form>
+                  ) : null}
+
+                  {canSwitchMethod ? (
+                    <div className="mt-1 border-t border-slate-100 pt-2.5">
+                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Change payment method
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {switchableMethods.map((item) => (
+                          <button
+                            key={item.payment_method}
+                            type="button"
+                            disabled={submitting || Boolean(loadingMethod)}
+                            onClick={() => void selectMethod(item.payment_method)}
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {loadingMethod === item.payment_method ? 'Switching…' : item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ) : null}
                 </>
               ) : null}
