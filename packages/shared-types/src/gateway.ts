@@ -135,7 +135,10 @@ export interface GatewayPayPageView {
   proof_submitted: boolean
   expires_at: string | null
   return_url: string | null
-  /** Present while PENDING_METHOD — kinds the player may pick (allocator eligibility). */
+  /**
+   * Allocator-eligible kinds while the player may still pick or switch method
+   * (`PENDING_METHOD`, or INITIATE / OPEN hold before UTR / proof).
+   */
   available_methods?: GatewayPaymentMethodItem[]
 }
 
