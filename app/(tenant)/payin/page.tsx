@@ -34,7 +34,8 @@ import { useQueueSync } from '@/lib/live/useQueueSync'
 function formatApiError(caught: unknown, fallback: string): string {
   if (!(caught instanceof ApiClientError)) return fallback
   const base = caught.displayMessage()
-  return caught.requestId ? `${base} (${caught.requestId})` : base
+  // Label requestId so it is not mistaken for a conflicting pay-in UUID.
+  return caught.requestId ? `${base} (request ${caught.requestId})` : base
 }
 
 export default function PayinPage() {
