@@ -20,6 +20,12 @@ export interface PayinListItem {
   customer_ref?: string | null
   amount_minor: number
   status: PayinStatus
+  /**
+   * Reject/expiry note from `payin_requests.review_reason`.
+   * Gateway unpaid timeout stores `EXPIRED` while `status` stays `REJECTED`.
+   * Null when open or completed without a reject reason.
+   */
+  review_reason: string | null
   auto_accepted: boolean
   /** True when created via Pay-In Injection (manual SA/Admin create; never panel-linked). */
   is_injection: boolean

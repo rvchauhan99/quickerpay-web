@@ -43,6 +43,8 @@ export default function PayinPage() {
     date_from: parseAsString.withDefault(''),
     date_to: parseAsString.withDefault(''),
     status: parseAsString.withDefault('IN_PROCESS'),
+    /** Exact review_reason; pair with status=REJECTED for unpaid Gateway timeouts. */
+    review_reason: parseAsString.withDefault(''),
     q: parseAsString.withDefault(''),
     merchant_id: parseAsString.withDefault(''),
     banker_user_id: parseAsString.withDefault(''),
@@ -50,6 +52,7 @@ export default function PayinPage() {
     page: parseAsInteger.withDefault(1),
     page_size: parseAsInteger.withDefault(10),
   })
+  const statusFilterValue = filters.review_reason === 'EXPIRED' ? 'EXPIRED' : filters.status
   const isInjectMode = filters.inject === '1'
   const [rows, setRows] = useState<PayinListItem[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
@@ -94,6 +97,7 @@ export default function PayinPage() {
     query.set('page', String(filters.page))
     query.set('page_size', String(filters.page_size))
     if (filters.status) query.set('status', filters.status)
+    if (filters.review_reason) query.set('review_reason', filters.review_reason)
     if (filters.date_from) query.set('date_from', filters.date_from)
     if (filters.date_to) query.set('date_to', filters.date_to)
     if (filters.q) query.set('q', filters.q)
@@ -109,7 +113,7 @@ export default function PayinPage() {
     } finally {
       if (!options?.silent) setLoading(false)
     }
-  }, [filters.page, filters.page_size, filters.status, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, filters.inject])
+  }, [filters.page, filters.page_size, filters.status, filters.review_reason, filters.date_from, filters.date_to, filters.q, filters.merchant_id, filters.banker_user_id, filters.inject])
 
   useEffect(() => {
     if (ready && allowed) void load()
@@ -128,6 +132,7 @@ export default function PayinPage() {
       q: filters.q || undefined,
       merchant_id: filters.merchant_id || undefined,
       banker_user_id: filters.banker_user_id || undefined,
+      ...(filters.review_reason ? { review_reason: filters.review_reason } : {}),
       ...(filters.inject === '1' ? { injection: 'true' } : {}),
     },
     rows,
@@ -413,6 +418,12 @@ export default function PayinPage() {
     return 'PAYIN'
   }
 
+  const payinReasonLabel = (row: PayinListItem) => {
+    if (!row.review_reason) return '—'
+    if (row.review_reason === 'EXPIRED') return 'Expired'
+    return row.review_reason
+  }
+
   const injectionAcceptUpis = acceptInjection
     ? upis.filter(
         (row) =>
@@ -452,6 +463,7 @@ export default function PayinPage() {
             date_from: '',
             date_to: '',
             status: isInjectMode ? '' : 'IN_PROCESS',
+            review_reason: '',
             q: '',
             merchant_id: '',
             banker_user_id: '',
@@ -466,6 +478,7 @@ export default function PayinPage() {
             onExport={() => {
               const query = new URLSearchParams()
               if (filters.status) query.set('status', filters.status)
+              if (filters.review_reason) query.set('review_reason', filters.review_reason)
               if (filters.date_from) query.set('date_from', filters.date_from)
               if (filters.date_to) query.set('date_to', filters.date_to)
               if (filters.q) query.set('q', filters.q)
@@ -484,11 +497,23 @@ export default function PayinPage() {
           <Input type="date" value={filters.date_to} onChange={(event) => void setFilters({ date_to: event.target.value })} aria-label="End Date" />
         </FormField>
         <FormField label="Status">
-          <Select value={filters.status} onChange={(event) => void setFilters({ status: event.target.value })} aria-label="Status">
+          <Select
+            value={statusFilterValue}
+            onChange={(event) => {
+              const value = event.target.value
+              if (value === 'EXPIRED') {
+                void setFilters({ status: 'REJECTED', review_reason: 'EXPIRED', page: 1 })
+                return
+              }
+              void setFilters({ status: value, review_reason: '', page: 1 })
+            }}
+            aria-label="Status"
+          >
             <option value="">All statuses</option>
             {PAYIN_STATUSES.map((status) => (
               <option key={status} value={status}>{status}</option>
             ))}
+            <option value="EXPIRED">EXPIRED</option>
           </Select>
         </FormField>
         <FormField label="Search">
@@ -638,6 +663,7 @@ export default function PayinPage() {
             { key: 'actionTime', heading: 'ACTION TIME', nowrap: true },
             { key: 'type', heading: 'TYPE', nowrap: true },
             { key: 'status', heading: 'STATUS', align: 'center' as const, nowrap: true },
+            { key: 'reason', heading: 'REASON', nowrap: true },
             { key: 'actions', heading: 'ACTION', align: 'center' as const, nowrap: true },
           ]}
           rows={rows.map((row) => ({
@@ -658,7 +684,12 @@ export default function PayinPage() {
             inprog: formatDateTimeIst(row.in_progress_at),
             actionTime: formatDateTimeIst(row.action_at),
             type: payinTypeLabel(row),
-            status: <StatusBadge status={row.status} />,
+            status: (
+              <StatusBadge
+                status={row.status === 'REJECTED' && row.review_reason === 'EXPIRED' ? 'EXPIRED' : row.status}
+              />
+            ),
+            reason: payinReasonLabel(row),
             actions: (
               <span className="flex flex-nowrap items-center gap-1">
                 <IconButton href={`/payin/${row.id}`} icon={<Eye size={15} strokeWidth={1.75} />} tooltip="View details" />

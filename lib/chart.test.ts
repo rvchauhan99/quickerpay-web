@@ -52,6 +52,13 @@ describe('kpi', () => {
         { status: 'IN_PROCESS', count: 50, amount_minor: 0 },
       ]),
     ).toBe('75.0%')
+    expect(
+      successRate([
+        { status: 'COMPLETED', count: 2, amount_minor: 0 },
+        { status: 'REJECTED', count: 1, amount_minor: 0 },
+        { status: 'EXPIRED', count: 1, amount_minor: 0 },
+      ]),
+    ).toBe('50.0%')
     expect(successRate([{ status: 'IN_PROCESS', count: 5, amount_minor: 0 }])).toBeNull()
   })
 

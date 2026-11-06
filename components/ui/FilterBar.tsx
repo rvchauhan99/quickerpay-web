@@ -455,6 +455,10 @@ export function StatusBadge({ status }: { status: string }) {
     dotColor = 'var(--qp-danger)'
     bgColor = 'var(--qp-danger-bg)'
     textColor = '#991b1b'
+  } else if (s === 'EXPIRED') {
+    dotColor = 'var(--qp-warning)'
+    bgColor = 'var(--qp-warning-bg)'
+    textColor = '#92400e'
   } else if (s === 'PENDING_APPROVAL' || s === 'PENDING' || s === 'UNMATCHED' || s === 'OFFLINE' || s === 'INITIATE' || s === 'REFUND') {
     dotColor = 'var(--qp-warning)'
     bgColor = 'var(--qp-warning-bg)'

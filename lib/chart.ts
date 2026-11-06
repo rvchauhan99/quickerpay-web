@@ -66,11 +66,12 @@ export function labelStride(length: number, max: number): number {
   return Math.ceil(length / max)
 }
 
-/** Completed share of decided (COMPLETED + REJECTED) rows, one decimal; null when nothing decided. */
+/** Completed share of decided (COMPLETED + REJECTED + EXPIRED) rows, one decimal; null when nothing decided. */
 export function successRate(slices: ReadonlyArray<DashboardStatusSlice>): string | null {
   const completed = slices.find((slice) => slice.status === 'COMPLETED')?.count ?? 0
   const rejected = slices.find((slice) => slice.status === 'REJECTED')?.count ?? 0
-  const decided = completed + rejected
+  const expired = slices.find((slice) => slice.status === 'EXPIRED')?.count ?? 0
+  const decided = completed + rejected + expired
   if (decided === 0) return null
   return `${formatTenths(Math.round((completed * 1000) / decided))}%`
 }
