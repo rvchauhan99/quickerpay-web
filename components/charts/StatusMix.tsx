@@ -8,6 +8,8 @@ import { MoneyDisplay } from '@/lib/money'
 const STATUS_COLOR: Record<string, string> = {
   COMPLETED: 'var(--qp-success)',
   REJECTED: 'var(--qp-danger)',
+  /** Unpaid Gateway session timeout (DB status stays REJECTED, review_reason EXPIRED). */
+  EXPIRED: 'var(--qp-warning)',
   IN_PROCESS: 'var(--qp-info)',
   INITIATE: 'var(--qp-warning)',
   REFUND: 'var(--qp-accent)',

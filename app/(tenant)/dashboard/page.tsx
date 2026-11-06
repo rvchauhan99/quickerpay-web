@@ -283,7 +283,7 @@ export default function DashboardPage() {
       <StatCard label="Refunded" tone="neutral" href={payinHref(`status=REFUND&${range}`)}>
         <MoneyDisplay amountMinor={data.refunded_minor} />
       </StatCard>
-      <StatCard label="Pay-in success" tone="success" hint="Completed ÷ (completed + rejected)" href={payinHref(`status=COMPLETED&${range}`)}>
+      <StatCard label="Pay-in success" tone="success" hint="Completed ÷ (completed + rejected + expired)" href={payinHref(`status=COMPLETED&${range}`)}>
         {payinSuccess ?? '—'}
       </StatCard>
       <StatCard label="Pay-out success" tone="success" hint="Completed ÷ (completed + rejected)" href={payoutHref(`status=COMPLETED&${range}`)}>
@@ -325,7 +325,11 @@ export default function DashboardPage() {
         <StatusMix
           title="Pay-in"
           slices={insights.payin_status}
-          hrefFor={(status) => payinHref(`status=${status}&${range}`)}
+          hrefFor={(status) =>
+            status === 'EXPIRED'
+              ? payinHref(`status=REJECTED&review_reason=EXPIRED&${range}`)
+              : payinHref(`status=${status}&${range}`)
+          }
         />
         <StatusMix
           title="Pay-out"
