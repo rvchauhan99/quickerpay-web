@@ -20,7 +20,7 @@ html[data-theme='blue'] {
   --qp-sidebar-muted: #93c5fd;
   --qp-sidebar-border: rgba(191, 219, 254, 0.1);
   --qp-sidebar-active-text: #ffffff;
-  --qp-sidebar-width: 240px;
+  --qp-sidebar-width: 228px;
 
   /* Content */
   --qp-surface: #f8fafc;
@@ -201,7 +201,8 @@ html[data-surface='contrast'] {
 :root,
 html[data-density='compact'] {
   --qp-header-h: 44px;
-  --qp-sidebar-w: 200px;
+  /* Room for long labels (In Process Withdrawal) + queue badge pills. */
+  --qp-sidebar-w: 228px;
   --qp-sidebar-rail-w: 56px;
   --qp-page-pad: 12px;
   --qp-gap: 8px;

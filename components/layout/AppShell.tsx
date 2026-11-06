@@ -10,6 +10,7 @@ import { apiRequest } from '@/lib/api'
 import { roleLabel } from '@/lib/labels'
 import { isLabConsole } from '@/lib/lab'
 import { hasMenu, useSession } from '@/lib/session'
+import { formatNavBadgeCount, useNavQueueCounts } from '@/lib/useNavQueueCounts'
 import { FlaskConical, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 const SIDEBAR_COLLAPSED_KEY = 'qp.ui.sidebarCollapsed'
@@ -341,6 +342,7 @@ export function AppShell({
   const [criciAlerts, setCriciAlerts] = useState<CriciConnectionAlertItem[]>([])
   const [mockGpayAllowed, setMockGpayAllowed] = useState(false)
   const { user, accessToken, refreshUser } = useSession()
+  const queueCounts = useNavQueueCounts()
 
   useEffect(() => {
     if (!isLabConsole()) {
@@ -501,6 +503,14 @@ export function AppShell({
       link.key === 'pending-withdrawal' && role === 'BANKER'
         ? '/payout?status=INITIATE&assigned=true'
         : link.href
+    const badge =
+      link.key === 'pending-deposit'
+        ? formatNavBadgeCount(queueCounts.pending_deposit)
+        : link.key === 'pending-withdrawal'
+          ? formatNavBadgeCount(queueCounts.pending_withdrawal)
+          : link.key === 'in-process-withdrawal'
+            ? formatNavBadgeCount(queueCounts.in_process_withdrawal)
+            : null
     return (
       <li key={link.key}>
         {onNavigate ? (
@@ -509,6 +519,7 @@ export function AppShell({
             label={label}
             code={link.code}
             active={hrefIsActive(href, pathname, search, role)}
+            badge={badge}
             {...(icon !== undefined ? { icon } : {})}
             onNavigate={onNavigate}
           />
@@ -518,6 +529,7 @@ export function AppShell({
             label={label}
             code={link.code}
             active={hrefIsActive(href, pathname, search, role)}
+            badge={badge}
             {...(icon !== undefined ? { icon } : {})}
           />
         )}
@@ -836,6 +848,7 @@ function NavItem({
   tone = 'rail',
   active: activeProp,
   icon: iconProp,
+  badge,
 }: {
   href: string
   label: string
@@ -844,6 +857,8 @@ function NavItem({
   tone?: NavTone
   active?: boolean
   icon?: React.ReactNode
+  /** Queue depth pill; omit / null hides it (including zero). */
+  badge?: string | null
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -860,7 +875,20 @@ function NavItem({
       style={navItemStyle(active, tone)}
     >
       <span className="shrink-0 opacity-80">{icon}</span>
-      <span className={`truncate ${tone === 'rail' ? SIDE_LABEL : ''}`}>{label}</span>
+      <span className={`min-w-0 flex-1 truncate ${tone === 'rail' ? SIDE_LABEL : ''}`}>{label}</span>
+      {badge ? (
+        <span
+          className={`shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold leading-4 tabular-nums ${tone === 'rail' ? SIDE_LABEL : ''}`}
+          style={
+            tone === 'sheet'
+              ? { backgroundColor: 'var(--qp-accent-bg)', color: 'var(--qp-primary)' }
+              : { backgroundColor: 'rgba(255,255,255,0.18)', color: 'var(--qp-sidebar-active-text)' }
+          }
+          aria-label={`${badge} pending`}
+        >
+          {badge}
+        </span>
+      ) : null}
     </Link>
   )
 }
@@ -949,7 +977,7 @@ export function Navigation({ menus, role }: { menus: MenuGrant[]; role: UserRole
     }))
 
   return (
-    <nav style={{ backgroundColor: 'var(--qp-sidebar-bg)', width: '240px' }}>
+    <nav style={{ backgroundColor: 'var(--qp-sidebar-bg)', width: 'var(--qp-sidebar-w)' }}>
       <ul>
         {items.map((item) => (
           <li key={item.href}>
