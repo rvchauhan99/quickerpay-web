@@ -5,6 +5,7 @@
 
 import type { CommissionSnapshot } from './commission'
 import type { PayinPaymentMethod, PayinStatus, TxnSource } from './domain'
+import type { GatewayPayInstructions, GatewayPaymentMethodItem } from './gateway'
 
 export interface PayinListItem {
   id: string
@@ -50,6 +51,28 @@ export interface PayinListItem {
   created_at: string
   in_progress_at: string | null
   action_at: string | null
+}
+
+/**
+ * MERCHANT portal Add Pay-In create response: list item plus hosted-style pay view
+ * for same-page QR / UTR (no public pay-link token).
+ */
+export interface PortalPayinPayView {
+  transaction_number: string
+  amount_minor: number
+  payment_method: PayinPaymentMethod
+  pay_instructions: GatewayPayInstructions
+  upi: string | null
+  payee_name: string
+  status: PayinStatus
+  utr_submitted: boolean
+  expires_at: string | null
+  available_methods?: GatewayPaymentMethodItem[]
+}
+
+export interface PortalPayinCreateResult {
+  payin: PayinListItem
+  pay_view: PortalPayinPayView
 }
 
 export interface PayinDetail extends PayinListItem {

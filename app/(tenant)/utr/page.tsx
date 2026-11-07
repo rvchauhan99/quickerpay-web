@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
-import type { Pagination, UpiAccountListItem, UtrListItem } from '@quickerpay/shared-types'
+import type { Pagination, UpiAccountListItem, UtrAllocateResult, UtrListItem } from '@quickerpay/shared-types'
 import { UTR_STATUSES } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Modal } from '@/components/ui/Modal'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { IconButton } from '@/components/ui/IconButton'
-import { Trash2, Unlock, X } from 'lucide-react'
+import { Building2, Trash2, Unlock, X } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
@@ -41,6 +42,9 @@ export default function UtrPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<{ id: string; action: 'reject' | 'release' | 'delete' } | null>(null)
+  const [allocate, setAllocate] = useState<UtrListItem | null>(null)
+  const [allocateMerchantId, setAllocateMerchantId] = useState('')
+  const [allocateRemarks, setAllocateRemarks] = useState('')
   const [unclaimedBanner, setUnclaimedBanner] = useState<{ count: number; amount_minor: number } | null>(null)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
@@ -179,7 +183,7 @@ export default function UtrPage() {
         <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           {unclaimedBanner.count} unclaimed UTR{unclaimedBanner.count === 1 ? '' : 's'} (
           <MoneyDisplay amountMinor={unclaimedBanner.amount_minor} />
-          ). Release on this screen before Manual Accept on Pay-In.{' '}
+          ). Release, then Allocate Exchange (or Manual Accept on Pay-In).{' '}
           <button
             type="button"
             className="underline"
@@ -300,7 +304,7 @@ export default function UtrPage() {
               <span className="flex flex-col gap-0.5">
                 <StatusBadge status={row.status} />
                 {row.status === 'UNCLAIMED' && row.released_at ? (
-                  <span className="text-[10px] text-zinc-500">Released — Manual Accept on Pay-In</span>
+                  <span className="text-[10px] text-zinc-500">Released — Allocate Exchange or Manual Accept</span>
                 ) : null}
               </span>
             ),
@@ -323,7 +327,18 @@ export default function UtrPage() {
                       tooltip="Release"
                       onClick={() => setConfirm({ id: row.id, action: 'release' })}
                     />
-                  ) : null}
+                  ) : (
+                    <IconButton
+                      variant="primary"
+                      icon={<Building2 size={15} strokeWidth={1.75} />}
+                      tooltip="Allocate Exchange"
+                      onClick={() => {
+                        setAllocateMerchantId('')
+                        setAllocateRemarks('')
+                        setAllocate(row)
+                      }}
+                    />
+                  )}
                   <IconButton
                     variant="danger"
                     icon={<Trash2 size={15} strokeWidth={1.75} />}
@@ -353,13 +368,115 @@ export default function UtrPage() {
                 subtitle:
                   'This reverses the orphan settlement (refund, charges and commission). The ledger, statement and General then net to zero. The row is kept as DELETED for audit.',
               }
-            : {})}
+            : confirm.action === 'release'
+              ? {
+                  subtitle:
+                    'Unlocks Allocate Exchange on this screen (or Manual Accept on an existing Pay-In).',
+                }
+              : {})}
           variant={confirm.action === 'release' ? 'primary' : 'danger'}
           confirmLabel={confirm.action === 'release' ? 'Release' : confirm.action === 'delete' ? 'Delete' : 'Reject'}
           loading={submitting === confirm.id}
           onCancel={() => setConfirm(null)}
           onConfirm={() => void handleAction()}
         />
+      ) : null}
+      {allocate && accessToken ? (
+        <Modal
+          title="Allocate Exchange"
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5 text-xs"
+                style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)' }}
+                disabled={submitting === allocate.id}
+                onClick={() => setAllocate(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                style={{ backgroundColor: 'var(--qp-accent)' }}
+                disabled={
+                  submitting === allocate.id || !allocateMerchantId || allocateRemarks.trim().length < 1
+                }
+                onClick={() => {
+                  void (async () => {
+                    if (!allocate || !accessToken || submitting) return
+                    setSubmitting(allocate.id)
+                    try {
+                      const result = await apiRequest<UtrAllocateResult>(`/api/v1/utr/${allocate.id}/allocate`, {
+                        method: 'POST',
+                        token: accessToken,
+                        headers: { 'Idempotency-Key': `utr-allocate-${allocate.id}-${Date.now()}` },
+                        body: {
+                          merchant_id: allocateMerchantId,
+                          remarks: allocateRemarks.trim(),
+                        },
+                      })
+                      setAllocate(null)
+                      toast.success(`Allocated to Exchange — Pay-In ${result.payin_id.slice(0, 8)}…`)
+                      await load()
+                    } catch (caught) {
+                      toast.error(
+                        caught instanceof ApiClientError ? caught.displayMessage() : 'Could not allocate UTR',
+                      )
+                    } finally {
+                      setSubmitting(null)
+                    }
+                  })()
+                }}
+              >
+                {submitting === allocate.id ? 'Allocating…' : 'Allocate'}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3 p-4">
+            <p className="text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+              Creates a COMPLETED CRM Pay-In at this UTR amount (no Gateway / panel). Orphan settlement is
+              reversed; Exchange and General update with commission.
+            </p>
+            <FormField label="Amount">
+              <div className="text-sm font-medium" style={{ color: 'var(--qp-text-primary)' }}>
+                <MoneyDisplay amountMinor={allocate.amount_minor} />
+              </div>
+            </FormField>
+            <FormField label="UTR">
+              <div className="font-mono text-sm" style={{ color: 'var(--qp-text-primary)' }}>
+                {allocate.utr}
+              </div>
+            </FormField>
+            <FormField label="Exchange Master" required>
+              <Select
+                value={allocateMerchantId}
+                onChange={(event) => setAllocateMerchantId(event.target.value)}
+                aria-label="Exchange Master"
+              >
+                <option value="">Select Exchange Master</option>
+                {merchants
+                  .filter((merchant) => merchant.status === 'ACTIVE')
+                  .map((merchant) => (
+                    <option key={merchant.id} value={merchant.id}>
+                      {merchant.legal_name}
+                      {merchant.merchant_code ? ` (${merchant.merchant_code})` : ''}
+                    </option>
+                  ))}
+              </Select>
+            </FormField>
+            <FormField label="Remarks" required>
+              <Input
+                value={allocateRemarks}
+                onChange={(event) => setAllocateRemarks(event.target.value)}
+                maxLength={500}
+                placeholder="Why this Exchange is claiming the UTR"
+                aria-label="Allocate remarks"
+              />
+            </FormField>
+          </div>
+        </Modal>
       ) : null}
     </AppShell>
   )

@@ -30,6 +30,7 @@ import { isLabConsole } from '@/lib/lab'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 import { useQueueSync } from '@/lib/live/useQueueSync'
+import { MerchantPortalPayinPanel } from '@/components/payin/MerchantPortalPayinPanel'
 
 function formatApiError(caught: unknown, fallback: string): string {
   if (!(caught instanceof ApiClientError)) return fallback
@@ -85,11 +86,17 @@ export default function PayinPage() {
   const [acceptUpiId, setAcceptUpiId] = useState('')
   const [submitUtrFor, setSubmitUtrFor] = useState<PayinListItem | null>(null)
   const [submitUtrValue, setSubmitUtrValue] = useState('')
+  const [portalOpen, setPortalOpen] = useState(false)
 
   const canCreateInjection =
     isInjectMode &&
     hasMenu(menus, 'PAYIN', 'can_create') &&
     (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN')
+
+  const canAddPortalPayin =
+    !isInjectMode &&
+    hasMenu(menus, 'PAYIN', 'can_create') &&
+    user?.role === 'MERCHANT'
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true)
@@ -437,13 +444,29 @@ export default function PayinPage() {
     <AppShell title={isInjectMode ? 'Payin Injection' : 'Pending Deposit'} role={user.role} menus={menus}>
       <PageHeader
         action={
-          !isInjectMode && hasMenu(menus, 'PAYIN', 'can_create') && isLabConsole() && user.role !== 'SUPER_ADMIN' ? (
-            <PrimaryButton onClick={() => setCreating(true)}>
-              Create
-            </PrimaryButton>
+          canAddPortalPayin ? (
+            <PrimaryButton onClick={() => setPortalOpen(true)}>Add Pay-In</PrimaryButton>
+          ) : !isInjectMode &&
+            hasMenu(menus, 'PAYIN', 'can_create') &&
+            isLabConsole() &&
+            user.role !== 'SUPER_ADMIN' &&
+            user.role !== 'MERCHANT' ? (
+            <PrimaryButton onClick={() => setCreating(true)}>Create</PrimaryButton>
           ) : null
         }
       />
+      {portalOpen && accessToken && canAddPortalPayin ? (
+        <MerchantPortalPayinPanel
+          accessToken={accessToken}
+          onClose={() => setPortalOpen(false)}
+          onSubmitted={async () => {
+            setPortalOpen(false)
+            toast.success('UTR submitted — pay-in is In Process')
+            await setFilters({ status: 'IN_PROCESS', page: 1 })
+            await load()
+          }}
+        />
+      ) : null}
       {pendingOnPage1 > 0 && filters.page > 1 ? (
         <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {pendingOnPage1} new pay-in{pendingOnPage1 === 1 ? '' : 's'} on page 1.{' '}

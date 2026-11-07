@@ -50,7 +50,7 @@ function hrefForGeneralRow(sectionKey: GeneralSectionKey, row: GeneralRow): stri
     return `/ledger?account_kind=PARTY&party_id=${encodeURIComponent(row.id)}`
   }
   if (sectionKey === 'EXCHANGE') {
-    if (row.id === 'unallocated') return null
+    if (row.id === 'unallocated') return '/utr?status=UNCLAIMED'
     return `/ledger?account_kind=EXCHANGE&merchant_id=${encodeURIComponent(row.id)}`
   }
   if (sectionKey === 'AGENT') {
@@ -70,6 +70,7 @@ function menuAllowsHref(menus: MenuGrant[], href: string): boolean {
   if (href.startsWith('/ledger')) return hasMenu(menus, 'LEDGER', 'can_view')
   if (href.startsWith('/commission')) return hasMenu(menus, 'COMMISSION', 'can_view')
   if (href.startsWith('/payout')) return hasMenu(menus, 'PAYOUT', 'can_view')
+  if (href.startsWith('/utr')) return hasMenu(menus, 'UTR', 'can_view')
   return false
 }
 

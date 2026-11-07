@@ -54,7 +54,7 @@ const EMPTY: DashboardSummary = {
 }
 
 function myAccountHint(kind: DashboardMyAccountKind | null | undefined): string {
-  if (kind === 'COMMISSION_PROFIT') return 'Lifetime commission profit'
+  if (kind === 'COMMISSION_PROFIT') return ''
   if (kind === 'EXCHANGE_POSITION') return 'Exchange position'
   return 'Live balance'
 }
