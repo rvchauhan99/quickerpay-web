@@ -55,10 +55,10 @@ const AUDITOR_CEILING: MenuCeiling = Object.fromEntries(
   MENU_CODES.filter((menu) => menu !== 'SETTINGS').map((menu) => [menu, VIEW_EXPORT]),
 )
 
-/** Exchange Master portal: read-only except bank-only withdrawal entry (POST /payout/merchant*). */
+/** Exchange Master portal: read-only except Add Pay-In and bank-only withdrawal entry. */
 const MERCHANT_CEILING: MenuCeiling = {
   DASHBOARD: VIEW_ONLY,
-  PAYIN: VIEW_ONLY,
+  PAYIN: ['can_view', 'can_create'],
   PAYOUT: ['can_view', 'can_create'],
   TRANSACTIONS: VIEW_ONLY,
   /** Derived Exchange statement (PAYIN/CHARGES/…), not Hawala MERCHANT_BALANCE. */

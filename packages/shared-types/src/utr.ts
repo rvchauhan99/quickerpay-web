@@ -25,4 +25,10 @@ export interface UtrListItem {
   unclaimed_at: string | null
   released_at: string | null
   released_by: string | null
+  remarks?: string | null
+}
+
+/** Response of POST /utr/:id/allocate — list item plus the CRM pay-in created/completed. */
+export interface UtrAllocateResult extends UtrListItem {
+  payin_id: string
 }
