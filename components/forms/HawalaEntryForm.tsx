@@ -29,11 +29,19 @@ const KIND_GROUP: Record<HawalaPartyKind, string> = {
   BANKER: 'Banker',
   AGENT: 'Agent',
 }
-const GROUP_ORDER = ['Party', 'Exchange Master', 'Banker', 'Agent']
+/** My Account (SA) must not sit under Banker — own picker group. */
+const GROUP_MY_ACCOUNT = 'My Account'
+const GROUP_ORDER = ['Party', 'Exchange Master', 'My Account', 'Banker', 'Agent']
 
 function toOption(party: HawalaCounterparty): CounterpartyOption {
   const name = party.label && party.label !== party.code ? `${party.code} — ${party.label}` : party.code
-  return { key: `${party.kind}:${party.id}`, label: name, group: KIND_GROUP[party.kind], party }
+  const isMyAccount = party.kind === 'BANKER' && party.label === 'My Account'
+  return {
+    key: `${party.kind}:${party.id}`,
+    label: name,
+    group: isMyAccount ? GROUP_MY_ACCOUNT : KIND_GROUP[party.kind],
+    party,
+  }
 }
 
 /** Positive = we owe that side; negative = that side owes us. */
