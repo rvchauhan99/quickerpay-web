@@ -747,7 +747,10 @@ export function AppShell({
             </button>
             <h1 className="text-[13px] font-semibold" style={{ color: 'var(--qp-text-primary)' }}>{title}</h1>
           </div>
-          <HeaderToggles />
+          <HeaderToggles
+            onlineBankers={queueCounts.online_bankers}
+            activePaymentMethods={queueCounts.active_payment_methods}
+          />
         </header>
 
         {forcePasswordChange ? (

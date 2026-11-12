@@ -21,6 +21,9 @@ export const LEDGER_EVENT_TYPES = [
   'BANKER_AGENT_COMMISSION_REVERSAL',
   'AGENT_SETTLEMENT',
   'AGENT_SETTLEMENT_REVERSAL',
+  /** Derived My Account only — from commission_ledger_entries, not operational CHARGES. */
+  'SUPER_ADMIN_MARGIN',
+  'SUPER_ADMIN_MARGIN_REVERSAL',
 ] as const
 export type LedgerEventType = (typeof LEDGER_EVENT_TYPES)[number]
 

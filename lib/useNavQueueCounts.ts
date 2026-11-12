@@ -1,20 +1,25 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import type { NavQueueCounts } from '@quickerpay/shared-types'
+import type { NavQueueCounts, UserRole } from '@quickerpay/shared-types'
 import { hasMenu, useSession } from '@/lib/session'
 
 const POLL_MS = 30_000
+
+const CAPACITY_ROLES: ReadonlySet<UserRole> = new Set(['SUPER_ADMIN', 'ADMIN', 'OPERATOR'])
 
 const EMPTY: NavQueueCounts = {
   pending_deposit: null,
   pending_withdrawal: null,
   in_process_withdrawal: null,
+  online_bankers: null,
+  active_payment_methods: null,
 }
 
 /**
- * Sidebar open-queue badges. Skips Merchants and users without PAYIN/PAYOUT view.
- * Polls every 30s while the tab is visible.
+ * Sidebar open-queue badges + header capacity chips.
+ * Skips Merchants. Polls for SA/Admin/Operator even without PAYIN/PAYOUT view
+ * (capacity still useful). Other roles need PAYIN or PAYOUT view for queue badges.
  *
  * Uses fetch directly (not apiRequest) so a stuck `isRedirecting` SILENT promise
  * cannot leave badges empty forever while the rest of the console works.
@@ -24,12 +29,12 @@ export function useNavQueueCounts(): NavQueueCounts {
   const [counts, setCounts] = useState<NavQueueCounts>(EMPTY)
 
   const role = user?.role
-  const enabled =
-    ready &&
-    Boolean(accessToken) &&
+  const wantCapacity = role !== undefined && CAPACITY_ROLES.has(role)
+  const wantQueues =
     role !== undefined &&
     role !== 'MERCHANT' &&
     (hasMenu(menus, 'PAYIN', 'can_view') || hasMenu(menus, 'PAYOUT', 'can_view'))
+  const enabled = ready && Boolean(accessToken) && (wantCapacity || wantQueues)
 
   const load = useCallback(async () => {
     if (!enabled || !accessToken) {
@@ -55,6 +60,8 @@ export function useNavQueueCounts(): NavQueueCounts {
         pending_deposit: body.data.pending_deposit ?? null,
         pending_withdrawal: body.data.pending_withdrawal ?? null,
         in_process_withdrawal: body.data.in_process_withdrawal ?? null,
+        online_bankers: body.data.online_bankers ?? null,
+        active_payment_methods: body.data.active_payment_methods ?? null,
       })
     } catch {
       // Keep last good counts; a transient failure must not blank the rail.

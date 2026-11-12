@@ -37,6 +37,7 @@ const EMPTY: DashboardSummary = {
   refunded_minor: 0,
   my_account_minor: null,
   my_account_kind: null,
+  my_account_owner_user_id: null,
   banker_wise: [],
   pending_approvals: 0,
   failed_transactions: 0,
@@ -56,15 +57,30 @@ const EMPTY: DashboardSummary = {
 function myAccountHint(kind: DashboardMyAccountKind | null | undefined): string {
   if (kind === 'COMMISSION_PROFIT') return ''
   if (kind === 'EXCHANGE_POSITION') return 'Exchange position'
+  if (kind === 'MY_ACCOUNT') return 'Platform margin + Hawala'
+  if (kind === 'BANKER_BALANCE') return 'Live My Account balance'
   return 'Live balance'
 }
 
 function myAccountHref(
   kind: DashboardMyAccountKind | null | undefined,
   canView: (code: MenuCode) => boolean,
+  ownerUserId?: string | null,
 ): string | undefined {
   if (kind === 'COMMISSION_PROFIT') return canView('COMMISSION') ? '/commission' : undefined
-  if (kind === 'BANKER_BALANCE') return canView('LEDGER') ? '/ledger' : undefined
+  if (kind === 'MY_ACCOUNT') {
+    if (!canView('LEDGER')) return undefined
+    return ownerUserId
+      ? `/ledger?account_kind=MY_ACCOUNT&owner_user_id=${encodeURIComponent(ownerUserId)}`
+      : '/ledger?account_kind=MY_ACCOUNT'
+  }
+  if (kind === 'BANKER_BALANCE') {
+    if (!canView('LEDGER')) return undefined
+    if (ownerUserId) {
+      return `/ledger?account_kind=BANKER&owner_user_id=${encodeURIComponent(ownerUserId)}`
+    }
+    return '/ledger'
+  }
   if (kind === 'EXCHANGE_POSITION') {
     if (canView('LEDGER')) return '/ledger'
     if (canView('TRANSACTIONS')) return '/transactions'
@@ -160,7 +176,9 @@ export default function DashboardPage() {
     if (isSuperAdmin || user?.role === 'ADMIN') {
       void Promise.all([
         isSuperAdmin
-          ? apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken })
+          ? apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100', { token: accessToken }).catch(
+              () => ({ items: [] as UserListItem[] }),
+            )
           : Promise.resolve({ items: [] as UserListItem[] }),
         showMerchants
           ? apiListRequest<MerchantListItem>('/api/v1/merchants?page_size=100', { token: accessToken }).catch(() => ({
@@ -168,19 +186,25 @@ export default function DashboardPage() {
             }))
           : Promise.resolve({ items: [] as MerchantListItem[] }),
         isSuperAdmin
-          ? apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken })
+          ? apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken }).catch(
+              () => ({ items: [] as BankAccountListItem[] }),
+            )
           : Promise.resolve({ items: [] as BankAccountListItem[] }),
         isSuperAdmin
           ? apiListRequest<UpiAccountListItem>('/api/v1/upi-accounts?page_size=100', { token: accessToken }).catch(() => ({
               items: [] as UpiAccountListItem[],
             }))
           : Promise.resolve({ items: [] as UpiAccountListItem[] }),
-      ]).then(([adminRows, merchantRows, bankRows, upiRows]) => {
-        setAdmins(adminRows.items)
-        setMerchants(merchantRows.items)
-        setBanks(bankRows.items)
-        setUpis(upiRows.items)
-      })
+      ])
+        .then(([adminRows, merchantRows, bankRows, upiRows]) => {
+          setAdmins(adminRows.items)
+          setMerchants(merchantRows.items)
+          setBanks(bankRows.items)
+          setUpis(upiRows.items)
+        })
+        .catch(() => {
+          // Per-request catches above should absorb failures; keep the shell usable.
+        })
     }
   }, [accessToken, allowed, user?.role])
 
@@ -453,7 +477,7 @@ export default function DashboardPage() {
                 label="My Account"
                 tone="info"
                 hint={myAccountHint(data.my_account_kind)}
-                href={myAccountHref(data.my_account_kind, canView)}
+                href={myAccountHref(data.my_account_kind, canView, data.my_account_owner_user_id)}
               >
                 <MoneyDisplay amountMinor={data.my_account_minor} />
               </StatCard>
@@ -476,7 +500,7 @@ export default function DashboardPage() {
                   label="My Account"
                   tone="info"
                   hint={myAccountHint(data.my_account_kind)}
-                  href={myAccountHref(data.my_account_kind, canView)}
+                  href={myAccountHref(data.my_account_kind, canView, data.my_account_owner_user_id)}
                 >
                   <MoneyDisplay amountMinor={data.my_account_minor} />
                 </StatCard>
@@ -530,7 +554,7 @@ export default function DashboardPage() {
                 label="My Account"
                 tone="info"
                 hint={myAccountHint(data.my_account_kind)}
-                href={myAccountHref(data.my_account_kind, canView)}
+                href={myAccountHref(data.my_account_kind, canView, data.my_account_owner_user_id)}
               >
                 <MoneyDisplay amountMinor={data.my_account_minor} />
               </StatCard>

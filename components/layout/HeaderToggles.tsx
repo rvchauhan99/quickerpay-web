@@ -39,6 +39,25 @@ function ToggleChip({
   )
 }
 
+/** Read-only capacity chip — same density as ToggleChip, no click handler. */
+function CapacityChip({ label, value }: { label: string; value: number | null }) {
+  const display = value === null ? '…' : String(value)
+  return (
+    <span
+      className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+      style={{
+        borderColor: 'var(--qp-border)',
+        backgroundColor: '#ffffff',
+        color: 'var(--qp-text-secondary)',
+      }}
+      aria-label={`${label}: ${display}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'var(--qp-primary)' }} />
+      {label}: <span className="font-semibold" style={{ color: 'var(--qp-text-primary)' }}>{display}</span>
+    </span>
+  )
+}
+
 /* ─── User avatar with initials ───────────────────────────────────────────── */
 function UserAvatar({ name }: { name: string }) {
   const initials = name
@@ -59,7 +78,13 @@ function UserAvatar({ name }: { name: string }) {
 }
 
 /* ─── HeaderToggles ───────────────────────────────────────────────────────── */
-export function HeaderToggles() {
+export function HeaderToggles({
+  onlineBankers = null,
+  activePaymentMethods = null,
+}: {
+  onlineBankers?: number | null
+  activePaymentMethods?: number | null
+} = {}) {
   const { user, accessToken, logout, refreshUser } = useSession()
   const [error, setError] = useState<string | null>(null)
   const [offlineConfirmOpen, setOfflineConfirmOpen] = useState(false)
@@ -69,6 +94,8 @@ export function HeaderToggles() {
 
   if (!user) return null
 
+  const showCapacity =
+    user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'OPERATOR'
   const showAutoAccept = user.role === 'SUPER_ADMIN' || user.role === 'BANKER'
   const showOnline = user.role === 'SUPER_ADMIN' || user.role === 'BANKER' || user.role === 'OPERATOR'
 
@@ -175,6 +202,10 @@ export function HeaderToggles() {
           onConfirm={() => void patchAutoAccept(false)}
         />
       ) : null}
+
+      {/* Capacity (staff only) — left of Auto Accept / Online; … until first poll */}
+      {showCapacity ? <CapacityChip label="Online Bankers" value={onlineBankers} /> : null}
+      {showCapacity ? <CapacityChip label="Payment methods" value={activePaymentMethods} /> : null}
 
       {/* Status toggles */}
       {showAutoAccept ? (

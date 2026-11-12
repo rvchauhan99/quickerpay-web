@@ -30,6 +30,7 @@ import { isLabConsole } from '@/lib/lab'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 import { useQueueSync } from '@/lib/live/useQueueSync'
+import { PayinRejectDialog } from '@/components/forms/PayinRejectDialog'
 import { MerchantPortalPayinPanel } from '@/components/payin/MerchantPortalPayinPanel'
 
 function formatApiError(caught: unknown, fallback: string): string {
@@ -63,10 +64,11 @@ export default function PayinPage() {
   const [submitting, setSubmitting] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<{
     id: string
-    action: 'accept' | 'reject' | 'cancel' | 'refund'
+    action: 'accept' | 'cancel' | 'refund'
     paymentMethod?: PayinListItem['payment_method']
     pinnedUtr?: string | null
   } | null>(null)
+  const [rejectForId, setRejectForId] = useState<string | null>(null)
   const [acceptChainTx, setAcceptChainTx] = useState('')
   const [assignFor, setAssignFor] = useState<string | null>(null)
   const [assignUpi, setAssignUpi] = useState('')
@@ -241,10 +243,7 @@ export default function PayinPage() {
       await apiRequest(`/api/v1/payin/${confirm.id}/${confirm.action}`, {
         method: 'POST',
         token: accessToken,
-        body:
-          confirm.action === 'reject'
-            ? { reason: 'Rejected' }
-            : acceptBody,
+        body: acceptBody,
         headers: confirm.action === 'accept' || confirm.action === 'refund' ? { 'Idempotency-Key': crypto.randomUUID() } : undefined,
       })
       setConfirm(null)
@@ -742,7 +741,7 @@ export default function PayinPage() {
                 {hasMenu(menus, 'PAYIN', 'can_approve') && row.status === 'IN_PROCESS' ? (
                   <>
                     <IconButton variant="primary" icon={<Check size={15} strokeWidth={1.75} />} tooltip="Accept" onClick={() => handleAcceptClick(row)} />
-                    <IconButton variant="danger" icon={<X size={15} strokeWidth={1.75} />} tooltip="Reject" onClick={() => setConfirm({ id: row.id, action: 'reject' })} />
+                    <IconButton variant="danger" icon={<X size={15} strokeWidth={1.75} />} tooltip="Reject" onClick={() => setRejectForId(row.id)} />
                   </>
                 ) : null}
                 {hasMenu(menus, 'PAYIN', 'can_edit') && row.status === 'INITIATE' && user.role !== 'MERCHANT' ? (
@@ -760,6 +759,14 @@ export default function PayinPage() {
           onPageSize={(size) => void setFilters({ page_size: size, page: 1 })}
         />
       )}
+      {accessToken ? (
+        <PayinRejectDialog
+          payinId={rejectForId}
+          accessToken={accessToken}
+          onClose={() => setRejectForId(null)}
+          onRejected={() => load()}
+        />
+      ) : null}
       {confirm &&
       confirm.action === 'accept' &&
       confirm.paymentMethod === 'USDT_TRC20' &&
