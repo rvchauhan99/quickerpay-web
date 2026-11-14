@@ -29,8 +29,9 @@ import { Drawer } from '@/components/ui/Drawer'
 import { DrawerSectionNav, type DrawerSectionNavItem } from '@/components/ui/DrawerSectionNav'
 import { Modal } from '@/components/ui/Modal'
 import { CopyButton } from '@/components/ui/CopyButton'
+import { ResetTemporaryPasswordDialog } from '@/components/forms/ResetTemporaryPasswordDialog'
 import { toast } from 'sonner'
-import { Settings } from 'lucide-react'
+import { KeyRound, Settings } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { agentLabel, bankerLabel, merchantLabel } from '@/lib/labels'
@@ -94,6 +95,7 @@ export default function MerchantDetailPage() {
   const [portalBusy, setPortalBusy] = useState(false)
   const [portalOncePassword, setPortalOncePassword] = useState<string | null>(null)
   const [portalDisableConfirm, setPortalDisableConfirm] = useState(false)
+  const [portalResetOpen, setPortalResetOpen] = useState(false)
   const [agentOptions, setAgentOptions] = useState<Array<{ id: string; username: string }>>([])
   const [agentUserId, setAgentUserId] = useState('')
   const [agentPayinBp, setAgentPayinBp] = useState(0)
@@ -684,24 +686,44 @@ export default function MerchantDetailPage() {
         backLabel={merchantLabel({ plural: true })}
         action={
           merchant ? (
-            <button
-              type="button"
-              onClick={openAdvancedSettings}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
-              style={{
-                borderColor: 'var(--qp-border)',
-                color: 'var(--qp-text-secondary)',
-                backgroundColor: '#fff',
-              }}
-            >
-              <Settings className="h-4 w-4" aria-hidden="true" />
-              Advanced Settings
-            </button>
+            <>
+              {canEdit && merchant.portal_user_id && merchant.portal_user_status === 'ACTIVE' ? (
+                <PrimaryButton onClick={() => setPortalResetOpen(true)}>
+                  <KeyRound className="h-4 w-4" aria-hidden="true" />
+                  Reset portal password
+                </PrimaryButton>
+              ) : null}
+              <button
+                type="button"
+                onClick={openAdvancedSettings}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors"
+                style={{
+                  borderColor: 'var(--qp-border)',
+                  color: 'var(--qp-text-secondary)',
+                  backgroundColor: '#fff',
+                }}
+              >
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                Advanced Settings
+              </button>
+            </>
           ) : null
         }
       />
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
+        {portalOncePassword ? (
+          <p className="mt-2 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--qp-border)' }} role="status">
+            Temporary password (shown once): <strong className="font-mono">{portalOncePassword}</strong>
+            <span className="ml-2 inline-flex align-middle">
+              <CopyButton
+                value={portalOncePassword}
+                label="Copy temporary portal password"
+                successMessage="Copied temporary portal password"
+              />
+            </span>
+          </p>
+        ) : null}
       </div>
       {loading || !merchant ? (
         <TableSkeleton />
@@ -1719,6 +1741,22 @@ export default function MerchantDetailPage() {
           loading={keyRotateBusy}
           onConfirm={() => void handleRotateApiKey()}
           onCancel={() => setKeyRotateConfirm(false)}
+        />
+      ) : null}
+
+      {portalResetOpen && accessToken && merchant?.portal_user_id ? (
+        <ResetTemporaryPasswordDialog
+          userId={merchant.portal_user_id}
+          accessToken={accessToken}
+          title="Reset portal password"
+          subtitle={`Sets a temporary password for ${merchant.portal_username ?? merchant.merchant_code} and forces change on next portal login. Sessions are revoked.`}
+          confirmLabel="Reset portal password"
+          onClose={() => setPortalResetOpen(false)}
+          onDone={(temporaryPassword) => {
+            setPortalOncePassword(temporaryPassword)
+            setPortalPassword('')
+            toast.success('Portal password reset. Sessions revoked — copy the temporary password now.')
+          }}
         />
       ) : null}
 
