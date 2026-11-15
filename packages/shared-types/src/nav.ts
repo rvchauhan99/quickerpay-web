@@ -1,6 +1,9 @@
 /**
  * Sidebar work-queue badges — open IN_PROCESS pay-ins and INITIATE pay-outs.
  * Counts are SQL-scoped; Merchants always get nulls (no pending-work pressure).
+ *
+ * Header capacity chips (SA / Admin / Operator only): ONLINE Bankers and ACTIVE
+ * payment methods owned by those Bankers. Other roles get nulls.
  */
 
 export interface NavQueueCounts {
@@ -17,4 +20,14 @@ export interface NavQueueCounts {
    * Null for MERCHANT, BANKER, or when dual-nav does not apply / no PAYOUT.can_view.
    */
   in_process_withdrawal: number | null
+  /**
+   * ACTIVE Bankers with operational_state ONLINE (tenant-wide).
+   * Null unless actor is SUPER_ADMIN, ADMIN, or OPERATOR.
+   */
+  online_bankers: number | null
+  /**
+   * ACTIVE UPI + Manual bank + USDT instruments owned by Online Bankers (tenant-wide).
+   * Null unless actor is SUPER_ADMIN, ADMIN, or OPERATOR.
+   */
+  active_payment_methods: number | null
 }

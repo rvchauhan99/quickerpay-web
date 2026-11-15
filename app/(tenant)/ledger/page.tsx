@@ -42,6 +42,8 @@ export default function LedgerPage() {
     page_size: parseAsInteger.withDefault(100),
   })
   const [admins, setAdmins] = useState<UserListItem[]>([])
+  /** ACTIVE Super Admin id for Adjust Balance when viewing My Account. */
+  const [myAccountOwnerId, setMyAccountOwnerId] = useState<string | null>(null)
   const [parties, setParties] = useState<Array<{ id: string; party_code: string; display_name: string }>>([])
   const [exchanges, setExchanges] = useState<Array<{ id: string; merchant_code: string; legal_name: string }>>([])
   const [agents, setAgents] = useState<Array<{ id: string; username: string; display_name: string | null }>>([])
@@ -58,10 +60,18 @@ export default function LedgerPage() {
 
   const isWide = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'AUDITOR'
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+  const canPickMyAccount = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
+  /** SA/Admin pick in Account dropdown; Auditor may open via dashboard drill. */
+  const canViewMyAccount = canPickMyAccount || user?.role === 'AUDITOR'
   const isMerchant = user?.role === 'MERCHANT'
 
   const load = useCallback(async () => {
     if (!isMerchant) {
+      if (isWide && filters.account_kind === 'MY_ACCOUNT' && !canViewMyAccount) {
+        setStatement(null)
+        setError('My Account is available to Super Admin and Admin only')
+        return
+      }
       const holderMissing =
         isWide &&
         filters.account_kind === 'BANKER' &&
@@ -93,7 +103,9 @@ export default function LedgerPage() {
         if (filters.event_type) query.set('event_type', filters.event_type)
         if (filters.direction) query.set('direction', filters.direction)
         if (filters.show_deleted_unclaimed) query.set('show_deleted_unclaimed', 'true')
-        if (!isWide || filters.account_kind === 'BANKER') {
+        if (filters.account_kind === 'MY_ACCOUNT') {
+          query.set('my_account', '1')
+        } else if (!isWide || filters.account_kind === 'BANKER') {
           if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
           if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
         } else if (filters.account_kind === 'PARTY' && filters.party_id) query.set('party_id', filters.party_id)
@@ -106,7 +118,7 @@ export default function LedgerPage() {
     } finally {
       setLoading(false)
     }
-  }, [isWide, isMerchant, filters])
+  }, [isWide, isMerchant, canViewMyAccount, filters])
 
   useEffect(() => {
     if (!ready || !allowed) return
@@ -115,20 +127,34 @@ export default function LedgerPage() {
       return
     }
     if (isWide) {
-      void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100').then((result) => setAdmins(result.items))
-      void apiListRequest<{ id: string; party_code: string; display_name: string }>('/api/v1/parties?page_size=100').then((result) =>
-        setParties(result.items),
-      )
-      void apiListRequest<{ id: string; merchant_code: string; legal_name: string }>('/api/v1/merchants?page_size=100').then((result) =>
-        setExchanges(result.items),
-      )
-      void apiListRequest<{ id: string; username: string; display_name: string | null }>('/api/v1/agents?page_size=100').then((result) =>
-        setAgents(result.items),
-      )
+      void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&page_size=100')
+        .then((result) => setAdmins(result.items))
+        .catch(() => setAdmins([]))
+      if (canPickMyAccount) {
+        const selfId = user?.role === 'SUPER_ADMIN' ? user.id : null
+        void apiListRequest<UserListItem>('/api/v1/users?role=SUPER_ADMIN&page_size=25')
+          .then((result) => {
+            setMyAccountOwnerId(result.items[0]?.id ?? selfId)
+          })
+          .catch(() => setMyAccountOwnerId(selfId))
+      } else {
+        setMyAccountOwnerId(null)
+      }
+      void apiListRequest<{ id: string; party_code: string; display_name: string }>('/api/v1/parties?page_size=100')
+        .then((result) => setParties(result.items))
+        .catch(() => setParties([]))
+      void apiListRequest<{ id: string; merchant_code: string; legal_name: string }>('/api/v1/merchants?page_size=100')
+        .then((result) => setExchanges(result.items))
+        .catch(() => setExchanges([]))
+      void apiListRequest<{ id: string; username: string; display_name: string | null }>('/api/v1/agents?page_size=100')
+        .then((result) => setAgents(result.items))
+        .catch(() => setAgents([]))
     }
-    void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100').then((result) => setBanks(result.items))
+    void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100')
+      .then((result) => setBanks(result.items))
+      .catch(() => setBanks([]))
     void load()
-  }, [ready, allowed, isWide, isMerchant, load])
+  }, [ready, allowed, isWide, isMerchant, canPickMyAccount, user, load])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
@@ -137,18 +163,25 @@ export default function LedgerPage() {
     ? statement
       ? `Exchange Ledger - ${statement.owner_display_name ?? user.display_name}`
       : 'Exchange Ledger'
-    : statement
-      ? `Ledger - ${statement.owner_display_name ?? user.display_name} - (${user.username})`
-      : 'Ledger'
+    : filters.account_kind === 'MY_ACCOUNT'
+      ? statement
+        ? `My Account - ${statement.owner_display_name ?? 'Super Admin'}`
+        : 'My Account'
+      : statement
+        ? `Ledger - ${statement.owner_display_name ?? user.display_name} - (${user.username})`
+        : 'Ledger'
+
+  const adjustOwnerId =
+    filters.account_kind === 'MY_ACCOUNT' ? myAccountOwnerId : filters.owner_user_id || null
 
   const handleCreate = async () => {
-    if (!accessToken || !filters.owner_user_id || submitting) return
+    if (!accessToken || !adjustOwnerId || submitting) return
     setSubmitting(true)
     try {
       const created = await apiRequest<LedgerAdjustment>('/api/v1/ledger/adjustments', {
         method: 'POST',
         token: accessToken,
-        body: { owner_user_id: filters.owner_user_id, amount_minor: amountMinor, direction, reason },
+        body: { owner_user_id: adjustOwnerId, amount_minor: amountMinor, direction, reason },
       })
       setAdjustOpen(false)
       setPending(created)
@@ -182,7 +215,7 @@ export default function LedgerPage() {
     <AppShell title={title} role={user.role} menus={menus}>
       <PageHeader
         action={
-          !isMerchant && isSuperAdmin && filters.owner_user_id ? (
+          !isMerchant && isSuperAdmin && adjustOwnerId ? (
             <PrimaryButton onClick={() => setAdjustOpen(true)}>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Adjust Balance
@@ -223,6 +256,7 @@ export default function LedgerPage() {
                 void downloadExport(`/api/v1/ledger/exchange/export?${query}`, accessToken, 'exchange-ledger.csv')
                 return
               }
+              if (filters.account_kind === 'MY_ACCOUNT') query.set('my_account', '1')
               if (filters.owner_user_id) query.set('owner_user_id', filters.owner_user_id)
               if (filters.bank_account_id) query.set('bank_account_id', filters.bank_account_id)
               if (filters.party_id) query.set('party_id', filters.party_id)
@@ -255,6 +289,7 @@ export default function LedgerPage() {
                 }
                 aria-label="Account kind"
               >
+                {canPickMyAccount ? <option value="MY_ACCOUNT">My Account</option> : null}
                 <option value="BANKER">{bankerLabel()}</option>
                 {isWide ? (
                   <>

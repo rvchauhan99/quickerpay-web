@@ -27,6 +27,7 @@ import { useTenantScreen } from '@/lib/useTenantScreen'
 const SYNTHETIC_LABELS: Record<GeneralSyntheticKey, string> = {
   PENDING_WITHDRAWAL: 'Pending Withdrawal',
   IN_PROCESS_WITHDRAWAL: 'In Process Withdrawal',
+  MY_ACCOUNT: 'My Account',
   ADVANCE_CHARGES: 'Advance Charges',
   LEDGER_ADJUSTMENTS: 'Ledger Adjustments',
   POSITION_CLEARING: 'Position Clearing',
@@ -60,7 +61,7 @@ function hrefForGeneralRow(sectionKey: GeneralSectionKey, row: GeneralRow): stri
 }
 
 function hrefForSynthetic(key: GeneralSyntheticKey): string | null {
-  if (key === 'ADVANCE_CHARGES') return '/commission'
+  if (key === 'MY_ACCOUNT') return '/ledger?account_kind=MY_ACCOUNT'
   if (key === 'PENDING_WITHDRAWAL') return '/payout?status=INITIATE'
   if (key === 'IN_PROCESS_WITHDRAWAL') return '/payout?status=INITIATE&assigned=true'
   return null

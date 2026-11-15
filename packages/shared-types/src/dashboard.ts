@@ -25,7 +25,12 @@ export interface DashboardKindCommission {
 }
 
 /** What `my_account_minor` represents for the logged-in actor. Date filters never apply. */
-export type DashboardMyAccountKind = 'COMMISSION_PROFIT' | 'BANKER_BALANCE' | 'EXCHANGE_POSITION'
+export type DashboardMyAccountKind =
+  | 'COMMISSION_PROFIT'
+  | 'BANKER_BALANCE'
+  | 'EXCHANGE_POSITION'
+  /** Super Admin / Admin / Auditor: derived platform My Account (commission net + Hawala − seed). */
+  | 'MY_ACCOUNT'
 
 export interface DashboardSummary {
   payin: DashboardCard
@@ -37,14 +42,20 @@ export interface DashboardSummary {
   refunded_minor: number
   /**
    * Role-perspective My Account. Date filters do not apply.
-   * - SUPER_ADMIN / ADMIN / AUDITOR: lifetime SA commission profit (`margin_minor` sum, orphans excluded)
+   * - SUPER_ADMIN / ADMIN / AUDITOR: derived `MY_ACCOUNT` = (SA cash book − 0002 seed) + commission net margin
    * - BANKER / OPERATOR: live `BANKER_BALANCE` (supervisor Banker for Operator)
    * - MERCHANT: General Exchange signed position for `actor.merchant_id`
    * Null when the caller has no My Account figure (e.g. Agent).
+   * `COMMISSION_PROFIT` is retained on the union for older clients only; the API no longer emits it.
    */
   my_account_minor: number | null
   /** Present when `my_account_minor` is not null. */
   my_account_kind: DashboardMyAccountKind | null
+  /**
+   * Holder for My Account drill: Banker self, Operator supervisor, or tenant Super Admin.
+   * Dashboard drill for `MY_ACCOUNT` → `/ledger?account_kind=MY_ACCOUNT&owner_user_id=<sa>`.
+   */
+  my_account_owner_user_id: string | null
   banker_wise: DashboardBankerRow[]
   pending_approvals: number
   failed_transactions: number
