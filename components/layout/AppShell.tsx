@@ -454,7 +454,9 @@ export function AppShell({
   const canView = (code: MenuCode) =>
     !forcePasswordChange && menus.some((grant) => grant.menu_code === code && grant.can_view && panelBankNavVisible(code))
   const showBankerMaster =
-    role === 'SUPER_ADMIN' && !forcePasswordChange && menus.some((grant) => grant.menu_code === 'USERS' && grant.can_view)
+    (role === 'SUPER_ADMIN' || role === 'ADMIN') &&
+    !forcePasswordChange &&
+    menus.some((grant) => grant.menu_code === 'USERS' && grant.can_view)
   const showAgentsMaster =
     (role === 'SUPER_ADMIN' || role === 'ADMIN') &&
     !forcePasswordChange &&

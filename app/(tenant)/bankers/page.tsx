@@ -11,7 +11,9 @@ import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeade
 import { ExportButton, FilterBar, StatusBadge, TableSkeleton, DataTable, EmptyState } from '@/components/ui/FilterBar'
 import { IconButton } from '@/components/ui/IconButton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { Pencil, Ban, CircleCheck } from 'lucide-react'
+import { CopyButton } from '@/components/ui/CopyButton'
+import { ResetTemporaryPasswordDialog } from '@/components/forms/ResetTemporaryPasswordDialog'
+import { Ban, CircleCheck, KeyRound, Pencil } from 'lucide-react'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
@@ -34,8 +36,11 @@ export default function BankersPage() {
   const [loading, setLoading] = useState(true)
   const [statusTarget, setStatusTarget] = useState<{ id: string; username: string; next: 'ACTIVE' | 'DISABLED' } | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
+  const [resetTarget, setResetTarget] = useState<{ id: string; username: string } | null>(null)
+  const [oncePassword, setOncePassword] = useState<{ username: string; password: string } | null>(null)
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+  const canManageBankers = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -58,12 +63,12 @@ export default function BankersPage() {
   }, [filters.page, filters.page_size, filters.status, filters.q])
 
   useEffect(() => {
-    if (ready && allowed && isSuperAdmin) void load()
-  }, [ready, allowed, isSuperAdmin, load])
+    if (ready && allowed && canManageBankers) void load()
+  }, [ready, allowed, canManageBankers, load])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
-  if (!isSuperAdmin) return <ForbiddenPage permission="Banker Master (Super Admin only)" />
+  if (!canManageBankers) return <ForbiddenPage permission="Banker Master (Super Admin or Admin)" />
 
   const handleConfirmStatus = async () => {
     if (!accessToken || !statusTarget || statusSubmitting) return
@@ -105,7 +110,7 @@ export default function BankersPage() {
     <AppShell title="Banker Master" role={user.role} menus={menus}>
       <PageHeader
         action={
-          hasMenu(menus, 'USERS', 'can_create') ? (
+          isSuperAdmin && hasMenu(menus, 'USERS', 'can_create') ? (
             <PrimaryButton href="/bankers/new">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Create Banker
@@ -133,6 +138,23 @@ export default function BankersPage() {
       </FilterBar>
       <div className="mb-qp-gap">
         <ErrorAlert message={error} />
+        {oncePassword ? (
+          <p
+            className="mt-2 rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: 'var(--qp-border)' }}
+            role="status"
+          >
+            Temporary password for <strong className="font-mono">{oncePassword.username}</strong> (shown once):{' '}
+            <strong className="font-mono">{oncePassword.password}</strong>
+            <span className="ml-2 inline-flex align-middle">
+              <CopyButton
+                value={oncePassword.password}
+                label="Copy temporary banker password"
+                successMessage="Copied temporary password"
+              />
+            </span>
+          </p>
+        ) : null}
       </div>
       {loading ? <TableSkeleton /> : (
         <DataTable
@@ -148,6 +170,16 @@ export default function BankersPage() {
             actions: (
               <span className="flex items-center gap-1">
                 <IconButton href={`/users/${row.id}`} icon={<Pencil size={15} strokeWidth={1.75} />} tooltip="Edit banker" />
+                {hasMenu(menus, 'USERS', 'can_edit') ? (
+                  <IconButton
+                    onClick={() => {
+                      setOncePassword(null)
+                      setResetTarget({ id: row.id, username: row.username })
+                    }}
+                    icon={<KeyRound size={15} strokeWidth={1.75} />}
+                    tooltip="Reset password"
+                  />
+                ) : null}
                 {hasMenu(menus, 'USERS', 'can_edit') && row.status === 'ACTIVE' ? (
                   <IconButton
                     onClick={() => setStatusTarget({ id: row.id, username: row.username, next: 'DISABLED' })}
@@ -186,6 +218,20 @@ export default function BankersPage() {
           loading={statusSubmitting}
           onCancel={() => setStatusTarget(null)}
           onConfirm={() => void handleConfirmStatus()}
+        />
+      ) : null}
+      {resetTarget && accessToken ? (
+        <ResetTemporaryPasswordDialog
+          userId={resetTarget.id}
+          accessToken={accessToken}
+          title={`Reset password for ${resetTarget.username}`}
+          subtitle="Sets a temporary password and forces change on next login. All sessions are revoked."
+          confirmLabel="Reset password"
+          onClose={() => setResetTarget(null)}
+          onDone={(temporaryPassword) => {
+            setOncePassword({ username: resetTarget.username, password: temporaryPassword })
+            toast.success('Password reset. Sessions revoked — copy the temporary password now.')
+          }}
         />
       ) : null}
     </AppShell>
