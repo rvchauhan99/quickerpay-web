@@ -1,8 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
-import type { Pagination, UpiAccountListItem, UtrAllocateResult, UtrListItem } from '@quickerpay/shared-types'
+import type {
+  Pagination,
+  UpiAccountListItem,
+  UserListItem,
+  UtrAllocateResult,
+  UtrListItem,
+} from '@quickerpay/shared-types'
 import { UTR_STATUSES } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
@@ -10,13 +16,18 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Modal } from '@/components/ui/Modal'
 import { DataTable, EmptyState, ExportButton, FilterBar, StatusBadge, TableSkeleton } from '@/components/ui/FilterBar'
 import { FormField } from '@/components/forms/FormField'
+import { FormGrid } from '@/components/forms/FormGrid'
+import { FormSection } from '@/components/forms/FormSection'
+import { FormShell } from '@/components/forms/FormShell'
 import { Input } from '@/components/forms/Input'
+import { MoneyInput } from '@/components/forms/MoneyInput'
 import { Select } from '@/components/forms/Select'
 import { IconButton } from '@/components/ui/IconButton'
 import { Building2, Trash2, Unlock, X } from 'lucide-react'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
+import { bankerLabel } from '@/lib/labels'
 import { MoneyDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { SuperAdminDirectoryFilters, useSuperAdminDirectory } from '@/lib/useDirectory'
@@ -46,6 +57,14 @@ export default function UtrPage() {
   const [allocateMerchantId, setAllocateMerchantId] = useState('')
   const [allocateRemarks, setAllocateRemarks] = useState('')
   const [unclaimedBanner, setUnclaimedBanner] = useState<{ count: number; amount_minor: number } | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [createAmountMinor, setCreateAmountMinor] = useState(0)
+  const [createUtr, setCreateUtr] = useState('')
+  const [createBankerId, setCreateBankerId] = useState('')
+  const [createUpiId, setCreateUpiId] = useState('')
+  const [bankers, setBankers] = useState<UserListItem[]>([])
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createSubmitting, setCreateSubmitting] = useState(false)
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -126,12 +145,103 @@ export default function UtrPage() {
 
   const { isSuperAdmin, admins, merchants } = useSuperAdminDirectory(accessToken, user?.role)
   const utrUpis = user?.role === 'BANKER' ? upis.filter((upi) => upi.owner_user_id === user.id) : upis
+  const canCreate = hasMenu(menus, 'UTR', 'can_create')
+  const isUpperline =
+    user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'OPERATOR'
+  const isBanker = user?.role === 'BANKER'
+
+  useEffect(() => {
+    if (!ready || !allowed || !accessToken || !canCreate) return
+    if (user?.role !== 'SUPER_ADMIN' && user?.role !== 'ADMIN') return
+    void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&status=ACTIVE&page_size=100', {
+      token: accessToken,
+    })
+      .then((result) => setBankers(result.items))
+      .catch(() => setBankers([]))
+  }, [ready, allowed, accessToken, canCreate, user?.role])
+
+  useEffect(() => {
+    if (!creating || !isBanker || !user) return
+    setCreateBankerId(user.id)
+  }, [creating, isBanker, user])
+
+  const createBankerOptions = useMemo(() => {
+    if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') {
+      return bankers.map((row) => ({ id: row.id, label: `${row.username} — ${row.display_name}` }))
+    }
+    if (user?.role === 'OPERATOR') {
+      const byId = new Map<string, string>()
+      for (const upi of upis) {
+        if (!byId.has(upi.owner_user_id)) {
+          byId.set(upi.owner_user_id, upi.owner_username || upi.owner_user_id)
+        }
+      }
+      return [...byId.entries()].map(([id, label]) => ({ id, label }))
+    }
+    return []
+  }, [bankers, upis, user?.role])
+
+  const createUpiOptions = useMemo(() => {
+    const ownerUserId = isBanker && user ? user.id : createBankerId
+    if (!ownerUserId) return []
+    return upis.filter((upi) => upi.owner_user_id === ownerUserId && upi.status === 'ACTIVE')
+  }, [createBankerId, isBanker, upis, user])
 
   if (!ready || !user) return <p className="p-3 text-xs text-zinc-500">Loading</p>
   if (!allowed) return Forbidden
 
   const canRelease =
     (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && hasMenu(menus, 'UTR', 'can_edit')
+
+  const resetCreate = () => {
+    setCreating(false)
+    setCreateAmountMinor(0)
+    setCreateUtr('')
+    setCreateBankerId(isBanker ? user.id : '')
+    setCreateUpiId('')
+    setCreateError(null)
+  }
+
+  const handleCreate = async () => {
+    if (!accessToken || createSubmitting) return
+    const utr = createUtr.trim()
+    if (createAmountMinor <= 0) {
+      setCreateError('Enter a positive amount')
+      return
+    }
+    if (utr.length < 6) {
+      setCreateError('UTR must be at least 6 characters')
+      return
+    }
+    if (isUpperline && !createBankerId) {
+      setCreateError(`Select a ${bankerLabel()}`)
+      return
+    }
+    if (!createUpiId) {
+      setCreateError('Select a UPI')
+      return
+    }
+    setCreateSubmitting(true)
+    setCreateError(null)
+    try {
+      await apiRequest('/api/v1/utr', {
+        method: 'POST',
+        token: accessToken,
+        body: {
+          amount_minor: createAmountMinor,
+          utr,
+          upi_account_id: createUpiId,
+        },
+      })
+      toast.success('UTR entry added')
+      resetCreate()
+      await load()
+    } catch (caught) {
+      setCreateError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not add UTR')
+    } finally {
+      setCreateSubmitting(false)
+    }
+  }
 
   const addedBy = (row: UtrListItem) => {
     if (row.source !== 'EXTENSION') return row.added_by_username ?? '—'
@@ -176,9 +286,94 @@ export default function UtrPage() {
   return (
     <AppShell title="Banker UTR Entries" role={user.role} menus={menus}>
       <p className="mb-2 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
-        UTR entries are recorded from bank transactions via the extension (BOT). Manual Add on this screen
-        is not allowed.
+        Bank-proof UTR rows come from the extension (BOT) or Manual Add. Matching runs auto-accept when
+        gates pass (including UTR+amount Banker reassign fallback).
       </p>
+      {canCreate && !creating ? (
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            className="rounded px-3 py-1.5 text-xs font-medium text-white"
+            style={{ backgroundColor: 'var(--qp-accent)' }}
+            onClick={() => {
+              setCreating(true)
+              setCreateBankerId(isBanker ? user.id : '')
+              setCreateUpiId('')
+              setCreateError(null)
+            }}
+          >
+            Add Entry
+          </button>
+        </div>
+      ) : null}
+      {canCreate && creating ? (
+        <div className="mb-qp-gap">
+          <FormShell
+            title="Manual Add UTR"
+            submitLabel="Add"
+            loading={createSubmitting}
+            error={createError}
+            onCancel={resetCreate}
+            onSubmit={() => void handleCreate()}
+          >
+            <FormSection title="Entry">
+              <FormGrid>
+                <FormField label="Amount" required hint="Whole rupees. Leftover bank subunits are ignored when matching.">
+                  <MoneyInput
+                    id="manual-utr-amount"
+                    valueMinor={createAmountMinor}
+                    onChangeMinor={setCreateAmountMinor}
+                    wholeRupees
+                  />
+                </FormField>
+                <FormField label="UTR" required>
+                  <Input
+                    value={createUtr}
+                    onChange={(event) => setCreateUtr(event.target.value.trim())}
+                    autoComplete="off"
+                    aria-label="UTR"
+                    placeholder="Enter UTR"
+                  />
+                </FormField>
+                {isUpperline ? (
+                  <FormField label={bankerLabel()} required>
+                    <Select
+                      value={createBankerId}
+                      onChange={(event) => {
+                        setCreateBankerId(event.target.value)
+                        setCreateUpiId('')
+                      }}
+                      aria-label={bankerLabel()}
+                    >
+                      <option value="">{`Select ${bankerLabel()}`}</option>
+                      {createBankerOptions.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+                ) : null}
+                <FormField label="UPI" required hint={isBanker ? 'Your ACTIVE UPIs only.' : `ACTIVE UPIs for the selected ${bankerLabel()}.`}>
+                  <Select
+                    value={createUpiId}
+                    onChange={(event) => setCreateUpiId(event.target.value)}
+                    aria-label="UPI"
+                    disabled={isUpperline && !createBankerId}
+                  >
+                    <option value="">Select UPI</option>
+                    {createUpiOptions.map((upi) => (
+                      <option key={upi.id} value={upi.id}>
+                        {upi.upi_address}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+              </FormGrid>
+            </FormSection>
+          </FormShell>
+        </div>
+      ) : null}
       {unclaimedBanner ? (
         <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           {unclaimedBanner.count} unclaimed UTR{unclaimedBanner.count === 1 ? '' : 's'} (
