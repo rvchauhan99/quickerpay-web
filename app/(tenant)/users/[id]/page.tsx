@@ -473,14 +473,15 @@ export default function UserDetailPage() {
                   onChange={setSelectedModules}
                 />
                 {menuError ? <ErrorAlert message={menuError} /> : null}
-                <div className="flex flex-wrap gap-2">
-                  <PrimaryButton type="button" disabled={savingMenus} onClick={() => handleSaveMenus()}>
-                    {savingMenus ? 'Saving menus…' : 'Save menus'}
-                  </PrimaryButton>
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
-                    className="rounded-lg border px-3 py-1.5 text-xs font-medium"
-                    style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)' }}
+                    className="inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium"
+                    style={{
+                      borderColor: 'var(--qp-border)',
+                      color: 'var(--qp-text-secondary)',
+                      backgroundColor: 'var(--qp-bg-muted, #f4f4f5)',
+                    }}
                     disabled={savingMenus}
                     onClick={() => {
                       setSelectedModules(selectedMenuCodes(detail.menus))
@@ -489,6 +490,9 @@ export default function UserDetailPage() {
                   >
                     Reset menus
                   </button>
+                  <PrimaryButton type="button" disabled={savingMenus} onClick={() => handleSaveMenus()}>
+                    {savingMenus ? 'Saving menus…' : 'Save menus'}
+                  </PrimaryButton>
                 </div>
               </div>
             ) : (

@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs'
 import type { MenuCode, Pagination, UserListItem } from '@quickerpay/shared-types'
-import { clampMenuGrant, menusForRole, USER_STATUSES } from '@quickerpay/shared-types'
+import { clampMenuGrant, USER_STATUSES } from '@quickerpay/shared-types'
+import { offerableMenus } from '@/lib/menus'
 import { roleLabel } from '@/lib/labels'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
@@ -57,12 +58,9 @@ export default function UsersPage() {
 
   const isBanker = user?.role === 'BANKER'
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
-  const operatorCeiling = menusForRole('OPERATOR')
-  const offerableModules = menus.filter(
-    (grant) =>
-      grant.can_view &&
-      grant.menu_code !== 'USERS' &&
-      operatorCeiling.includes(grant.menu_code),
+  /** Operator create: role ceiling ∩ actor (never SA-only codes). */
+  const offerableModuleCodes = offerableMenus({ actorMenus: menus, targetRole: 'OPERATOR' }).filter(
+    (code) => code !== 'USERS',
   )
 
   const load = useCallback(async () => {
@@ -112,10 +110,10 @@ export default function UsersPage() {
   }
 
   const handleOpenCreateOperator = () => {
-    const defaultModules = offerableModules
-      .map((grant) => grant.menu_code)
-      .filter((code) => code === 'PAYIN')
-    setSelectedModules(defaultModules.length > 0 ? defaultModules : offerableModules.slice(0, 1).map((g) => g.menu_code))
+    const defaultModules = offerableModuleCodes.filter((code) => code === 'PAYIN')
+    setSelectedModules(
+      defaultModules.length > 0 ? defaultModules : offerableModuleCodes.slice(0, 1),
+    )
     setCreating(true)
   }
 
@@ -317,7 +315,7 @@ export default function UsersPage() {
                 <div className="md:col-span-2">
                   <FormField label="Select Modules" required error={fieldErrors.menus}>
                     <ModuleMultiSelect
-                      offerable={offerableModules.map((grant) => grant.menu_code)}
+                      offerable={offerableModuleCodes}
                       selected={selectedModules}
                       onChange={setSelectedModules}
                     />

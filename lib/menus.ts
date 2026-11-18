@@ -28,6 +28,10 @@ export function menuGrantMap(grants: MenuGrant[]): Map<MenuCode, MenuActions> {
 /**
  * Menus the UI may offer: target role ceiling ∩ actor grants ∩ optional supervisor ceiling.
  * Order follows the role ceiling.
+ *
+ * Banker / Operator targets only get codes in their role matrix (no SA-only white pills such as
+ * SETTINGS / SUPAGO_BANKS). Admin / Auditor / Super Admin ceilings are unchanged — full offerable
+ * for that role when the actor holds the menu.
  */
 export function offerableMenus(params: {
   actorMenus: MenuGrant[]
