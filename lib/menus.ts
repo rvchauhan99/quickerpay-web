@@ -57,26 +57,3 @@ export function offerableGrantForMenu(params: {
   if (!supervisor) return afterActor
   return clampMenuGrant(params.targetRole, params.menu, afterActor, supervisor)
 }
-
-export function grantsToPayload(
-  selected: Array<MenuGrant | (MenuActions & { menu_code: MenuCode })>,
-): Array<MenuActions & { menu_code: MenuCode }> {
-  return selected.map((grant) => ({
-    menu_code: grant.menu_code,
-    can_view: grant.can_view,
-    can_create: grant.can_create,
-    can_edit: grant.can_edit,
-    can_approve: grant.can_approve,
-    can_export: grant.can_export,
-  }))
-}
-
-/** Money-path menus where write/approve on an Operator is a bottom-line risk. */
-export const OPERATOR_MONEY_MENUS: readonly MenuCode[] = ['PAYIN', 'PAYOUT', 'UTR'] as const
-
-export function operatorMoneyWriteRisk(grants: Array<MenuActions & { menu_code: MenuCode }>): boolean {
-  return grants.some(
-    (grant) =>
-      OPERATOR_MONEY_MENUS.includes(grant.menu_code) && (grant.can_edit || grant.can_approve),
-  )
-}
