@@ -21,6 +21,7 @@ import { Pencil, Ban, CircleCheck, KeyRound } from 'lucide-react'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
+import { ModuleMultiSelect } from '@/components/forms/ModuleMultiSelect'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
@@ -116,12 +117,6 @@ export default function UsersPage() {
       .filter((code) => code === 'PAYIN')
     setSelectedModules(defaultModules.length > 0 ? defaultModules : offerableModules.slice(0, 1).map((g) => g.menu_code))
     setCreating(true)
-  }
-
-  const handleToggleModule = (code: MenuCode) => {
-    setSelectedModules((current) =>
-      current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
-    )
   }
 
   const handleCreateOperator = async () => {
@@ -321,24 +316,11 @@ export default function UsersPage() {
                 </FormField>
                 <div className="md:col-span-2">
                   <FormField label="Select Modules" required error={fieldErrors.menus}>
-                    <div className="flex flex-wrap gap-3 rounded-lg border bg-white p-3" style={{ borderColor: 'var(--qp-border)' }}>
-                      {offerableModules.map((grant) => (
-                        <label
-                          key={grant.menu_code}
-                          className="flex cursor-pointer items-center gap-2 text-sm font-medium"
-                          style={{ color: 'var(--qp-text-primary)' }}
-                        >
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded"
-                            checked={selectedModules.includes(grant.menu_code)}
-                            onChange={() => handleToggleModule(grant.menu_code)}
-                            aria-label={grant.menu_code.replaceAll('_', ' ')}
-                          />
-                          {grant.menu_code.replaceAll('_', ' ')}
-                        </label>
-                      ))}
-                    </div>
+                    <ModuleMultiSelect
+                      offerable={offerableModules.map((grant) => grant.menu_code)}
+                      selected={selectedModules}
+                      onChange={setSelectedModules}
+                    />
                   </FormField>
                 </div>
               </FormGrid>

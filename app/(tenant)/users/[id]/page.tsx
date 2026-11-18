@@ -1,8 +1,9 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
-import type { BankerCommercial, UserDetail } from '@quickerpay/shared-types'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { BankerCommercial, MenuActions, MenuCode, MenuGrant, UserDetail } from '@quickerpay/shared-types'
+import { clampMenuGrant } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageHeader, PrimaryButton, ErrorAlert } from '@/components/ui/PageHeader'
@@ -17,11 +18,34 @@ import { RateInput } from '@/components/forms/RateInput'
 import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
+import { MenuAccessPicker } from '@/components/forms/MenuAccessPicker'
+import { ModuleMultiSelect } from '@/components/forms/ModuleMultiSelect'
 import { apiListRequest, apiRequest, ApiClientError, formError } from '@/lib/api'
 import { bankerLabel, roleLabel } from '@/lib/labels'
+import {
+  grantsToPayload,
+  offerableGrantForMenu,
+  offerableMenus,
+  operatorMoneyWriteRisk,
+} from '@/lib/menus'
 import { MoneyDisplay, RateDisplay } from '@/lib/money'
 import { hasMenu } from '@/lib/session'
 import { useTenantScreen } from '@/lib/useTenantScreen'
+
+type EditableMenuGrant = MenuActions & { menu_code: MenuCode }
+
+function toEditableMenus(grants: MenuGrant[]): EditableMenuGrant[] {
+  return grants
+    .filter((g) => g.can_view || g.can_create || g.can_edit || g.can_approve || g.can_export)
+    .map((g) => ({
+      menu_code: g.menu_code,
+      can_view: g.can_view,
+      can_create: g.can_create,
+      can_edit: g.can_edit,
+      can_approve: g.can_approve,
+      can_export: g.can_export,
+    }))
+}
 
 export default function UserDetailPage() {
   const params = useParams<{ id: string }>()
@@ -40,35 +64,83 @@ export default function UserDetailPage() {
   const [savingIdentity, setSavingIdentity] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<'ACTIVE' | 'DISABLED' | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
+  const [editedMenus, setEditedMenus] = useState<EditableMenuGrant[]>([])
+  const [supervisorMenus, setSupervisorMenus] = useState<MenuGrant[] | null>(null)
+  const [savingMenus, setSavingMenus] = useState(false)
+  const [menuError, setMenuError] = useState<string | null>(null)
+  const [bankerMenuConfirm, setBankerMenuConfirm] = useState(false)
 
   const canEdit = hasMenu(menus, 'USERS', 'can_edit')
   const isMerchantPortalUser = detail?.role === 'MERCHANT'
   const canEditIdentity = canEdit && !isMerchantPortalUser
   const canEditDepositLimit = user?.role === 'SUPER_ADMIN' && !isMerchantPortalUser
+  const canEditMenus = canEdit && !isMerchantPortalUser && detail !== null
+  const isBankerActor = user?.role === 'BANKER'
+  const useModulePicker = canEditMenus && detail?.role === 'OPERATOR' && isBankerActor
+
+  const applyDetail = useCallback((next: UserDetail) => {
+    setDetail(next)
+    setDisplayName(next.display_name)
+    setEmail(next.email ?? '')
+    setMobile(next.mobile ?? '')
+    setDailyDepositLimitMinor(next.daily_deposit_limit_minor ?? 0)
+    setMinDepositMinor(next.min_deposit_minor ?? 0)
+    setMaxDepositMinor(next.max_deposit_minor ?? 0)
+    setMinWithdrawalMinor(next.min_withdrawal_minor ?? 0)
+    setMaxWithdrawalMinor(next.max_withdrawal_minor ?? 0)
+    setEditedMenus(toEditableMenus(next.menus))
+  }, [])
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return
     try {
       const next = await apiRequest<UserDetail>(`/api/v1/users/${params.id}`, { token: accessToken })
-      setDetail(next)
-      setDisplayName(next.display_name)
-      setEmail(next.email ?? '')
-      setMobile(next.mobile ?? '')
-      setDailyDepositLimitMinor(next.daily_deposit_limit_minor ?? 0)
-      setMinDepositMinor(next.min_deposit_minor ?? 0)
-      setMaxDepositMinor(next.max_deposit_minor ?? 0)
-      setMinWithdrawalMinor(next.min_withdrawal_minor ?? 0)
-      setMaxWithdrawalMinor(next.max_withdrawal_minor ?? 0)
+      applyDetail(next)
       setError(null)
       setFieldErrors({})
+      setMenuError(null)
+
+      if (next.role === 'OPERATOR' && next.supervisor_banker_id && user?.role !== 'BANKER') {
+        try {
+          const supervisor = await apiRequest<UserDetail>(`/api/v1/users/${next.supervisor_banker_id}`, {
+            token: accessToken,
+          })
+          setSupervisorMenus(supervisor.menus)
+        } catch {
+          setSupervisorMenus([])
+        }
+      } else if (next.role === 'OPERATOR' && user?.role === 'BANKER') {
+        setSupervisorMenus(menus)
+      } else {
+        setSupervisorMenus(null)
+      }
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Could not load')
     }
-  }, [accessToken, params.id])
+  }, [accessToken, params.id, applyDetail, user?.role, menus])
 
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
+
+  const operatorOfferable = useMemo(
+    () =>
+      offerableMenus({
+        actorMenus: menus,
+        targetRole: 'OPERATOR',
+        supervisorMenus: supervisorMenus ?? menus,
+      }).filter((code) => code !== 'USERS'),
+    [menus, supervisorMenus],
+  )
+
+  const removedBankerMenus = useMemo(() => {
+    if (detail?.role !== 'BANKER') return [] as MenuCode[]
+    const nextCodes = new Set(editedMenus.filter((g) => g.can_view).map((g) => g.menu_code))
+    return detail.menus.filter((g) => g.can_view && !nextCodes.has(g.menu_code)).map((g) => g.menu_code)
+  }, [detail, editedMenus])
+
+  const showOperatorMoneyRisk =
+    detail?.role === 'OPERATOR' && operatorMoneyWriteRisk(editedMenus)
 
   const handleSaveIdentity = async () => {
     if (!accessToken || !params.id || !canEditIdentity || savingIdentity) return
@@ -102,12 +174,7 @@ export default function UserDetailPage() {
             : {}),
         },
       })
-      setDetail(next)
-      setDailyDepositLimitMinor(next.daily_deposit_limit_minor ?? 0)
-      setMinDepositMinor(next.min_deposit_minor ?? 0)
-      setMaxDepositMinor(next.max_deposit_minor ?? 0)
-      setMinWithdrawalMinor(next.min_withdrawal_minor ?? 0)
-      setMaxWithdrawalMinor(next.max_withdrawal_minor ?? 0)
+      applyDetail(next)
       toast.success('User updated')
     } catch (caught) {
       const next = formError(caught, 'Could not update user')
@@ -116,6 +183,100 @@ export default function UserDetailPage() {
     } finally {
       setSavingIdentity(false)
     }
+  }
+
+  const buildMenuPayload = (): EditableMenuGrant[] | null => {
+    if (!detail) return null
+    if (useModulePicker) {
+      const selectedCodes = editedMenus.filter((g) => g.can_view).map((g) => g.menu_code)
+      if (selectedCodes.length === 0) {
+        setMenuError('Select at least one module')
+        return null
+      }
+      return selectedCodes.map((code) => {
+        const grantor = menus.find((grant) => grant.menu_code === code)
+        return {
+          menu_code: code,
+          ...clampMenuGrant(
+            'OPERATOR',
+            code,
+            {
+              can_view: true,
+              can_create: Boolean(grantor?.can_create),
+              can_edit: Boolean(grantor?.can_edit),
+              can_approve: Boolean(grantor?.can_approve),
+              can_export: Boolean(grantor?.can_export),
+            },
+            grantor,
+          ),
+        }
+      })
+    }
+    if (!editedMenus.some((g) => g.can_view)) {
+      setMenuError('At least one menu needs View')
+      return null
+    }
+    const payload = editedMenus
+      .map((grant) => {
+        const ceiling = offerableGrantForMenu({
+          targetRole: detail.role,
+          menu: grant.menu_code,
+          actorMenus: menus,
+          supervisorMenus: detail.role === 'OPERATOR' ? supervisorMenus : null,
+        })
+        return {
+          menu_code: grant.menu_code,
+          can_view: Boolean(grant.can_view && ceiling.can_view),
+          can_create: Boolean(grant.can_create && ceiling.can_create),
+          can_edit: Boolean(grant.can_edit && ceiling.can_edit),
+          can_approve: Boolean(grant.can_approve && ceiling.can_approve),
+          can_export: Boolean(grant.can_export && ceiling.can_export),
+        }
+      })
+      .filter(
+        (grant) =>
+          grant.can_view ||
+          grant.can_create ||
+          grant.can_edit ||
+          grant.can_approve ||
+          grant.can_export,
+      )
+    if (!payload.some((g) => g.can_view)) {
+      setMenuError('At least one menu needs View')
+      return null
+    }
+    return grantsToPayload(payload)
+  }
+
+  const persistMenus = async () => {
+    if (!accessToken || !params.id || !canEditMenus || savingMenus) return
+    const payload = buildMenuPayload()
+    if (!payload) return
+    setSavingMenus(true)
+    setMenuError(null)
+    try {
+      const next = await apiRequest<UserDetail>(`/api/v1/users/${params.id}/menus`, {
+        method: 'POST',
+        token: accessToken,
+        body: { menus: payload },
+      })
+      applyDetail(next)
+      toast.success('Menus updated — their sessions ended')
+      setBankerMenuConfirm(false)
+    } catch (caught) {
+      setMenuError(caught instanceof ApiClientError ? caught.displayMessage() : 'Could not update menus')
+    } finally {
+      setSavingMenus(false)
+    }
+  }
+
+  const handleSaveMenus = () => {
+    if (!detail) return
+    if (detail.role === 'BANKER' && removedBankerMenus.length > 0) {
+      setBankerMenuConfirm(true)
+      return
+    }
+    void persistMenus()
   }
 
   const handleConfirmStatus = async () => {
@@ -127,10 +288,7 @@ export default function UserDetailPage() {
         token: accessToken,
         body: { status: statusConfirm },
       })
-      setDetail(next)
-      setDisplayName(next.display_name)
-      setEmail(next.email ?? '')
-      setMobile(next.mobile ?? '')
+      applyDetail(next)
       toast.success(statusConfirm === 'DISABLED' ? 'User deactivated' : 'User activated')
       setStatusConfirm(null)
     } catch (caught) {
@@ -348,32 +506,92 @@ export default function UserDetailPage() {
             </div>
           </FormSection>
 
-          <FormSection title="Permissions & rates">
-            <FormGrid>
-              <div className="col-span-full">
-                <FormField label="Assigned Menus">
-                  <div className="flex flex-wrap gap-1.5">
-                    {detail.menus.filter((grant) => grant.can_view).length === 0 ? (
-                      <span className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>None</span>
-                    ) : (
-                      detail.menus.filter((grant) => grant.can_view).map((grant) => (
-                        <span
-                          key={grant.menu_code}
-                          className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
-                          style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}
-                        >
-                          {grant.menu_code.replaceAll('_', ' ')}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </FormField>
-              </div>
-              {detail.role === 'MERCHANT' ? (
-                <div className="col-span-full text-sm" style={{ color: 'var(--qp-text-muted)' }}>
-                  Portal menus are fixed at enable time and cannot be edited from Users Master.
+          <FormSection
+            title="Menu access"
+            {...(canEditMenus
+              ? {
+                  description:
+                    detail.role === 'OPERATOR'
+                      ? `Operator menus cannot exceed the supervising ${bankerLabel()}.`
+                      : 'Changing menus ends their sessions immediately.',
+                }
+              : {})}
+          >
+            {detail.role === 'MERCHANT' ? (
+              <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>
+                Portal menus are fixed at enable time and cannot be edited from Users Master.
+              </p>
+            ) : canEditMenus ? (
+              <div className="space-y-3">
+                {useModulePicker ? (
+                  <ModuleMultiSelect
+                    offerable={operatorOfferable}
+                    selected={editedMenus.filter((g) => g.can_view).map((g) => g.menu_code)}
+                    onChange={(codes) => {
+                      setEditedMenus(
+                        codes.map((code) => ({
+                          menu_code: code,
+                          can_view: true,
+                          can_create: true,
+                          can_edit: false,
+                          can_approve: false,
+                          can_export: false,
+                        })),
+                      )
+                    }}
+                  />
+                ) : (
+                  <MenuAccessPicker
+                    targetRole={detail.role}
+                    actorMenus={menus}
+                    supervisorMenus={detail.role === 'OPERATOR' ? supervisorMenus : null}
+                    value={editedMenus}
+                    onChange={setEditedMenus}
+                  />
+                )}
+                {showOperatorMoneyRisk ? (
+                  <ErrorAlert message="Bottom-line risk: this Operator can edit or approve Pay-In / Pay-Out / UTR queues. Grant write access only when required." />
+                ) : null}
+                {menuError ? <ErrorAlert message={menuError} /> : null}
+                <div className="flex flex-wrap gap-2">
+                  <PrimaryButton type="button" disabled={savingMenus} onClick={() => handleSaveMenus()}>
+                    {savingMenus ? 'Saving menus…' : 'Save menus'}
+                  </PrimaryButton>
+                  <button
+                    type="button"
+                    className="rounded-lg border px-3 py-1.5 text-xs font-medium"
+                    style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-secondary)' }}
+                    disabled={savingMenus}
+                    onClick={() => {
+                      setEditedMenus(toEditableMenus(detail.menus))
+                      setMenuError(null)
+                    }}
+                  >
+                    Reset menus
+                  </button>
                 </div>
-              ) : null}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {detail.menus.filter((grant) => grant.can_view).length === 0 ? (
+                  <span className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>None</span>
+                ) : (
+                  detail.menus.filter((grant) => grant.can_view).map((grant) => (
+                    <span
+                      key={grant.menu_code}
+                      className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
+                      style={{ backgroundColor: 'var(--qp-primary-light)', color: 'var(--qp-primary-dark)' }}
+                    >
+                      {grant.menu_code.replaceAll('_', ' ')}
+                    </span>
+                  ))
+                )}
+              </div>
+            )}
+          </FormSection>
+
+          <FormSection title="Scope & rates">
+            <FormGrid>
               <FormField label="Scope (Banks)">
                 <div className="flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium" style={{ borderColor: 'var(--qp-border)', color: 'var(--qp-text-primary)', backgroundColor: '#fff' }}>
                   {detail.scope?.bank_account_ids.length ?? 0} accounts
@@ -411,6 +629,17 @@ export default function UserDetailPage() {
           loading={statusSubmitting || savingIdentity}
           onCancel={() => setStatusConfirm(null)}
           onConfirm={() => void handleConfirmStatus()}
+        />
+      ) : null}
+      {bankerMenuConfirm && detail ? (
+        <ConfirmDialog
+          title={`Narrow ${bankerLabel()} menus?`}
+          subtitle={`Removing ${removedBankerMenus.map((code) => code.replaceAll('_', ' ')).join(', ')} will clamp every Operator under this ${bankerLabel()} to the new ceiling and end those Operators' sessions.`}
+          confirmLabel="Save and cascade"
+          variant="danger"
+          loading={savingMenus}
+          onCancel={() => setBankerMenuConfirm(false)}
+          onConfirm={() => void persistMenus()}
         />
       ) : null}
     </AppShell>

@@ -1,8 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { menusForRole, PHASE_1_BANKER_MENUS, preferredGrantForMenu } from '@quickerpay/shared-types'
+import { useEffect, useMemo, useState } from 'react'
+import { PHASE_1_BANKER_MENUS, preferredGrantForMenu } from '@quickerpay/shared-types'
 import type { MenuCode } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
@@ -14,9 +14,11 @@ import { RateInput } from '@/components/forms/RateInput'
 import { Select } from '@/components/forms/Select'
 import { MoneyInput } from '@/components/forms/MoneyInput'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
+import { ModuleMultiSelect } from '@/components/forms/ModuleMultiSelect'
 import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { bankerLabel } from '@/lib/labels'
+import { offerableMenus } from '@/lib/menus'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 export default function NewBankerPage() {
@@ -37,13 +39,19 @@ export default function NewBankerPage() {
   const [maxDepositMinor, setMaxDepositMinor] = useState(0)
   const [minWithdrawalMinor, setMinWithdrawalMinor] = useState(0)
   const [maxWithdrawalMinor, setMaxWithdrawalMinor] = useState(0)
-  const offerableMenus = menusForRole('BANKER')
-  const [selected, setSelected] = useState<MenuCode[]>(
-    PHASE_1_BANKER_MENUS.filter((code) => offerableMenus.includes(code)),
+  const clippedMenus = useMemo(
+    () => offerableMenus({ actorMenus: menus, targetRole: 'BANKER' }),
+    [menus],
   )
+  const [selected, setSelected] = useState<MenuCode[]>([])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    const defaults = PHASE_1_BANKER_MENUS.filter((code) => clippedMenus.includes(code))
+    setSelected(defaults.length > 0 ? [...defaults] : clippedMenus.slice(0, 1))
+  }, [clippedMenus])
 
   useEffect(() => {
     if (!accessToken) return
@@ -297,34 +305,8 @@ export default function NewBankerPage() {
           </FormGrid>
         </FormSection>
 
-        <FormSection title="Menus" description="Menus follow the Banker role ceiling.">
-          <div className="flex flex-wrap gap-2">
-            {offerableMenus.map((code) => {
-              const on = selected.includes(code)
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  data-on={on ? 'true' : 'false'}
-                  className="qp-menu-pill inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150"
-                  style={{
-                    backgroundColor: on ? 'var(--qp-primary)' : 'var(--qp-card)',
-                    color: on ? '#ffffff' : 'var(--qp-text-secondary)',
-                    border: `1px solid ${on ? 'var(--qp-primary)' : 'var(--qp-border)'}`,
-                    boxShadow: on ? '0 1px 3px 0 rgba(37, 99, 235, 0.2)' : 'none',
-                  }}
-                  onClick={() =>
-                    setSelected((prev) => (on ? prev.filter((row) => row !== code) : [...prev, code]))
-                  }
-                >
-                  {on ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  ) : null}
-                  {code.replaceAll('_', ' ')}
-                </button>
-              )
-            })}
-          </div>
+        <FormSection title="Menus" description="Only menus you hold yourself are offered (Banker role ceiling).">
+          <ModuleMultiSelect offerable={clippedMenus} selected={selected} onChange={setSelected} />
         </FormSection>
       </FormShell>
     </AppShell>
