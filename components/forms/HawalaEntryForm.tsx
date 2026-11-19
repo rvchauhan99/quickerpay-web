@@ -10,9 +10,10 @@ import { SearchableSelect, type SearchableOption } from '@/components/forms/Sear
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { apiRequest, ApiClientError } from '@/lib/api'
+import { counterpartiesSideForOps, toApiHawalaSides } from '@/lib/hawala-ops'
 import { MoneyDisplay } from '@/lib/money'
 
-type Side = 'DEBIT' | 'CREDIT'
+type OpsSide = 'DEBIT' | 'CREDIT'
 
 interface CounterpartyOption extends SearchableOption {
   party: HawalaCounterparty
@@ -64,9 +65,8 @@ function PositionText({ label, amountMinor }: { label: string; amountMinor: numb
 }
 
 /* ─── HawalaEntryForm ────────────────────────────────────────────────────────
-   Hawala Transaction card: Select | Current Balance | Effective Balance.
-   The picked code decides the kind. Debit (From) gives: effective = current +
-   amount. Credit (To) receives: effective = current − amount.
+   Ops view: Debit = receiver, Credit = giver. API still From/To (giver/receiver).
+   Debit effective = current − amount. Credit effective = current + amount.
 ──────────────────────────────────────────────────────────────────────────── */
 export function HawalaEntryForm({
   accessToken,
@@ -88,8 +88,8 @@ export function HawalaEntryForm({
   const [error, setError] = useState<string | null>(null)
 
   const search = useCallback(
-    async (side: Side, q: string): Promise<CounterpartyOption[]> => {
-      const query = new URLSearchParams({ side })
+    async (opsSide: OpsSide, q: string): Promise<CounterpartyOption[]> => {
+      const query = new URLSearchParams({ side: counterpartiesSideForOps(opsSide) })
       if (q) query.set('q', q)
       const result = await apiRequest<{ items: HawalaCounterparty[] }>(
         `/api/v1/hawala/counterparties?${query}`,
@@ -132,14 +132,15 @@ export function HawalaEntryForm({
   const sameSide = debit !== null && credit !== null && debit.key === credit.key
   const debitCurrent = debitBal?.balance_minor ?? 0
   const creditCurrent = creditBal?.balance_minor ?? 0
-  const debitEffective = debitBal ? debitCurrent + amountMinor : 0
-  const creditEffective = creditBal ? creditCurrent - amountMinor : 0
+  /** Ops Debit = receiver → balance falls. Ops Credit = giver → balance rises. */
+  const debitEffective = debitBal ? debitCurrent - amountMinor : 0
+  const creditEffective = creditBal ? creditCurrent + amountMinor : 0
   const debitName = debitBal?.label ?? debit?.party.label ?? ''
   const creditName = creditBal?.label ?? credit?.party.label ?? ''
 
   const validate = (): string | null => {
-    if (!debit) return 'Select the Debit (From) side'
-    if (!credit) return 'Select the Credit (To) side'
+    if (!debit) return 'Select the Debit (Receiver) side'
+    if (!credit) return 'Select the Credit (Giver) side'
     if (sameSide) return 'Debit and Credit must be different'
     if (amountMinor <= 0) return 'Enter an amount greater than zero'
     return null
@@ -150,13 +151,17 @@ export function HawalaEntryForm({
     setSubmitting(true)
     setError(null)
     try {
+      const sides = toApiHawalaSides(
+        { kind: debit.party.kind, id: debit.party.id },
+        { kind: credit.party.kind, id: credit.party.id },
+      )
       await apiRequest('/api/v1/hawala', {
         method: 'POST',
         token: accessToken,
         headers: { 'Idempotency-Key': `haw-ui-${Date.now()}` },
         body: {
-          debit: { kind: debit.party.kind, id: debit.party.id },
-          credit: { kind: credit.party.kind, id: credit.party.id },
+          debit: sides.debit,
+          credit: sides.credit,
           amount_minor: amountMinor,
           remark: remark.trim() || undefined,
           utr: utr.trim() || undefined,
@@ -194,15 +199,15 @@ export function HawalaEntryForm({
         </div>
 
         <EntryRow
-          label="Debit"
+          label="Debit (Receiver)"
           control={
             <SearchableSelect
-              aria-label="Debit"
+              aria-label="Debit (Receiver)"
               value={debit}
               onChange={setDebit}
               onSearch={searchDebit}
               groupOrder={GROUP_ORDER}
-              placeholder="Select Party / Exchange / Banker"
+              placeholder="Select Party / Exchange / Banker / Agent"
             />
           }
           current={<MoneyDisplay amountMinor={debitCurrent} />}
@@ -213,10 +218,10 @@ export function HawalaEntryForm({
           }
         />
         <EntryRow
-          label="Credit"
+          label="Credit (Giver)"
           control={
             <SearchableSelect
-              aria-label="Credit"
+              aria-label="Credit (Giver)"
               value={credit}
               onChange={setCredit}
               onSearch={searchCredit}
@@ -271,9 +276,9 @@ export function HawalaEntryForm({
 
       {debitBal && creditBal && amountMinor > 0 && !sameSide ? (
         <p className="mt-2 text-xs" style={{ color: 'var(--qp-text-muted)' }} data-testid="hawala-outcome">
-          <strong>{debitName}</strong> gives <MoneyDisplay amountMinor={amountMinor} /> to{' '}
-          <strong>{creditName}</strong>. After: <PositionText label={debitName} amountMinor={debitEffective} /> ·{' '}
-          <PositionText label={creditName} amountMinor={creditEffective} />
+          <strong>{creditName}</strong> gives <MoneyDisplay amountMinor={amountMinor} /> to{' '}
+          <strong>{debitName}</strong>. After: <PositionText label={creditName} amountMinor={creditEffective} /> ·{' '}
+          <PositionText label={debitName} amountMinor={debitEffective} />
         </p>
       ) : null}
       {error ? (
@@ -302,7 +307,7 @@ export function HawalaEntryForm({
       {confirming && debit && credit ? (
         <ConfirmDialog
           title="Submit this Hawala?"
-          subtitle={`${debitName} gives ${fromMinor(BigInt(amountMinor))} to ${creditName}. Money moves only after Super Admin Approve.`}
+          subtitle={`${creditName} gives ${fromMinor(BigInt(amountMinor))} to ${debitName}. Money moves only after Super Admin Approve.`}
           confirmLabel="Submit Hawala"
           variant="primary"
           loading={submitting}
