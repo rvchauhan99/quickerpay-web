@@ -1,7 +1,8 @@
 /**
  * Party Master + Hawala contracts.
- * Debit = From (gives money), Credit = To (receives money).
- * Party | Exchange Master | Banker (credit may be Agent). No bank legs.
+ * API JSON: debit = From (giver), credit = To (receiver).
+ * Ops UI/Telegram labels: Debit = receiver, Credit = giver (mapped at the edge).
+ * Party | Exchange Master | Banker (API credit / ops Debit may be Agent). No bank legs.
  */
 
 import type { HawalaDirectionRule, HawalaPartyKind, HawalaStatus, PartyStatus } from './domain'

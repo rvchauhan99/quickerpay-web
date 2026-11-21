@@ -23,6 +23,11 @@ import { ForbiddenPage } from '@/components/ui/ForbiddenPage'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { downloadExport } from '@/lib/export'
+import {
+  opsCreditFromApi,
+  opsDebitFromApi,
+  toApiHawalaFilterParams,
+} from '@/lib/hawala-ops'
 import { MoneyDisplay } from '@/lib/money'
 import { fromMinor } from '@quickerpay/money'
 import { hasMenu, useSession } from '@/lib/session'
@@ -64,6 +69,8 @@ export default function HawalaPage() {
   const [agents, setAgents] = useState<DirectoryUser[]>([])
   const [confirm, setConfirm] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null)
   const [acting, setActing] = useState(false)
+  /** Bump after approve/reject so the create form remounts (clears Debit/Credit + stale balances). */
+  const [formEpoch, setFormEpoch] = useState(0)
 
   const portalMode = user?.role === 'MERCHANT' || user?.role === 'BANKER'
   const pageTitle = portalMode ? 'Inter Transfer' : 'Hawala'
@@ -74,12 +81,13 @@ export default function HawalaPage() {
   const canApprove = !portalMode && user?.role === 'SUPER_ADMIN' && hasMenu(menus, 'HAWALA', 'can_approve')
   const canView = hasMenu(menus, 'HAWALA')
 
+  /** Ops Debit = receiver (API credit); ops Credit = giver (API debit). */
   const perspectiveDirection = (row: HawalaListItem): 'DEBIT' | 'CREDIT' => {
     if (user?.role === 'MERCHANT' && user.merchant_id) {
-      return row.debit.kind === 'MERCHANT' && row.debit.id === user.merchant_id ? 'DEBIT' : 'CREDIT'
+      return row.credit.kind === 'MERCHANT' && row.credit.id === user.merchant_id ? 'DEBIT' : 'CREDIT'
     }
     if (user?.role === 'BANKER') {
-      return row.debit.kind === 'BANKER' && row.debit.id === user.id ? 'DEBIT' : 'CREDIT'
+      return row.credit.kind === 'BANKER' && row.credit.id === user.id ? 'DEBIT' : 'CREDIT'
     }
     return 'DEBIT'
   }
@@ -114,10 +122,16 @@ export default function HawalaPage() {
       if (fromValue) query.set('date_from', fromValue)
       if (toValue) query.set('date_to', toValue)
       if (statusValue) query.set('status', statusValue)
-      if (debitKindValue) query.set('debit_kind', debitKindValue)
-      if (creditKindValue) query.set('credit_kind', creditKindValue)
-      if (debitKindValue && debitIdValue) query.set('debit_id', debitIdValue)
-      if (creditKindValue && creditIdValue) query.set('credit_id', creditIdValue)
+      const apiFilter = toApiHawalaFilterParams({
+        ...(debitKindValue ? { debitKind: debitKindValue } : {}),
+        ...(debitKindValue && debitIdValue ? { debitId: debitIdValue } : {}),
+        ...(creditKindValue ? { creditKind: creditKindValue } : {}),
+        ...(creditKindValue && creditIdValue ? { creditId: creditIdValue } : {}),
+      })
+      if (apiFilter.debit_kind) query.set('debit_kind', apiFilter.debit_kind)
+      if (apiFilter.credit_kind) query.set('credit_kind', apiFilter.credit_kind)
+      if (apiFilter.debit_id) query.set('debit_id', apiFilter.debit_id)
+      if (apiFilter.credit_id) query.set('credit_id', apiFilter.credit_id)
       return query
     },
     [
@@ -209,6 +223,7 @@ export default function HawalaPage() {
       })
       toast.success(confirm.action === 'approve' ? 'Hawala approved' : 'Hawala rejected')
       setConfirm(null)
+      setFormEpoch((n) => n + 1)
       await loadHistory()
     } catch (caught) {
       setError(caught instanceof ApiClientError ? caught.message : 'Action failed')
@@ -224,7 +239,11 @@ export default function HawalaPage() {
       <ErrorAlert message={error} />
 
       {canCreate && accessToken ? (
-        <HawalaEntryForm accessToken={accessToken} onSubmitted={() => loadHistory()} />
+        <HawalaEntryForm
+          key={formEpoch}
+          accessToken={accessToken}
+          onSubmitted={() => loadHistory()}
+        />
       ) : null}
 
       <FilterBar
@@ -294,28 +313,28 @@ export default function HawalaPage() {
                 ))}
               </Select>
             </FormField>
-            <FormField label="Debit (From) type">
+            <FormField label="Debit (Receiver) type">
               <Select
                 value={filterDebitKind}
                 onChange={(event) => {
                   setFilterDebitKind(event.target.value as HawalaPartyKind | '')
                   setFilterDebitId('')
                 }}
-                aria-label="Debit (From) type"
+                aria-label="Debit (Receiver) type"
               >
                 <option value="">All</option>
-                {HAWALA_PARTY_KINDS.filter((kind) => kind !== 'AGENT').map((kind) => (
+                {HAWALA_PARTY_KINDS.map((kind) => (
                   <option key={kind} value={kind}>
                     {kindLabel(kind)}
                   </option>
                 ))}
               </Select>
             </FormField>
-            <FormField label="Debit (From) party">
+            <FormField label="Debit (Receiver) party">
               <Select
                 value={filterDebitId}
                 onChange={(event) => setFilterDebitId(event.target.value)}
-                aria-label="Debit (From) party"
+                aria-label="Debit (Receiver) party"
                 disabled={!filterDebitKind}
               >
                 <option value="">All</option>
@@ -328,28 +347,28 @@ export default function HawalaPage() {
                   : null}
               </Select>
             </FormField>
-            <FormField label="Credit (To) type">
+            <FormField label="Credit (Giver) type">
               <Select
                 value={filterCreditKind}
                 onChange={(event) => {
                   setFilterCreditKind(event.target.value as HawalaPartyKind | '')
                   setFilterCreditId('')
                 }}
-                aria-label="Credit (To) type"
+                aria-label="Credit (Giver) type"
               >
                 <option value="">All</option>
-                {HAWALA_PARTY_KINDS.map((kind) => (
+                {HAWALA_PARTY_KINDS.filter((kind) => kind !== 'AGENT').map((kind) => (
                   <option key={kind} value={kind}>
                     {kindLabel(kind)}
                   </option>
                 ))}
               </Select>
             </FormField>
-            <FormField label="Credit (To) party">
+            <FormField label="Credit (Giver) party">
               <Select
                 value={filterCreditId}
                 onChange={(event) => setFilterCreditId(event.target.value)}
-                aria-label="Credit (To) party"
+                aria-label="Credit (Giver) party"
                 disabled={!filterCreditKind}
               >
                 <option value="">All</option>
@@ -383,8 +402,8 @@ export default function HawalaPage() {
             : [
                 { key: 'created', heading: 'DATE & TIME' },
                 { key: 'ref', heading: 'Gateway Ref. No' },
-                { key: 'debit', heading: 'DEBIT (FROM)' },
-                { key: 'credit', heading: 'CREDIT (TO)' },
+                { key: 'debit', heading: 'DEBIT (RECEIVER)' },
+                { key: 'credit', heading: 'CREDIT (GIVER)' },
                 { key: 'amount', heading: 'AMOUNT' },
                 { key: 'remark', heading: 'REMARK' },
                 { key: 'utr', heading: 'UTR' },
@@ -407,7 +426,7 @@ export default function HawalaPage() {
                       : 'bg-emerald-100 text-emerald-700'
                   }`}
                 >
-                  {direction === 'DEBIT' ? 'DEBIT (FROM)' : 'CREDIT (TO)'}
+                  {direction === 'DEBIT' ? 'DEBIT (RECEIVER)' : 'CREDIT (GIVER)'}
                 </span>
               ),
               amount: <MoneyDisplay amountMinor={row.amount_minor} />,
@@ -415,6 +434,8 @@ export default function HawalaPage() {
               utr: row.utrs.join(', ') || '—',
             }
           }
+          const opsDebit = opsDebitFromApi(row.debit, row.credit)
+          const opsCredit = opsCreditFromApi(row.debit, row.credit)
           return {
             _rowKey: row.id,
             created: formatDateTimeIst(row.created_at),
@@ -422,13 +443,13 @@ export default function HawalaPage() {
             debit:
               row.direction_rule === 'LEGACY' ? (
                 <span title="Posted before Debit = From. Payer balance moved down.">
-                  {kindLabel(row.debit.kind)}: {row.debit.label}{' '}
+                  {kindLabel(opsDebit.kind)}: {opsDebit.label}{' '}
                   <span className="text-[10px] font-semibold text-amber-700">LEGACY</span>
                 </span>
               ) : (
-                `${kindLabel(row.debit.kind)}: ${row.debit.label}`
+                `${kindLabel(opsDebit.kind)}: ${opsDebit.label}`
               ),
-            credit: `${kindLabel(row.credit.kind)}: ${row.credit.label}`,
+            credit: `${kindLabel(opsCredit.kind)}: ${opsCredit.label}`,
             amount: <MoneyDisplay amountMinor={row.amount_minor} />,
             remark: row.remark ?? '—',
             utr: row.utrs.join(', ') || '—',

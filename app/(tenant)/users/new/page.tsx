@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
-import type { MenuCode } from '@quickerpay/shared-types'
-import { menusForRole, preferredGrantForMenu } from '@quickerpay/shared-types'
+import type { MenuCode, UserListItem } from '@quickerpay/shared-types'
+import { clampMenuGrant, preferredGrantForMenu } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { FormShell } from '@/components/forms/FormShell'
 import { FormSection } from '@/components/forms/FormSection'
@@ -13,8 +13,10 @@ import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { PhoneInput, splitE164 } from '@/components/forms/PhoneInput'
-import { apiRequest, ApiClientError } from '@/lib/api'
-import { roleLabel } from '@/lib/labels'
+import { ModuleMultiSelect } from '@/components/forms/ModuleMultiSelect'
+import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { bankerLabel, roleLabel } from '@/lib/labels'
+import { offerableMenus } from '@/lib/menus'
 import { useTenantScreen } from '@/lib/useTenantScreen'
 
 type StaffCreatableRole = 'ADMIN' | 'OPERATOR' | 'AUDITOR'
@@ -33,17 +35,52 @@ export default function NewUserPage() {
   const [mobile, setMobile] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<StaffCreatableRole>('ADMIN')
-  const [selected, setSelected] = useState<MenuCode[]>([...STAFF_DEFAULT_MENUS.ADMIN])
+  const [supervisorId, setSupervisorId] = useState('')
+  const [bankers, setBankers] = useState<UserListItem[]>([])
+  const [supervisorMenus, setSupervisorMenus] = useState<UserListItem['menus'] | null>(null)
+  const [selected, setSelected] = useState<MenuCode[]>([])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
-  const offerableMenus = useMemo(() => menusForRole(role), [role])
+  const clippedMenus = useMemo(
+    () =>
+      offerableMenus({
+        actorMenus: menus,
+        targetRole: role,
+        supervisorMenus: role === 'OPERATOR' ? supervisorMenus : null,
+      }),
+    [menus, role, supervisorMenus],
+  )
 
   useEffect(() => {
-    const defaults = STAFF_DEFAULT_MENUS[role].filter((code) => offerableMenus.includes(code))
-    setSelected(defaults.length > 0 ? defaults : offerableMenus.slice(0, 1))
-  }, [role, offerableMenus])
+    const defaults = STAFF_DEFAULT_MENUS[role].filter((code) => clippedMenus.includes(code))
+    setSelected(defaults.length > 0 ? defaults : clippedMenus.slice(0, 1))
+  }, [role, clippedMenus])
+
+  useEffect(() => {
+    if (!accessToken || user?.role !== 'SUPER_ADMIN') return
+    void apiListRequest<UserListItem>('/api/v1/users?role=BANKER&status=ACTIVE&page_size=100', {
+      token: accessToken,
+    })
+      .then((page) => setBankers(page.items))
+      .catch(() => setBankers([]))
+  }, [accessToken, user?.role])
+
+  useEffect(() => {
+    if (role !== 'OPERATOR' || !supervisorId || !accessToken) {
+      setSupervisorMenus(null)
+      return
+    }
+    const cached = bankers.find((row) => row.id === supervisorId)
+    if (cached) {
+      setSupervisorMenus(cached.menus)
+      return
+    }
+    void apiRequest<UserListItem>(`/api/v1/users/${supervisorId}`, { token: accessToken })
+      .then((row) => setSupervisorMenus(row.menus))
+      .catch(() => setSupervisorMenus([]))
+  }, [role, supervisorId, accessToken, bankers])
 
   if (!ready || !user) return <p className="p-3 text-xs" style={{ color: 'var(--qp-text-muted)' }}>Loading</p>
   if (!allowed) return Forbidden
@@ -57,6 +94,11 @@ export default function NewUserPage() {
     setFieldErrors({})
     setSubmitting(true)
     try {
+      if (role === 'OPERATOR' && user.role === 'SUPER_ADMIN' && !supervisorId) {
+        setFieldErrors({ supervisor_banker_id: `Select a supervising ${bankerLabel()}` })
+        setError(`An Operator needs a supervising ${bankerLabel()}`)
+        return
+      }
       await apiRequest('/api/v1/users', {
         method: 'POST',
         token: accessToken,
@@ -67,10 +109,20 @@ export default function NewUserPage() {
           require_password_change: true,
           role,
           mobile: splitE164(mobile).national ? mobile.trim() : undefined,
-          menus: selected.map((code) => ({
-            menu_code: code,
-            ...preferredGrantForMenu(role, code),
-          })),
+          ...(role === 'OPERATOR' && supervisorId ? { supervisor_banker_id: supervisorId } : {}),
+          menus: selected.map((code) => {
+            const grantor = menus.find((grant) => grant.menu_code === code)
+            const desired = preferredGrantForMenu(role, code)
+            const afterActor = clampMenuGrant(role, code, desired, grantor)
+            if (role !== 'OPERATOR' || !supervisorMenus) {
+              return { menu_code: code, ...afterActor }
+            }
+            const supervisor = supervisorMenus.find((grant) => grant.menu_code === code)
+            return {
+              menu_code: code,
+              ...clampMenuGrant(role, code, afterActor, supervisor),
+            }
+          }),
         },
       })
       router.replace('/users')
@@ -142,12 +194,40 @@ export default function NewUserPage() {
               />
             </FormField>
             <FormField label="Role" required>
-              <Select value={role} onChange={(event) => setRole(event.target.value as StaffCreatableRole)} aria-label="Role">
+              <Select
+                value={role}
+                onChange={(event) => {
+                  const next = event.target.value as StaffCreatableRole
+                  setRole(next)
+                  if (next !== 'OPERATOR') setSupervisorId('')
+                }}
+                aria-label="Role"
+              >
                 {creatableRoles.map((code) => (
                   <option key={code} value={code}>{roleLabel(code)}</option>
                 ))}
               </Select>
             </FormField>
+            {role === 'OPERATOR' && user.role === 'SUPER_ADMIN' ? (
+              <FormField
+                label={`Supervising ${bankerLabel()}`}
+                required
+                error={fieldErrors.supervisor_banker_id}
+              >
+                <Select
+                  value={supervisorId}
+                  onChange={(event) => setSupervisorId(event.target.value)}
+                  aria-label={`Supervising ${bankerLabel()}`}
+                >
+                  <option value="">{`Select ${bankerLabel()}`}</option>
+                  {bankers.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.username}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+            ) : null}
           </FormGrid>
         </FormSection>
 
@@ -156,36 +236,12 @@ export default function NewUserPage() {
           {...(role === 'AUDITOR'
             ? { description: 'Auditor menus are view and export only — write actions are not offered.' }
             : role === 'OPERATOR'
-              ? { description: 'Operator menus follow the Operator ceiling (no Banks or Hawala).' }
-              : {})}
+              ? {
+                  description: `Only modules you hold (and the supervising ${bankerLabel()} holds) are offered. Operators cannot receive Banks or Hawala.`,
+                }
+              : { description: 'Only menus you hold yourself are offered.' })}
         >
-          <div className="flex flex-wrap gap-2">
-            {offerableMenus.map((code) => {
-              const on = selected.includes(code)
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  data-on={on ? 'true' : 'false'}
-                  className="qp-menu-pill inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150"
-                  style={{
-                    backgroundColor: on ? 'var(--qp-primary)' : 'var(--qp-card)',
-                    color: on ? '#ffffff' : 'var(--qp-text-secondary)',
-                    border: `1px solid ${on ? 'var(--qp-primary)' : 'var(--qp-border)'}`,
-                    boxShadow: on ? '0 1px 3px 0 rgba(37, 99, 235, 0.2)' : 'none',
-                  }}
-                  onClick={() =>
-                    setSelected((prev) => (on ? prev.filter((row) => row !== code) : [...prev, code]))
-                  }
-                >
-                  {on ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  ) : null}
-                  {code.replaceAll('_', ' ')}
-                </button>
-              )
-            })}
-          </div>
+          <ModuleMultiSelect offerable={clippedMenus} selected={selected} onChange={setSelected} />
         </FormSection>
       </FormShell>
     </AppShell>

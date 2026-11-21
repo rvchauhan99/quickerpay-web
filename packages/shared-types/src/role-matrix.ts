@@ -16,8 +16,11 @@ const WORK_EXPORT: readonly MenuAction[] = ['can_view', 'can_create', 'can_edit'
 
 type MenuCeiling = Partial<Record<MenuCode, readonly MenuAction[]>>
 
+/** Reserved for V2 Support CRM — not grantable; no Phase 1 screen. */
+const GRANTABLE_MENU_CODES = MENU_CODES.filter((menu) => menu !== 'SUPPORT')
+
 const SUPER_ADMIN_CEILING: MenuCeiling = Object.fromEntries(
-  MENU_CODES.map((menu) => [menu, ALL_ACTIONS]),
+  GRANTABLE_MENU_CODES.map((menu) => [menu, ALL_ACTIONS]),
 )
 
 const BANKER_CEILING: MenuCeiling = {
@@ -35,7 +38,6 @@ const BANKER_CEILING: MenuCeiling = {
   COMMISSION: VIEW_ONLY,
   REPORTS: VIEW_EXPORT,
   AUDIT: VIEW_ONLY,
-  SUPPORT: VIEW_ONLY,
 }
 
 const ADMIN_CEILING: MenuCeiling = SUPER_ADMIN_CEILING
@@ -48,11 +50,10 @@ const OPERATOR_CEILING: MenuCeiling = {
   TRANSACTIONS: VIEW_ONLY,
   LEDGER: VIEW_ONLY,
   AUDIT: VIEW_ONLY,
-  SUPPORT: VIEW_ONLY,
 }
 
 const AUDITOR_CEILING: MenuCeiling = Object.fromEntries(
-  MENU_CODES.filter((menu) => menu !== 'SETTINGS').map((menu) => [menu, VIEW_EXPORT]),
+  GRANTABLE_MENU_CODES.filter((menu) => menu !== 'SETTINGS').map((menu) => [menu, VIEW_EXPORT]),
 )
 
 /** Exchange Master portal: read-only except Add Pay-In and bank-only withdrawal entry. */
