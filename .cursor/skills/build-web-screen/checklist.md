@@ -25,7 +25,7 @@ Phase 1 Admin screens also match heading, filter set, column set, default filter
 ## Browser verification (local)
 
 ```text
-[ ] API on 127.0.0.1:4000 and web on demo.quickerpay.local:3000 (hosts → 127.0.0.1)
+[ ] API on 127.0.0.1:8001 and web on demo.quickerpay.local:5001 (hosts → 127.0.0.1)
 [ ] Local DB only — self-provision fixtures via API when needed (see local-browser-qa skill)
 [ ] Browser-MCP exercised for every role that can open the changed route
 [ ] No Inter Transfer product nav/routes remain when Hawala/Parties changed

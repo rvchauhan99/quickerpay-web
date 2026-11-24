@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 }
 
 export default async function MockGpayLayout({ children }: { children: ReactNode }) {
-  const origin = process.env.QP_API_ORIGIN ?? 'http://127.0.0.1:4000'
+  const origin = process.env.QP_API_ORIGIN ?? 'http://127.0.0.1:8001'
   let allowed = false
   try {
     const response = await fetch(`${origin}/health/mock-gpay`, { cache: 'no-store' })

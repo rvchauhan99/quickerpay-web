@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import type { GatewayPayPageView, PayinPaymentMethod, PaymentMethod } from '@quickerpay/shared-types'
-import { Clock, Paperclip, ShieldCheck, Lock, Smartphone } from 'lucide-react'
+import { Clock, Paperclip, ShieldCheck, Lock, RefreshCw, Smartphone } from 'lucide-react'
 import { PaymentMethodCard } from './PaymentMethodCard'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { DocumentUpload } from '@/components/forms/DocumentUpload'
@@ -578,8 +578,9 @@ export function HostedPayPage({ token }: { token: string }) {
                           type="button"
                           disabled={submitting || changingQr || Boolean(loadingMethod)}
                           onClick={() => void changeQr()}
-                          className="text-xs font-semibold text-blue-700 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="mt-0.5 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-2xs transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >
+                          <RefreshCw className={`h-4 w-4 shrink-0 ${changingQr ? 'animate-spin' : ''}`} aria-hidden />
                           {changingQr ? 'Finding another QR…' : 'Change QR'}
                         </button>
                       </div>

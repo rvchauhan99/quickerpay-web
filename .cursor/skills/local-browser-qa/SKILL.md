@@ -6,4 +6,4 @@ Lean Playwright recipe: `../QuickerPay/.cursor/skills/local-browser-qa/lean-web-
 
 Policy: `../QuickerPay/.cursor/rules/local-browser-qa.mdc`.
 
-Web URL for local QA: `http://demo.quickerpay.local:3000` (must resolve to `127.0.0.1`). Self-provision fixtures only through the local API on `:4000` when gates pass.
+Web URL for local QA: `http://demo.quickerpay.local:5001` (must resolve to `127.0.0.1`). Self-provision fixtures only through the local API on `:8001` when gates pass.

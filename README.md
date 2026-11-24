@@ -15,10 +15,10 @@ Platform build steps 1–13 are complete on the API. This UI implements the Admi
 ```bash
 cp .env.example .env
 pnpm install
-pnpm dev                       # :3000, rewrites /api/v1 to QP_API_ORIGIN
+pnpm dev                       # :5001, rewrites /api/v1 to QP_API_ORIGIN
 ```
 
-Run the API (`../QuickerPay`) on port 4000 in another terminal.
+Run the API (`../QuickerPay`) on port 8001 in another terminal.
 
 Point `*.quickerpay.local` at `127.0.0.1` in `/etc/hosts`. The Tenant is resolved from the Host header, never from a query string. For localhost, `SINGLE_TENANT` + `QP_TENANT_SLUG=demo` is the usual API mode.
 
@@ -34,7 +34,7 @@ pnpm sync:web-packages
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Next.js on 3000, `/api/v1` rewritten to the API |
+| `pnpm dev` | Next.js on 5001, `/api/v1` rewritten to the API |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Money package tests |
 | `pnpm build` | Production Next.js build |
