@@ -221,6 +221,7 @@ export function HostedPayPage({ token }: { token: string }) {
   const [proofOpen, setProofOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loadingMethod, setLoadingMethod] = useState<PaymentMethod | null>(null)
+  const [changingQr, setChangingQr] = useState(false)
   const [autoSelectingUpi, setAutoSelectingUpi] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [celebrateFrom, setCelebrateFrom] = useState<number | null>(null)
@@ -325,6 +326,15 @@ export function HostedPayPage({ token }: { token: string }) {
       'Could not select this payment method. Try another or retry shortly.',
     )
     setLoadingMethod(null)
+  }
+
+  const changeQr = async () => {
+    setChangingQr(true)
+    await submit(
+      () => postJson(`/api/v1/gateway/pay/${encodeURIComponent(token)}/change-qr`, {}),
+      'No other QR is available right now. Retry shortly or keep the current QR.',
+    )
+    setChangingQr(false)
   }
 
   const hasUpiAvailable = availableMethods.some((item) => item.payment_method === 'UPI')
@@ -564,6 +574,14 @@ export function HostedPayPage({ token }: { token: string }) {
                           </span>
                           <CopyButton value={view.upi} label="Copy UPI ID" />
                         </div>
+                        <button
+                          type="button"
+                          disabled={submitting || changingQr || Boolean(loadingMethod)}
+                          onClick={() => void changeQr()}
+                          className="text-xs font-semibold text-blue-700 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {changingQr ? 'Finding another QR…' : 'Change QR'}
+                        </button>
                       </div>
 
                       {upiIntent ? (
