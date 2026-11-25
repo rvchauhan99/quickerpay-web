@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import type { GatewayPayPageView, PayinPaymentMethod, PaymentMethod } from '@quickerpay/shared-types'
 import { Clock, Paperclip, ShieldCheck, Lock, RefreshCw, Smartphone } from 'lucide-react'
@@ -13,6 +13,7 @@ import { CopyButton } from '@/components/ui/CopyButton'
 import { ErrorAlert, PrimaryButton } from '@/components/ui/PageHeader'
 import { MoneyDisplay } from '@/lib/money'
 import { buildPayinUpiIntent } from '@/lib/payoutUpi'
+import type { OcrReferenceKind } from '@/lib/pay/extract-reference-from-image'
 
 const POLL_MS = 5_000
 const REDIRECT_AFTER_MS = 5_000
@@ -33,6 +34,7 @@ const SUBTITLE: Record<PayinPaymentMethod, string> = {
 }
 
 type LoadState = 'loading' | 'ready' | 'missing' | 'error'
+type OcrStatus = 'idle' | 'scanning' | 'filled' | 'miss'
 
 interface Envelope<T> {
   success: boolean
@@ -219,6 +221,8 @@ export function HostedPayPage({ token }: { token: string }) {
   const [reference, setReference] = useState('')
   const [proof, setProof] = useState<File | null>(null)
   const [proofOpen, setProofOpen] = useState(false)
+  const [ocrStatus, setOcrStatus] = useState<OcrStatus>('idle')
+  const ocrSeqRef = useRef(0)
   const [submitting, setSubmitting] = useState(false)
   const [loadingMethod, setLoadingMethod] = useState<PaymentMethod | null>(null)
   const [changingQr, setChangingQr] = useState(false)
@@ -309,6 +313,8 @@ export function HostedPayPage({ token }: { token: string }) {
       if (result.view.utr_submitted) setCelebrateFrom((current) => current ?? Date.now())
       setProof(null)
       setProofOpen(false)
+      setOcrStatus('idle')
+      ocrSeqRef.current += 1
     } catch {
       setSubmitError('Network error. Try again.')
     } finally {
@@ -397,6 +403,47 @@ export function HostedPayPage({ token }: { token: string }) {
     )
   }
 
+  const handleProofChange = useCallback(
+    (file: File | null) => {
+      setProof(file)
+      ocrSeqRef.current += 1
+      const seq = ocrSeqRef.current
+      if (!file) {
+        setOcrStatus('idle')
+        return
+      }
+      const ocrKind: OcrReferenceKind | null =
+        method === 'UPI' || method === 'MANUAL_BANK' ? method : null
+      if (!ocrKind) {
+        setOcrStatus('idle')
+        return
+      }
+      setOcrStatus('scanning')
+      void (async () => {
+        const { extractReferenceFromImage } = await import('@/lib/pay/extract-reference-from-image')
+        const digits = await extractReferenceFromImage(file, ocrKind)
+        if (seq !== ocrSeqRef.current) return
+        if (digits) {
+          setReference(digits)
+          setOcrStatus('filled')
+          setSubmitError(null)
+        } else {
+          setOcrStatus('miss')
+        }
+      })()
+    },
+    [method],
+  )
+
+  const ocrHint =
+    ocrStatus === 'scanning'
+      ? 'Reading UTR from screenshot…'
+      : ocrStatus === 'filled'
+        ? 'UTR filled from screenshot — edit if needed'
+        : ocrStatus === 'miss'
+          ? 'Could not read UTR — type it manually'
+          : null
+
   const remaining = view && !isTerminal ? remainingLabel(view.expires_at, now) : null
   const expired = remaining === '00:00'
   const isUrgent = view?.expires_at ? Math.max(0, Math.floor((new Date(view.expires_at).getTime() - now) / 1000)) <= 120 : false
@@ -405,7 +452,7 @@ export function HostedPayPage({ token }: { token: string }) {
   const proofAttach = (
     <OptionalProofAttach
       proof={proof}
-      onChange={setProof}
+      onChange={handleProofChange}
       expanded={proofOpen}
       onExpand={() => setProofOpen(true)}
     />
@@ -659,10 +706,23 @@ export function HostedPayPage({ token }: { token: string }) {
                               maxLength={22}
                               placeholder="9 to 22 digits from bank transfer"
                               value={reference}
-                              onChange={(event) => setReference(event.target.value.replace(/\D/g, ''))}
+                              onChange={(event) => {
+                                setReference(event.target.value.replace(/\D/g, ''))
+                                if (ocrStatus === 'filled' || ocrStatus === 'miss') setOcrStatus('idle')
+                              }}
                               aria-label="UTR reference number"
                             />
                           </FormField>
+                          {ocrHint ? (
+                            <p
+                              className={`-mt-1 text-[11px] font-medium ${
+                                ocrStatus === 'miss' ? 'text-amber-700' : 'text-slate-500'
+                              }`}
+                              aria-live="polite"
+                            >
+                              {ocrHint}
+                            </p>
+                          ) : null}
                           <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
                             Submit UTR
                           </PrimaryButton>
@@ -678,10 +738,23 @@ export function HostedPayPage({ token }: { token: string }) {
                               maxLength={12}
                               placeholder="e.g. 429381029482"
                               value={reference}
-                              onChange={(event) => setReference(event.target.value.replace(/\D/g, ''))}
+                              onChange={(event) => {
+                                setReference(event.target.value.replace(/\D/g, ''))
+                                if (ocrStatus === 'filled' || ocrStatus === 'miss') setOcrStatus('idle')
+                              }}
                               aria-label="UTR reference number"
                             />
                           </FormField>
+                          {ocrHint ? (
+                            <p
+                              className={`-mt-1 text-[11px] font-medium ${
+                                ocrStatus === 'miss' ? 'text-amber-700' : 'text-slate-500'
+                              }`}
+                              aria-live="polite"
+                            >
+                              {ocrHint}
+                            </p>
+                          ) : null}
                           <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
                             Submit UTR
                           </PrimaryButton>
