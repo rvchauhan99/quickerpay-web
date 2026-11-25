@@ -9,6 +9,7 @@ import { BrandLockup } from '@/components/brand/BrandLockup'
 import { DocumentUpload } from '@/components/forms/DocumentUpload'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { OcrScanningLoader } from '@/components/pay/OcrScanningLoader'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { ErrorAlert, PrimaryButton } from '@/components/ui/PageHeader'
 import { MoneyDisplay } from '@/lib/money'
@@ -184,11 +185,13 @@ function OptionalProofAttach({
   onChange,
   expanded,
   onExpand,
+  disabled = false,
 }: {
   proof: File | null
   onChange: (file: File | null) => void
   expanded: boolean
   onExpand: () => void
+  disabled?: boolean
 }) {
   const showUpload = expanded || proof !== null
   if (!showUpload) {
@@ -196,7 +199,8 @@ function OptionalProofAttach({
       <button
         type="button"
         onClick={onExpand}
-        className="inline-flex w-full items-center justify-center gap-1.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+        disabled={disabled}
+        className="inline-flex w-full items-center justify-center gap-1.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
         Attach screenshot (optional)
@@ -209,6 +213,7 @@ function OptionalProofAttach({
       onChange={onChange}
       accept={PROOF_ACCEPT}
       maxBytes={PROOF_MAX_BYTES}
+      disabled={disabled}
       aria-label="Payment screenshot"
     />
   )
@@ -420,8 +425,12 @@ export function HostedPayPage({ token }: { token: string }) {
       }
       setOcrStatus('scanning')
       void (async () => {
+        const started = Date.now()
         const { extractReferenceFromImage } = await import('@/lib/pay/extract-reference-from-image')
         const digits = await extractReferenceFromImage(file, ocrKind)
+        // Keep the animated loader visible long enough to read (fast OCR still flashes otherwise).
+        const remain = 700 - (Date.now() - started)
+        if (remain > 0) await new Promise((resolve) => window.setTimeout(resolve, remain))
         if (seq !== ocrSeqRef.current) return
         if (digits) {
           setReference(digits)
@@ -435,14 +444,13 @@ export function HostedPayPage({ token }: { token: string }) {
     [method],
   )
 
-  const ocrHint =
-    ocrStatus === 'scanning'
-      ? 'Reading UTR from screenshot…'
-      : ocrStatus === 'filled'
-        ? 'UTR filled from screenshot — edit if needed'
-        : ocrStatus === 'miss'
-          ? 'Could not read UTR — type it manually'
-          : null
+  const ocrScanning = ocrStatus === 'scanning'
+  const ocrResultHint =
+    ocrStatus === 'filled'
+      ? 'UTR filled from screenshot — edit if needed'
+      : ocrStatus === 'miss'
+        ? 'Could not read UTR — type it manually'
+        : null
 
   const remaining = view && !isTerminal ? remainingLabel(view.expires_at, now) : null
   const expired = remaining === '00:00'
@@ -455,8 +463,22 @@ export function HostedPayPage({ token }: { token: string }) {
       onChange={handleProofChange}
       expanded={proofOpen}
       onExpand={() => setProofOpen(true)}
+      disabled={ocrScanning}
     />
   )
+
+  const ocrFeedback = ocrScanning ? (
+    <OcrScanningLoader />
+  ) : ocrResultHint ? (
+    <p
+      className={`-mt-1 text-[11px] font-medium ${
+        ocrStatus === 'miss' ? 'text-amber-700' : 'text-emerald-700'
+      }`}
+      aria-live="polite"
+    >
+      {ocrResultHint}
+    </p>
+  ) : null
 
   return (
     <main className="min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-6 py-2 sm:py-6 bg-slate-100/70 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
@@ -706,6 +728,7 @@ export function HostedPayPage({ token }: { token: string }) {
                               maxLength={22}
                               placeholder="9 to 22 digits from bank transfer"
                               value={reference}
+                              disabled={ocrScanning}
                               onChange={(event) => {
                                 setReference(event.target.value.replace(/\D/g, ''))
                                 if (ocrStatus === 'filled' || ocrStatus === 'miss') setOcrStatus('idle')
@@ -713,17 +736,12 @@ export function HostedPayPage({ token }: { token: string }) {
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          {ocrHint ? (
-                            <p
-                              className={`-mt-1 text-[11px] font-medium ${
-                                ocrStatus === 'miss' ? 'text-amber-700' : 'text-slate-500'
-                              }`}
-                              aria-live="polite"
-                            >
-                              {ocrHint}
-                            </p>
-                          ) : null}
-                          <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
+                          {ocrFeedback}
+                          <PrimaryButton
+                            type="submit"
+                            loading={submitting}
+                            disabled={submitting || ocrScanning || Boolean(loadingMethod)}
+                          >
                             Submit UTR
                           </PrimaryButton>
                           {proofAttach}
@@ -738,6 +756,7 @@ export function HostedPayPage({ token }: { token: string }) {
                               maxLength={12}
                               placeholder="e.g. 429381029482"
                               value={reference}
+                              disabled={ocrScanning}
                               onChange={(event) => {
                                 setReference(event.target.value.replace(/\D/g, ''))
                                 if (ocrStatus === 'filled' || ocrStatus === 'miss') setOcrStatus('idle')
@@ -745,17 +764,12 @@ export function HostedPayPage({ token }: { token: string }) {
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          {ocrHint ? (
-                            <p
-                              className={`-mt-1 text-[11px] font-medium ${
-                                ocrStatus === 'miss' ? 'text-amber-700' : 'text-slate-500'
-                              }`}
-                              aria-live="polite"
-                            >
-                              {ocrHint}
-                            </p>
-                          ) : null}
-                          <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
+                          {ocrFeedback}
+                          <PrimaryButton
+                            type="submit"
+                            loading={submitting}
+                            disabled={submitting || ocrScanning || Boolean(loadingMethod)}
+                          >
                             Submit UTR
                           </PrimaryButton>
                           {proofAttach}

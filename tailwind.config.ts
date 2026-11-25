@@ -50,9 +50,20 @@ const config: Config = {
           '0%': { backgroundPosition: '-600px 0' },
           '100%': { backgroundPosition: '600px 0' },
         },
+        'ocr-scan': {
+          '0%': { top: '8%', opacity: '0.35' },
+          '50%': { opacity: '1' },
+          '100%': { top: '88%', opacity: '0.35' },
+        },
+        'ocr-dot': {
+          '0%, 80%, 100%': { opacity: '0.25', transform: 'translateY(0)' },
+          '40%': { opacity: '1', transform: 'translateY(-2px)' },
+        },
       },
       animation: {
         shimmer: 'shimmer 1.6s ease-in-out infinite',
+        'ocr-scan': 'ocr-scan 1.35s ease-in-out infinite',
+        'ocr-dot': 'ocr-dot 1s ease-in-out infinite',
       },
     },
   },
