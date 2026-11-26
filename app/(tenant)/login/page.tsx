@@ -63,7 +63,7 @@ export default function LoginPage() {
         }}
       >
         {/* Logo */}
-        <BrandLockup size="lg" tone="dark" subtitle="Console" />
+        <BrandLockup size="lg" tone="dark" />
 
         {/* Hero text */}
         <div>

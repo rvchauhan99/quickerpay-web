@@ -693,7 +693,6 @@ export function AppShell({
           <BrandLockup
             size="sm"
             tone="dark"
-            subtitle="Console"
             copyClassName={SIDE_LABEL}
           />
         </div>

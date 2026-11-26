@@ -18,7 +18,7 @@ export function PayoutAuthenticatorReveal({ reveal }: { reveal: GatewaySecretRev
       </p>
       <p className="mt-1 text-xs" style={{ color: 'var(--qp-text-muted)' }}>
         Give this QR to the exchange. Their staff scan it with Google Authenticator and enter its 6-digit code on the
-        SafePay247 pay-out page to release each withdrawal.
+        SAFEPAY247 pay-out page to release each withdrawal.
       </p>
       <div className="mt-3 flex flex-wrap items-start gap-4">
         {reveal.payout_totp_qr_data_url ? (

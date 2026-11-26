@@ -58,9 +58,9 @@ function FullScreenSpinner() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4" style={{ backgroundColor: 'var(--qp-card)' }}>
       <div className="flex flex-col items-center gap-3">
-        <div className="relative flex h-14 w-14 items-center justify-center">
+        <div className="relative flex h-[4.75rem] w-[4.75rem] items-center justify-center">
           <div className="absolute inset-0 animate-spin rounded-full border-4" style={{ borderColor: 'var(--qp-border)', borderTopColor: 'var(--qp-primary)' }} />
-          <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--qp-primary)' }}>QP</span>
+          <span className="text-[11px] font-bold leading-none tracking-tight" style={{ color: 'var(--qp-primary)' }}>SAFEPAY</span>
         </div>
         <p className="text-sm" style={{ color: 'var(--qp-text-muted)' }}>Loading…</p>
       </div>
