@@ -22,8 +22,8 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
-import { averageMinor, bucketLabel, formatCompactCount, formatCompactMinor, successRate } from '@/lib/chart'
-import { formatIsoDay, todayIsoIst } from '@/lib/datetime'
+import { averageMinor, formatCompactCount, formatCompactMinor, successRate } from '@/lib/chart'
+import { todayIsoIst } from '@/lib/datetime'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants } from '@/lib/merchant-visibility'
 import { MoneyDisplay } from '@/lib/money'
@@ -131,7 +131,6 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [insightsError, setInsightsError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [trendMetric, setTrendMetric] = useState<Metric>('amount')
   const [exchangeMetric, setExchangeMetric] = useState<Metric>('amount')
   const [admins, setAdmins] = useState<UserListItem[]>([])
   const [merchants, setMerchants] = useState<MerchantListItem[]>([])
@@ -217,24 +216,6 @@ export default function DashboardPage() {
   const payinHref = (extra: string) => (canView('PAYIN') ? `/payin?${extra}` : undefined)
   const payoutHref = (extra: string) => (canView('PAYOUT') ? `/payout?${extra}` : undefined)
 
-  const trendData = useMemo<BarDatum[]>(
-    () =>
-      insights.trend.map((point) => {
-        const day = point.bucket.slice(0, 10)
-        return {
-          id: point.bucket,
-          label: bucketLabel(point.bucket, insights.granularity),
-          title: insights.granularity === 'HOUR' ? `${formatIsoDay(day)} ${point.bucket.slice(11, 16)} IST` : formatIsoDay(day),
-          values:
-            trendMetric === 'amount'
-              ? { payin: point.payin_minor, payout: point.payout_minor }
-              : { payin: point.payin_count, payout: point.payout_count },
-          href: canView('PAYIN') ? `/payin?status=COMPLETED&date_from=${day}&date_to=${day}` : undefined,
-        }
-      }),
-    [insights.trend, insights.granularity, trendMetric, canView],
-  )
-
   const exchangeData = useMemo<BarDatum[]>(
     () =>
       insights.by_merchant.map((row) => ({
@@ -280,8 +261,6 @@ export default function DashboardPage() {
   const avgPayin = averageMinor(data.payin.amount_minor, data.payin.count)
   const avgPayout = averageMinor(data.payout.amount_minor, data.payout.count)
   const netFlow = data.payin.amount_minor - data.payout.amount_minor
-  const granularityLabel = insights.granularity === 'HOUR' ? 'Hourly, IST' : 'Daily, IST'
-  const trendEmpty = !insights.trend.some((point) => point.payin_count > 0 || point.payout_count > 0)
   const formatMoneyAxis = (value: number) => formatCompactMinor(value)
   const formatCountAxis = (value: number) => formatCompactCount(Math.round(value))
   const formatMoneyValue = (value: number) => <MoneyDisplay amountMinor={value} />
@@ -316,50 +295,70 @@ export default function DashboardPage() {
     </div>
   )
 
-  const trendCard = (
+  const showBankerPerformance = isSuperView && user.role !== 'MERCHANT'
+
+  /** One card: Banker-wise (left) + Status mix (right) — shared height, no stacked vertical band. */
+  const performanceStatusCard = (
     <ChartCard
-      title="Pay-in vs Pay-out trend"
-      subtitle={`Completed volume · ${granularityLabel}`}
+      title={showBankerPerformance ? `${bankerLabel()}-wise & status mix` : 'Status mix'}
+      subtitle="All rows created in range"
       loading={loading}
       error={insightsError}
-      empty={trendEmpty}
-      emptyMessage="No completed Pay-in or Pay-out in this range"
-      className="lg:col-span-2"
-      actions={
-        <>
-          <ChartLegend items={FLOW_SERIES} />
-          <SegmentedToggle label="Trend metric" value={trendMetric} options={METRIC_OPTIONS} onChange={setTrendMetric} />
-        </>
-      }
     >
-      <BarChart
-        ariaLabel="Pay-in vs Pay-out trend"
-        data={trendData}
-        series={FLOW_SERIES}
-        formatAxis={trendMetric === 'amount' ? formatMoneyAxis : formatCountAxis}
-        formatValue={trendMetric === 'amount' ? formatMoneyValue : formatCountValue}
-        maxLabels={insights.granularity === 'HOUR' ? 12 : 16}
-      />
-    </ChartCard>
-  )
-
-  const statusCard = (
-    <ChartCard title="Status mix" subtitle="All rows created in range" loading={loading} error={insightsError}>
-      <div className="space-y-3">
-        <StatusMix
-          title="Pay-in"
-          slices={insights.payin_status}
-          hrefFor={(status) =>
-            status === 'EXPIRED'
-              ? payinHref(`status=REJECTED&review_reason=EXPIRED&${range}`)
-              : payinHref(`status=${status}&${range}`)
-          }
-        />
-        <StatusMix
-          title="Pay-out"
-          slices={insights.payout_status}
-          hrefFor={(status) => payoutHref(`status=${status}&${range}`)}
-        />
+      <div
+        className={
+          showBankerPerformance
+            ? 'grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start lg:gap-4'
+            : undefined
+        }
+      >
+        {showBankerPerformance ? (
+          <section className="min-w-0" aria-label={`${bankerLabel()}-wise performance`}>
+            <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>
+              {bankerLabel()}-wise performance
+            </p>
+            <DataTable
+              columns={[
+                { key: 'admin', heading: bankerLabel() },
+                { key: 'payin', heading: 'Pay-In', align: 'right' },
+                { key: 'payout', heading: 'Pay-Out', align: 'right' },
+                { key: 'commission', heading: 'Commission', align: 'right' },
+                { key: 'margin', heading: 'Margin', align: 'right' },
+              ]}
+              rows={data.banker_wise.map((row) => ({
+                admin: row.banker_username,
+                payin: <MoneyDisplay amountMinor={row.payin_minor} />,
+                payout: <MoneyDisplay amountMinor={row.payout_minor} />,
+                commission: <MoneyDisplay amountMinor={row.commission_minor} />,
+                margin: <MoneyDisplay amountMinor={row.margin_minor} />,
+              }))}
+              empty={<EmptyState message={`No ${bankerLabel()} activity in this range`} />}
+            />
+          </section>
+        ) : null}
+        <section className="min-w-0" aria-label="Status mix">
+          {showBankerPerformance ? (
+            <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>
+              Status mix
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <StatusMix
+              title="Pay-in"
+              slices={insights.payin_status}
+              hrefFor={(status) =>
+                status === 'EXPIRED'
+                  ? payinHref(`status=REJECTED&review_reason=EXPIRED&${range}`)
+                  : payinHref(`status=${status}&${range}`)
+              }
+            />
+            <StatusMix
+              title="Pay-out"
+              slices={insights.payout_status}
+              hrefFor={(status) => payoutHref(`status=${status}&${range}`)}
+            />
+          </div>
+        </section>
       </div>
     </ChartCard>
   )
@@ -564,10 +563,7 @@ export default function DashboardPage() {
 
         {kpiStrip}
 
-        <div className="grid grid-cols-1 gap-qp-gap lg:grid-cols-3">
-          {trendCard}
-          {statusCard}
-        </div>
+        {performanceStatusCard}
 
         {showExchanges ? (
           <ChartCard
@@ -613,29 +609,6 @@ export default function DashboardPage() {
               height={180}
             />
           </ChartCard>
-        ) : null}
-
-        {isSuperView && user.role !== 'MERCHANT' ? (
-          <section aria-label={`${bankerLabel()}-wise performance`}>
-            <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>{bankerLabel()}-wise performance</p>
-            <DataTable
-              columns={[
-                { key: 'admin', heading: bankerLabel() },
-                { key: 'payin', heading: 'Pay-In', align: 'right' },
-                { key: 'payout', heading: 'Pay-Out', align: 'right' },
-                { key: 'commission', heading: 'Commission', align: 'right' },
-                { key: 'margin', heading: 'Margin', align: 'right' },
-              ]}
-              rows={data.banker_wise.map((row) => ({
-                admin: row.banker_username,
-                payin: <MoneyDisplay amountMinor={row.payin_minor} />,
-                payout: <MoneyDisplay amountMinor={row.payout_minor} />,
-                commission: <MoneyDisplay amountMinor={row.commission_minor} />,
-                margin: <MoneyDisplay amountMinor={row.margin_minor} />,
-              }))}
-              empty={<EmptyState message={`No ${bankerLabel()} activity in this range`} />}
-            />
-          </section>
         ) : null}
 
         {isSuperView ? (

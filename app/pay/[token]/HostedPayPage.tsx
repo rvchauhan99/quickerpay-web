@@ -1,18 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import type { GatewayPayPageView, PayinPaymentMethod, PaymentMethod } from '@quickerpay/shared-types'
-import { Clock, Paperclip, ShieldCheck, Lock, Smartphone } from 'lucide-react'
+import { Clock, Paperclip, ShieldCheck, Lock, RefreshCw, Smartphone } from 'lucide-react'
 import { PaymentMethodCard } from './PaymentMethodCard'
 import { BrandLockup } from '@/components/brand/BrandLockup'
 import { DocumentUpload } from '@/components/forms/DocumentUpload'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
+import { OcrScanningLoader } from '@/components/pay/OcrScanningLoader'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { ErrorAlert, PrimaryButton } from '@/components/ui/PageHeader'
 import { MoneyDisplay } from '@/lib/money'
 import { buildPayinUpiIntent } from '@/lib/payoutUpi'
+import type { OcrReferenceKind } from '@/lib/pay/extract-reference-from-image'
 
 const POLL_MS = 5_000
 const REDIRECT_AFTER_MS = 5_000
@@ -33,6 +35,7 @@ const SUBTITLE: Record<PayinPaymentMethod, string> = {
 }
 
 type LoadState = 'loading' | 'ready' | 'missing' | 'error'
+type OcrStatus = 'idle' | 'scanning' | 'filled' | 'miss'
 
 interface Envelope<T> {
   success: boolean
@@ -182,11 +185,13 @@ function OptionalProofAttach({
   onChange,
   expanded,
   onExpand,
+  disabled = false,
 }: {
   proof: File | null
   onChange: (file: File | null) => void
   expanded: boolean
   onExpand: () => void
+  disabled?: boolean
 }) {
   const showUpload = expanded || proof !== null
   if (!showUpload) {
@@ -194,7 +199,8 @@ function OptionalProofAttach({
       <button
         type="button"
         onClick={onExpand}
-        className="inline-flex w-full items-center justify-center gap-1.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+        disabled={disabled}
+        className="inline-flex w-full items-center justify-center gap-1.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
         Attach screenshot (optional)
@@ -207,6 +213,7 @@ function OptionalProofAttach({
       onChange={onChange}
       accept={PROOF_ACCEPT}
       maxBytes={PROOF_MAX_BYTES}
+      disabled={disabled}
       aria-label="Payment screenshot"
     />
   )
@@ -219,8 +226,11 @@ export function HostedPayPage({ token }: { token: string }) {
   const [reference, setReference] = useState('')
   const [proof, setProof] = useState<File | null>(null)
   const [proofOpen, setProofOpen] = useState(false)
+  const [ocrStatus, setOcrStatus] = useState<OcrStatus>('idle')
+  const ocrSeqRef = useRef(0)
   const [submitting, setSubmitting] = useState(false)
   const [loadingMethod, setLoadingMethod] = useState<PaymentMethod | null>(null)
+  const [changingQr, setChangingQr] = useState(false)
   const [autoSelectingUpi, setAutoSelectingUpi] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [celebrateFrom, setCelebrateFrom] = useState<number | null>(null)
@@ -308,6 +318,8 @@ export function HostedPayPage({ token }: { token: string }) {
       if (result.view.utr_submitted) setCelebrateFrom((current) => current ?? Date.now())
       setProof(null)
       setProofOpen(false)
+      setOcrStatus('idle')
+      ocrSeqRef.current += 1
     } catch {
       setSubmitError('Network error. Try again.')
     } finally {
@@ -325,6 +337,27 @@ export function HostedPayPage({ token }: { token: string }) {
       'Could not select this payment method. Try another or retry shortly.',
     )
     setLoadingMethod(null)
+  }
+
+  const changeQr = async () => {
+    setChangingQr(true)
+    setSubmitError(null)
+    try {
+      const result = await postJson(`/api/v1/gateway/pay/${encodeURIComponent(token)}/change-qr`, {})
+      if (!result.view) {
+        setSubmitError(
+          result.message ?? 'No other QR is available right now. Retry shortly or keep the current QR.',
+        )
+        // Refresh remaining so the button hides after a 409 max-twice.
+        await load()
+        return
+      }
+      setView(result.view)
+    } catch {
+      setSubmitError('Network error. Try again.')
+    } finally {
+      setChangingQr(false)
+    }
   }
 
   const hasUpiAvailable = availableMethods.some((item) => item.payment_method === 'UPI')
@@ -387,6 +420,50 @@ export function HostedPayPage({ token }: { token: string }) {
     )
   }
 
+  const handleProofChange = useCallback(
+    (file: File | null) => {
+      setProof(file)
+      ocrSeqRef.current += 1
+      const seq = ocrSeqRef.current
+      if (!file) {
+        setOcrStatus('idle')
+        return
+      }
+      const ocrKind: OcrReferenceKind | null =
+        method === 'UPI' || method === 'MANUAL_BANK' ? method : null
+      if (!ocrKind) {
+        setOcrStatus('idle')
+        return
+      }
+      setOcrStatus('scanning')
+      void (async () => {
+        const started = Date.now()
+        const { extractReferenceFromImage } = await import('@/lib/pay/extract-reference-from-image')
+        const digits = await extractReferenceFromImage(file, ocrKind)
+        // Keep the animated loader visible long enough to read (fast OCR still flashes otherwise).
+        const remain = 700 - (Date.now() - started)
+        if (remain > 0) await new Promise((resolve) => window.setTimeout(resolve, remain))
+        if (seq !== ocrSeqRef.current) return
+        if (digits) {
+          setReference(digits)
+          setOcrStatus('filled')
+          setSubmitError(null)
+        } else {
+          setOcrStatus('miss')
+        }
+      })()
+    },
+    [method],
+  )
+
+  const ocrScanning = ocrStatus === 'scanning'
+  const ocrResultHint =
+    ocrStatus === 'filled'
+      ? 'UTR filled from screenshot — edit if needed'
+      : ocrStatus === 'miss'
+        ? 'Could not read UTR — type it manually'
+        : null
+
   const remaining = view && !isTerminal ? remainingLabel(view.expires_at, now) : null
   const expired = remaining === '00:00'
   const isUrgent = view?.expires_at ? Math.max(0, Math.floor((new Date(view.expires_at).getTime() - now) / 1000)) <= 120 : false
@@ -395,11 +472,25 @@ export function HostedPayPage({ token }: { token: string }) {
   const proofAttach = (
     <OptionalProofAttach
       proof={proof}
-      onChange={setProof}
+      onChange={handleProofChange}
       expanded={proofOpen}
       onExpand={() => setProofOpen(true)}
+      disabled={ocrScanning}
     />
   )
+
+  const ocrFeedback = ocrScanning ? (
+    <OcrScanningLoader />
+  ) : ocrResultHint ? (
+    <p
+      className={`-mt-1 text-[11px] font-medium ${
+        ocrStatus === 'miss' ? 'text-amber-700' : 'text-emerald-700'
+      }`}
+      aria-live="polite"
+    >
+      {ocrResultHint}
+    </p>
+  ) : null
 
   return (
     <main className="min-h-screen flex items-start sm:items-center justify-center p-2 sm:p-6 py-2 sm:py-6 bg-slate-100/70 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
@@ -564,6 +655,21 @@ export function HostedPayPage({ token }: { token: string }) {
                           </span>
                           <CopyButton value={view.upi} label="Copy UPI ID" />
                         </div>
+                        {(view.qr_changes_remaining ?? 0) > 0 ? (
+                          <button
+                            type="button"
+                            disabled={submitting || changingQr || Boolean(loadingMethod)}
+                            onClick={() => void changeQr()}
+                            className="mt-0.5 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-2xs transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <RefreshCw className={`h-4 w-4 shrink-0 ${changingQr ? 'animate-spin' : ''}`} aria-hidden />
+                            {changingQr
+                              ? 'Finding another QR…'
+                              : view.qr_changes_remaining === 1
+                                ? 'Change QR (1 left)'
+                                : 'Change QR'}
+                          </button>
+                        ) : null}
                       </div>
 
                       {upiIntent ? (
@@ -640,11 +746,20 @@ export function HostedPayPage({ token }: { token: string }) {
                               maxLength={22}
                               placeholder="9 to 22 digits from bank transfer"
                               value={reference}
-                              onChange={(event) => setReference(event.target.value.replace(/\D/g, ''))}
+                              disabled={ocrScanning}
+                              onChange={(event) => {
+                                setReference(event.target.value.replace(/\D/g, ''))
+                                if (ocrStatus === 'filled' || ocrStatus === 'miss') setOcrStatus('idle')
+                              }}
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
+                          {ocrFeedback}
+                          <PrimaryButton
+                            type="submit"
+                            loading={submitting}
+                            disabled={submitting || ocrScanning || Boolean(loadingMethod)}
+                          >
                             Submit UTR
                           </PrimaryButton>
                           {proofAttach}
@@ -659,11 +774,20 @@ export function HostedPayPage({ token }: { token: string }) {
                               maxLength={12}
                               placeholder="e.g. 429381029482"
                               value={reference}
-                              onChange={(event) => setReference(event.target.value.replace(/\D/g, ''))}
+                              disabled={ocrScanning}
+                              onChange={(event) => {
+                                setReference(event.target.value.replace(/\D/g, ''))
+                                if (ocrStatus === 'filled' || ocrStatus === 'miss') setOcrStatus('idle')
+                              }}
                               aria-label="UTR reference number"
                             />
                           </FormField>
-                          <PrimaryButton type="submit" loading={submitting} disabled={submitting || Boolean(loadingMethod)}>
+                          {ocrFeedback}
+                          <PrimaryButton
+                            type="submit"
+                            loading={submitting}
+                            disabled={submitting || ocrScanning || Boolean(loadingMethod)}
+                          >
                             Submit UTR
                           </PrimaryButton>
                           {proofAttach}

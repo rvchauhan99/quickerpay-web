@@ -123,8 +123,8 @@ export default function MockBharatPePage() {
           Emits list-shaped rows with <code>bankReferenceNo</code> (posted as <code>utr</code>) and
           rupee <code>amount</code> (converted to <code>amount_minor</code>). Live BharatPe Sync
           hooks <code>GET payments-tesseract…/merchant/transactions</code>. Open{' '}
-          <a className="underline" href="http://localhost:3000/mock/bharatpe">
-            http://localhost:3000/mock/bharatpe
+          <a className="underline" href="http://localhost:5001/mock/bharatpe">
+            http://localhost:5001/mock/bharatpe
           </a>
           , enrol the BharatPe Sync side panel, then simulate a payment.
         </p>

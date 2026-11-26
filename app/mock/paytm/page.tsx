@@ -143,8 +143,8 @@ export default function MockPaytmPage() {
           Emits list-shaped orders with <code>additionalInfo.rrn</code> (posted as{' '}
           <code>utr</code>) plus <code>bizOrderId</code> and amount in paise. Live Paytm Sync
           resolves RRN via <code>POST /api/v4/order/detail</code>; mock skips that call. Open{' '}
-          <a className="underline" href="http://localhost:3000/mock/paytm">
-            http://localhost:3000/mock/paytm
+          <a className="underline" href="http://localhost:5001/mock/paytm">
+            http://localhost:5001/mock/paytm
           </a>
           , enrol the Paytm Sync side panel, then simulate a payment.
         </p>

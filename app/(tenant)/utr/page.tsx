@@ -506,6 +506,18 @@ export default function UtrPage() {
             actions:
               row.status === 'PENDING' && hasMenu(menus, 'UTR', 'can_edit') ? (
                 <span className="flex items-center gap-1">
+                  {canRelease && !row.transaction_id ? (
+                    <IconButton
+                      variant="primary"
+                      icon={<Building2 size={15} strokeWidth={1.75} />}
+                      tooltip="Allocate Exchange"
+                      onClick={() => {
+                        setAllocateMerchantId('')
+                        setAllocateRemarks('')
+                        setAllocate(row)
+                      }}
+                    />
+                  ) : null}
                   <IconButton
                     variant="danger"
                     icon={<X size={15} strokeWidth={1.75} />}

@@ -13,8 +13,8 @@ alwaysApply: true
 
 | Piece | Allowed |
 | --- | --- |
-| Web | `http://demo.quickerpay.local:3000` (or another `*.quickerpay.local` that resolves to `127.0.0.1`). Never a deployed URL. |
-| API | `http://127.0.0.1:4000` or `http://localhost:4000` only |
+| Web | `http://demo.quickerpay.local:5001` (or another `*.quickerpay.local` that resolves to `127.0.0.1`). Never a deployed URL. |
+| API | `http://127.0.0.1:8001` or `http://localhost:8001` only |
 | Postgres | `QP_CONTROL_DB_HOST` and `QP_TENANT_DB_HOST` are `localhost` or `127.0.0.1` only |
 | Redis | `REDIS_URL` host is `localhost` or `127.0.0.1` only |
 
