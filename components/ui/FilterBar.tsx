@@ -121,7 +121,7 @@ const STAT_TONE_COLOR: Record<StatTone, string> = {
   success: 'var(--qp-success)',
   warning: 'var(--qp-warning)',
   danger: 'var(--qp-danger)',
-  neutral: 'var(--qp-border-dark)',
+  neutral: '#64748b',
 }
 
 export function StatCard({
@@ -137,23 +137,25 @@ export function StatCard({
   hint?: React.ReactNode
   children: React.ReactNode
 }) {
+  const toneColor = STAT_TONE_COLOR[tone]
   const inner = (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <p className="truncate text-[11px] font-medium" style={{ color: 'var(--qp-text-muted)' }}>
+      <p className="truncate text-[11px] font-medium" style={{ color: toneColor }}>
         {label}
       </p>
-      <div className="truncate text-lg font-semibold leading-tight qp-tabular" style={{ color: 'var(--qp-text-primary)' }}>
+      <div className="truncate text-lg font-semibold leading-tight qp-tabular" style={{ color: `color-mix(in srgb, ${toneColor} 72%, #0f172a)` }}>
         {children}
       </div>
-      {hint ? <div className="truncate text-[10.5px]" style={{ color: 'var(--qp-text-muted)' }}>{hint}</div> : null}
+      {hint ? (
+        <div className="truncate text-[10.5px]" style={{ color: 'var(--qp-text-secondary)' }}>{hint}</div>
+      ) : null}
     </div>
   )
 
-  const cls = 'block rounded-qp-card border border-l-[3px] px-qp-card py-2'
+  const cls = 'block rounded-qp-card border px-qp-card py-2'
   const cardStyle: React.CSSProperties = {
-    backgroundColor: 'var(--qp-card)',
-    borderColor: 'var(--qp-border)',
-    borderLeftColor: STAT_TONE_COLOR[tone],
+    backgroundColor: `color-mix(in srgb, ${toneColor} 18%, white)`,
+    borderColor: `color-mix(in srgb, ${toneColor} 34%, white)`,
     boxShadow: 'var(--qp-shadow-sm)',
   }
 

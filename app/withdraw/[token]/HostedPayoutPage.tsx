@@ -181,7 +181,7 @@ export function HostedPayoutPage({ token }: { token: string }) {
             </dl>
 
             {view.status === 'CONFIRMED' ? (
-              <ErrorAlert type="success" message="Pay-out confirmed. It is now in the SafePay247 pay-out queue." />
+              <ErrorAlert type="success" message="Pay-out confirmed. It is now in the SAFEPAY247 pay-out queue." />
             ) : null}
 
             {view.status === 'LOCKED' ? (
@@ -207,7 +207,7 @@ export function HostedPayoutPage({ token }: { token: string }) {
                   required
                   htmlFor="payout-code"
                   error={submitError}
-                  hint={`From the SafePay247 pay-out authenticator. ${view.attempts_left} attempts left.`}
+                  hint={`From the SAFEPAY247 pay-out authenticator. ${view.attempts_left} attempts left.`}
                 >
                   <Input
                     id="payout-code"

@@ -32,13 +32,13 @@ export function ChartCard({
     )
   } else if (error) {
     body = (
-      <p className="flex min-h-[120px] items-center justify-center text-xs" role="alert" style={{ color: 'var(--qp-danger)' }}>
+      <p className="flex min-h-[72px] items-center justify-center px-3 text-center text-xs" role="alert" style={{ color: 'var(--qp-danger)' }}>
         {error}
       </p>
     )
   } else if (empty) {
     body = (
-      <p className="flex min-h-[120px] items-center justify-center text-xs" style={{ color: 'var(--qp-text-muted)' }}>
+      <p className="flex min-h-[72px] items-center justify-center px-3 text-center text-xs" style={{ color: 'var(--qp-text-muted)' }}>
         {emptyMessage}
       </p>
     )

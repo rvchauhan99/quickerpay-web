@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { parseAsString, useQueryStates } from 'nuqs'
 import type {
   BankAccountListItem,
@@ -14,7 +14,7 @@ import type {
 } from '@quickerpay/shared-types'
 import { AppShell } from '@/components/layout/AppShell'
 import { ErrorAlert } from '@/components/ui/PageHeader'
-import { DataTable, EmptyState, FilterBar, StatCard } from '@/components/ui/FilterBar'
+import { DataTable, EmptyState, FilterBar, StatCard, type StatTone } from '@/components/ui/FilterBar'
 import { BarChart, type BarDatum, type BarSeries } from '@/components/charts/BarChart'
 import { ChartCard, ChartLegend, SegmentedToggle } from '@/components/charts/ChartCard'
 import { StatusMix } from '@/components/charts/StatusMix'
@@ -22,7 +22,7 @@ import { Input } from '@/components/forms/Input'
 import { Select } from '@/components/forms/Select'
 import { FormField } from '@/components/forms/FormField'
 import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
-import { averageMinor, formatCompactCount, formatCompactMinor, successRate } from '@/lib/chart'
+import { formatCompactCount, formatCompactMinor } from '@/lib/chart'
 import { todayIsoIst } from '@/lib/datetime'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants } from '@/lib/merchant-visibility'
@@ -109,6 +109,17 @@ const FLOW_SERIES: ReadonlyArray<BarSeries> = [
   { key: 'payin', label: 'Pay-in', color: 'var(--qp-primary)' },
   { key: 'payout', label: 'Pay-out', color: 'var(--qp-warning)' },
 ]
+
+function DashboardSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h2 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--qp-text-muted)' }}>
+        {title}
+      </h2>
+      {children}
+    </section>
+  )
+}
 
 function errorText(caught: unknown, fallback: string): string {
   return caught instanceof ApiClientError
@@ -250,118 +261,78 @@ export default function DashboardPage() {
   const isSuperView = !isAdmin
   const showExchanges = canSeeMerchants(user.role)
   const failedHref = canView('TRANSACTIONS') ? `/transactions?status=REJECTED&${range}` : undefined
-  const payinSuccess = successRate(insights.payin_status)
-  const payoutSuccess = successRate(insights.payout_status)
   const pendingPayins = insights.payin_status
     .filter((slice) => slice.status === 'INITIATE' || slice.status === 'IN_PROCESS')
     .reduce((sum, slice) => sum + slice.count, 0)
-  const pendingPayouts = insights.payout_status
-    .filter((slice) => slice.status === 'INITIATE')
-    .reduce((sum, slice) => sum + slice.count, 0)
-  const avgPayin = averageMinor(data.payin.amount_minor, data.payin.count)
-  const avgPayout = averageMinor(data.payout.amount_minor, data.payout.count)
-  const netFlow = data.payin.amount_minor - data.payout.amount_minor
+  const attention = (count: number): StatTone => (count > 0 ? 'warning' : 'neutral')
+  const problem = (count: number): StatTone => (count > 0 ? 'danger' : 'neutral')
+  const balanceTone = (amount: number): StatTone => (amount < 0 ? 'danger' : amount > 0 ? 'success' : 'primary')
   const formatMoneyAxis = (value: number) => formatCompactMinor(value)
   const formatCountAxis = (value: number) => formatCompactCount(Math.round(value))
   const formatMoneyValue = (value: number) => <MoneyDisplay amountMinor={value} />
   const formatCountValue = (value: number) => `${value} txns`
 
   const kpiStrip = (
-    <div className="grid grid-cols-2 gap-qp-gap sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
-      <StatCard label="Pending Pay-ins" tone="warning" hint="INITIATE + IN_PROCESS" href={payinHref(`status=IN_PROCESS&${range}`)}>
+    <div className="grid grid-cols-2 gap-qp-gap">
+      <StatCard label="Pending Pay-ins" tone={attention(pendingPayins)} hint="INITIATE + IN_PROCESS" href={payinHref(`status=IN_PROCESS&${range}`)}>
         {pendingPayins}
       </StatCard>
-      <StatCard label="Pending Pay-outs" tone="warning" hint="INITIATE" href={payoutHref(`status=INITIATE&${range}`)}>
-        {pendingPayouts}
-      </StatCard>
-      <StatCard label="Avg Pay-in ticket" tone="info" hint={`${data.payin.count} completed`}>
-        <MoneyDisplay amountMinor={avgPayin} />
-      </StatCard>
-      <StatCard label="Avg Pay-out ticket" tone="info" hint={`${data.payout.count} completed`}>
-        <MoneyDisplay amountMinor={avgPayout} />
-      </StatCard>
-      <StatCard label="Net flow" tone={netFlow < 0 ? 'warning' : 'primary'} hint="Pay-in − Pay-out">
-        <MoneyDisplay amountMinor={netFlow} />
-      </StatCard>
-      <StatCard label="Refunded" tone="neutral" href={payinHref(`status=REFUND&${range}`)}>
+      <StatCard label="Refunded" tone={problem(data.refunded_minor)} href={payinHref(`status=REFUND&${range}`)}>
         <MoneyDisplay amountMinor={data.refunded_minor} />
-      </StatCard>
-      <StatCard label="Pay-in success" tone="success" hint="Completed ÷ (completed + rejected + expired)" href={payinHref(`status=COMPLETED&${range}`)}>
-        {payinSuccess ?? '—'}
-      </StatCard>
-      <StatCard label="Pay-out success" tone="success" hint="Completed ÷ (completed + rejected)" href={payoutHref(`status=COMPLETED&${range}`)}>
-        {payoutSuccess ?? '—'}
       </StatCard>
     </div>
   )
 
   const showBankerPerformance = isSuperView && user.role !== 'MERCHANT'
 
-  /** One card: Banker-wise (left) + Status mix (right) — shared height, no stacked vertical band. */
-  const performanceStatusCard = (
-    <ChartCard
-      title={showBankerPerformance ? `${bankerLabel()}-wise & status mix` : 'Status mix'}
-      subtitle="All rows created in range"
-      loading={loading}
-      error={insightsError}
-    >
-      <div
-        className={
-          showBankerPerformance
-            ? 'grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start lg:gap-4'
-            : undefined
-        }
-      >
-        {showBankerPerformance ? (
-          <section className="min-w-0" aria-label={`${bankerLabel()}-wise performance`}>
-            <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>
-              {bankerLabel()}-wise performance
-            </p>
-            <DataTable
-              columns={[
-                { key: 'admin', heading: bankerLabel() },
-                { key: 'payin', heading: 'Pay-In', align: 'right' },
-                { key: 'payout', heading: 'Pay-Out', align: 'right' },
-                { key: 'commission', heading: 'Commission', align: 'right' },
-                { key: 'margin', heading: 'Margin', align: 'right' },
-              ]}
-              rows={data.banker_wise.map((row) => ({
-                admin: row.banker_username,
-                payin: <MoneyDisplay amountMinor={row.payin_minor} />,
-                payout: <MoneyDisplay amountMinor={row.payout_minor} />,
-                commission: <MoneyDisplay amountMinor={row.commission_minor} />,
-                margin: <MoneyDisplay amountMinor={row.margin_minor} />,
-              }))}
-              empty={<EmptyState message={`No ${bankerLabel()} activity in this range`} />}
-            />
-          </section>
-        ) : null}
-        <section className="min-w-0" aria-label="Status mix">
-          {showBankerPerformance ? (
-            <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>
-              Status mix
-            </p>
-          ) : null}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <StatusMix
-              title="Pay-in"
-              slices={insights.payin_status}
-              hrefFor={(status) =>
-                status === 'EXPIRED'
-                  ? payinHref(`status=REJECTED&review_reason=EXPIRED&${range}`)
-                  : payinHref(`status=${status}&${range}`)
-              }
-            />
-            <StatusMix
-              title="Pay-out"
-              slices={insights.payout_status}
-              hrefFor={(status) => payoutHref(`status=${status}&${range}`)}
-            />
-          </div>
-        </section>
+  const statusMixCard = (
+    <ChartCard title="Status mix" subtitle="All rows created in range" loading={loading} error={insightsError}>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <StatusMix
+          title="Pay-in"
+          slices={insights.payin_status}
+          hrefFor={(status) =>
+            status === 'EXPIRED'
+              ? payinHref(`status=REJECTED&review_reason=EXPIRED&${range}`)
+              : payinHref(`status=${status}&${range}`)
+          }
+        />
+        <StatusMix
+          title="Pay-out"
+          slices={insights.payout_status}
+          hrefFor={(status) => payoutHref(`status=${status}&${range}`)}
+        />
       </div>
     </ChartCard>
   )
+
+  const bankerTableCard = showBankerPerformance ? (
+    <ChartCard
+      title={`${bankerLabel()}-wise`}
+      subtitle="Commission and margin in range"
+      loading={loading}
+      empty={data.banker_wise.length === 0}
+      emptyMessage={`No ${bankerLabel()} activity in this range`}
+    >
+      <DataTable
+        columns={[
+          { key: 'admin', heading: bankerLabel() },
+          { key: 'payin', heading: 'Pay-In', align: 'right' },
+          { key: 'payout', heading: 'Pay-Out', align: 'right' },
+          { key: 'commission', heading: 'Commission', align: 'right' },
+          { key: 'margin', heading: 'Margin', align: 'right' },
+        ]}
+        rows={data.banker_wise.map((row) => ({
+          admin: row.banker_username,
+          payin: <MoneyDisplay amountMinor={row.payin_minor} />,
+          payout: <MoneyDisplay amountMinor={row.payout_minor} />,
+          commission: <MoneyDisplay amountMinor={row.commission_minor} />,
+          margin: <MoneyDisplay amountMinor={row.margin_minor} />,
+        }))}
+        empty={<EmptyState message={`No ${bankerLabel()} activity in this range`} />}
+      />
+    </ChartCard>
+  ) : null
 
   return (
     <AppShell title={isAdmin ? 'Payment Gateway Overview' : 'TENANT OVERVIEW'} role={user.role} menus={menus}>
@@ -464,17 +435,18 @@ export default function DashboardPage() {
           <ErrorAlert message={error} />
         </div>
       ) : null}
-      <div className="space-y-qp-gap" aria-busy={loading}>
+      <div className="space-y-5" aria-busy={loading}>
+        <DashboardSection title={isOperator ? 'Queue' : 'Volume'}>
         {isOperator ? (
           <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-5">
-            <StatCard label="Assigned queue" tone="info" href={payinHref('status=IN_PROCESS')}>{data.assigned_queue_depth}</StatCard>
-            <StatCard label="Processed today" tone="success" href={payinHref(`status=COMPLETED&${range}`)}>{data.processed_today}</StatCard>
-            <StatCard label="Pending UTRs" tone="warning" href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.pending_utrs}</StatCard>
-            <StatCard label="Failed" tone="danger" href={failedHref}>{data.failed_transactions}</StatCard>
+            <StatCard label="Assigned queue" tone={attention(data.assigned_queue_depth)} href={payinHref('status=IN_PROCESS')}>{data.assigned_queue_depth}</StatCard>
+            <StatCard label="Processed today" tone={data.processed_today > 0 ? 'success' : 'neutral'} href={payinHref(`status=COMPLETED&${range}`)}>{data.processed_today}</StatCard>
+            <StatCard label="Pending UTRs" tone={attention(data.pending_utrs)} href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.pending_utrs}</StatCard>
+            <StatCard label="Failed" tone={problem(data.failed_transactions)} href={failedHref}>{data.failed_transactions}</StatCard>
             {data.my_account_minor !== null ? (
               <StatCard
                 label="My Account"
-                tone="info"
+                tone={balanceTone(data.my_account_minor)}
                 hint={myAccountHint(data.my_account_kind)}
                 href={myAccountHref(data.my_account_kind, canView, data.my_account_owner_user_id)}
               >
@@ -483,21 +455,21 @@ export default function DashboardPage() {
             ) : null}
           </div>
         ) : isAdmin ? (
-          <>
+          <div className="space-y-qp-gap">
             <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-4">
-              <StatCard label="Total Pay-in" tone="primary" hint={`${data.payin.count} txns`} href={payinHref(`status=COMPLETED&${range}`)}>
+              <StatCard label="Total Pay-in" tone="success" hint={`${data.payin.count} txns`} href={payinHref(`status=COMPLETED&${range}`)}>
                 <MoneyDisplay amountMinor={data.payin.amount_minor} />
               </StatCard>
               <StatCard label="Total Payout" tone="warning" hint={`${data.payout.count} txns`} href={payoutHref(`status=COMPLETED&${range}`)}>
                 <MoneyDisplay amountMinor={data.payout.amount_minor} />
               </StatCard>
-              <StatCard label="Total Refunded" tone="neutral" href={payinHref(`status=REFUND&${range}`)}>
+              <StatCard label="Total Refunded" tone={problem(data.refunded_minor)} href={payinHref(`status=REFUND&${range}`)}>
                 <MoneyDisplay amountMinor={data.refunded_minor} />
               </StatCard>
               {data.my_account_minor !== null ? (
                 <StatCard
                   label="My Account"
-                  tone="info"
+                  tone={balanceTone(data.my_account_minor)}
                   hint={myAccountHint(data.my_account_kind)}
                   href={myAccountHref(data.my_account_kind, canView, data.my_account_owner_user_id)}
                 >
@@ -512,18 +484,18 @@ export default function DashboardPage() {
               <StatCard label="Commission PAYOUT" tone="success" href={canView('COMMISSION') ? `/commission?${range}` : undefined}>
                 <MoneyDisplay amountMinor={data.commission_by_kind.find((row) => row.rate_kind === 'PAYOUT')?.banker_commission_minor} />
               </StatCard>
-              <StatCard label="Operators online" tone="info" href={canView('USERS') ? '/users?role=OPERATOR' : undefined}>{data.operators_online}</StatCard>
-              <StatCard label="Pending UTRs" tone="warning" href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.pending_utrs}</StatCard>
-              <StatCard label="Unclaimed UTRs" tone="warning" href={canView('UTR') ? '/utr?status=UNCLAIMED' : undefined}>
+              <StatCard label="Operators online" tone={data.operators_online > 0 ? 'success' : 'neutral'} href={canView('USERS') ? '/users?role=OPERATOR' : undefined}>{data.operators_online}</StatCard>
+              <StatCard label="Pending UTRs" tone={attention(data.pending_utrs)} href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.pending_utrs}</StatCard>
+              <StatCard label="Unclaimed UTRs" tone={attention(data.unclaimed_utrs)} href={canView('UTR') ? '/utr?status=UNCLAIMED' : undefined}>
                 <MoneyDisplay amountMinor={data.unclaimed_amount_minor} />
                 <p className="text-[10px] text-zinc-500">{data.unclaimed_utrs} entries</p>
               </StatCard>
-              <StatCard label="Failed" tone="danger" href={failedHref}>{data.failed_transactions}</StatCard>
+              <StatCard label="Failed" tone={problem(data.failed_transactions)} href={failedHref}>{data.failed_transactions}</StatCard>
             </div>
-          </>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="PAY-IN" tone="primary" hint={`${data.payin.count} txns`} href={payinHref(`status=COMPLETED&${range}`)}>
+          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-3 lg:grid-cols-5">
+            <StatCard label="PAY-IN" tone="success" hint={`${data.payin.count} txns`} href={payinHref(`status=COMPLETED&${range}`)}>
               <MoneyDisplay amountMinor={data.payin.amount_minor} />
             </StatCard>
             <StatCard label="PAY-OUT" tone="warning" hint={`${data.payout.count} txns`} href={payoutHref(`status=COMPLETED&${range}`)}>
@@ -540,18 +512,10 @@ export default function DashboardPage() {
             <StatCard label="HAWALA" tone="info" hint={`${data.hawala.count} transfers`} href={canView('HAWALA') ? `/hawala?${range}` : undefined}>
               <MoneyDisplay amountMinor={data.hawala.amount_minor} />
             </StatCard>
-            <StatCard
-              label="Unclaimed amount"
-              tone="warning"
-              hint={`${data.unclaimed_utrs} UTRs`}
-              href={canView('UTR') ? '/utr?status=UNCLAIMED' : undefined}
-            >
-              <MoneyDisplay amountMinor={data.unclaimed_amount_minor} />
-            </StatCard>
             {data.my_account_minor !== null ? (
               <StatCard
                 label="My Account"
-                tone="info"
+                tone={balanceTone(data.my_account_minor)}
                 hint={myAccountHint(data.my_account_kind)}
                 href={myAccountHref(data.my_account_kind, canView, data.my_account_owner_user_id)}
               >
@@ -560,69 +524,66 @@ export default function DashboardPage() {
             ) : null}
           </div>
         )}
+        </DashboardSection>
 
-        {kpiStrip}
+        {isSuperView ? null : (
+          <DashboardSection title="Needs attention">{kpiStrip}</DashboardSection>
+        )}
 
-        {performanceStatusCard}
-
-        {showExchanges ? (
-          <ChartCard
-            title="Exchange Total Pay-in"
-            subtitle={`Top ${merchantLabel({ plural: true })} by completed volume · click a bar to open its Pay-ins`}
-            loading={loading}
-            error={insightsError}
-            empty={insights.by_merchant.length === 0}
-            emptyMessage={`No completed ${merchantLabel()} volume in this range`}
-            actions={
-              <>
-                <ChartLegend items={FLOW_SERIES} />
-                <SegmentedToggle label="Exchange metric" value={exchangeMetric} options={METRIC_OPTIONS} onChange={setExchangeMetric} />
-              </>
-            }
-          >
-            <BarChart
-              ariaLabel="Exchange Total Pay-in"
-              data={exchangeData}
-              series={FLOW_SERIES}
-              formatAxis={exchangeMetric === 'amount' ? formatMoneyAxis : formatCountAxis}
-              formatValue={exchangeMetric === 'amount' ? formatMoneyValue : formatCountValue}
-              height={220}
-            />
-          </ChartCard>
-        ) : null}
-
-        {isSuperView && user.role !== 'MERCHANT' ? (
-          <ChartCard
-            title={`${bankerLabel()} Total Pay-in`}
-            subtitle={`Completed volume per ${bankerLabel()}`}
-            loading={loading}
-            empty={data.banker_wise.length === 0}
-            emptyMessage={`No ${bankerLabel()} activity in this range`}
-            actions={<ChartLegend items={FLOW_SERIES} />}
-          >
-            <BarChart
-              ariaLabel={`${bankerLabel()} Total Pay-in`}
-              data={bankerData}
-              series={FLOW_SERIES}
-              formatAxis={formatMoneyAxis}
-              formatValue={formatMoneyValue}
-              height={180}
-            />
-          </ChartCard>
-        ) : null}
-
-        {isSuperView ? (
-          <div className="grid grid-cols-2 gap-qp-gap md:grid-cols-4 lg:grid-cols-5">
-            <StatCard label="Pending approvals" tone="warning" href={payoutHref('status=INITIATE')}>{data.pending_approvals}</StatCard>
-            <StatCard label="Failed transactions" tone="danger" href={failedHref}>{data.failed_transactions}</StatCard>
-            <StatCard label="Unmatched UTRs" tone="warning" href={canView('UTR') ? '/utr?status=PENDING' : undefined}>{data.unmatched_utrs}</StatCard>
-            <StatCard label="Unclaimed UTRs" tone="warning" href={canView('UTR') ? '/utr?status=UNCLAIMED' : undefined}>
-              <MoneyDisplay amountMinor={data.unclaimed_amount_minor} />
-              <p className="text-[10px] text-zinc-500">{data.unclaimed_utrs} entries</p>
-            </StatCard>
-            <StatCard label="Operators online" tone="info" href={canView('USERS') ? '/users?role=OPERATOR' : undefined}>{data.operators_online}</StatCard>
+        <DashboardSection title="Activity">
+          {showExchanges || showBankerPerformance ? (
+            <div className={`grid grid-cols-1 items-start gap-qp-gap ${showExchanges && showBankerPerformance ? 'xl:grid-cols-2' : ''}`}>
+              {showExchanges ? (
+                <ChartCard
+                  title="Exchange Total Pay-in"
+                  subtitle={`Top ${merchantLabel({ plural: true })} by completed volume · click a bar to open its Pay-ins`}
+                  loading={loading}
+                  error={insightsError}
+                  empty={insights.by_merchant.length === 0}
+                  emptyMessage={`No completed ${merchantLabel()} volume in this range`}
+                  actions={
+                    <>
+                      <ChartLegend items={FLOW_SERIES} />
+                      <SegmentedToggle label="Exchange metric" value={exchangeMetric} options={METRIC_OPTIONS} onChange={setExchangeMetric} />
+                    </>
+                  }
+                >
+                  <BarChart
+                    ariaLabel="Exchange Total Pay-in"
+                    data={exchangeData}
+                    series={FLOW_SERIES}
+                    formatAxis={exchangeMetric === 'amount' ? formatMoneyAxis : formatCountAxis}
+                    formatValue={exchangeMetric === 'amount' ? formatMoneyValue : formatCountValue}
+                    height={220}
+                  />
+                </ChartCard>
+              ) : null}
+              {showBankerPerformance ? (
+                <ChartCard
+                  title={`${bankerLabel()} Total Pay-in`}
+                  subtitle={`Completed volume per ${bankerLabel()}`}
+                  loading={loading}
+                  empty={data.banker_wise.length === 0}
+                  emptyMessage={`No ${bankerLabel()} activity in this range`}
+                  actions={<ChartLegend items={FLOW_SERIES} />}
+                >
+                  <BarChart
+                    ariaLabel={`${bankerLabel()} Total Pay-in`}
+                    data={bankerData}
+                    series={FLOW_SERIES}
+                    formatAxis={formatMoneyAxis}
+                    formatValue={formatMoneyValue}
+                    height={220}
+                  />
+                </ChartCard>
+              ) : null}
+            </div>
+          ) : null}
+          <div className={`grid grid-cols-1 items-start gap-qp-gap ${bankerTableCard ? 'xl:grid-cols-2' : ''}`}>
+            {bankerTableCard}
+            {statusMixCard}
           </div>
-        ) : null}
+        </DashboardSection>
       </div>
     </AppShell>
   )

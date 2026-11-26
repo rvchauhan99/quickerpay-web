@@ -260,7 +260,7 @@ export default function ProfilePage() {
         <FormShell>
           <FormSection
             title="Telegram"
-            description="Log in to SafePay247 Ops from Telegram. Commands work only in a private chat with the bot."
+            description="Log in to SAFEPAY247 Ops from Telegram. Commands work only in a private chat with the bot."
           >
             <div className="p-qp-card">
               {telegramError ? <ErrorAlert message={telegramError} /> : null}
@@ -275,7 +275,7 @@ export default function ProfilePage() {
                 <div className="mt-qp-gap">
                   <p className="text-sm text-[var(--qp-text-primary)] mb-qp-gap">Telegram is <strong>not linked</strong>.</p>
                   <p className="text-sm text-[var(--qp-text-primary)]">
-                    Open SafePay247 Ops in a private chat and send <span className="font-mono">/login</span> with
+                    Open SAFEPAY247 Ops in a private chat and send <span className="font-mono">/login</span> with
                     your CRM username and password. The bot session lasts 1 hour. CRM login is unchanged.
                   </p>
                 </div>
