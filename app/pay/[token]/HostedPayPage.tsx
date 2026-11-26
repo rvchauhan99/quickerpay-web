@@ -341,11 +341,23 @@ export function HostedPayPage({ token }: { token: string }) {
 
   const changeQr = async () => {
     setChangingQr(true)
-    await submit(
-      () => postJson(`/api/v1/gateway/pay/${encodeURIComponent(token)}/change-qr`, {}),
-      'No other QR is available right now. Retry shortly or keep the current QR.',
-    )
-    setChangingQr(false)
+    setSubmitError(null)
+    try {
+      const result = await postJson(`/api/v1/gateway/pay/${encodeURIComponent(token)}/change-qr`, {})
+      if (!result.view) {
+        setSubmitError(
+          result.message ?? 'No other QR is available right now. Retry shortly or keep the current QR.',
+        )
+        // Refresh remaining so the button hides after a 409 max-twice.
+        await load()
+        return
+      }
+      setView(result.view)
+    } catch {
+      setSubmitError('Network error. Try again.')
+    } finally {
+      setChangingQr(false)
+    }
   }
 
   const hasUpiAvailable = availableMethods.some((item) => item.payment_method === 'UPI')
@@ -643,15 +655,21 @@ export function HostedPayPage({ token }: { token: string }) {
                           </span>
                           <CopyButton value={view.upi} label="Copy UPI ID" />
                         </div>
-                        <button
-                          type="button"
-                          disabled={submitting || changingQr || Boolean(loadingMethod)}
-                          onClick={() => void changeQr()}
-                          className="mt-0.5 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-2xs transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <RefreshCw className={`h-4 w-4 shrink-0 ${changingQr ? 'animate-spin' : ''}`} aria-hidden />
-                          {changingQr ? 'Finding another QR…' : 'Change QR'}
-                        </button>
+                        {(view.qr_changes_remaining ?? 0) > 0 ? (
+                          <button
+                            type="button"
+                            disabled={submitting || changingQr || Boolean(loadingMethod)}
+                            onClick={() => void changeQr()}
+                            className="mt-0.5 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-2xs transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <RefreshCw className={`h-4 w-4 shrink-0 ${changingQr ? 'animate-spin' : ''}`} aria-hidden />
+                            {changingQr
+                              ? 'Finding another QR…'
+                              : view.qr_changes_remaining === 1
+                                ? 'Change QR (1 left)'
+                                : 'Change QR'}
+                          </button>
+                        ) : null}
                       </div>
 
                       {upiIntent ? (

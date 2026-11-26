@@ -1,6 +1,8 @@
 /**
  * Reports JSON envelope, docs/03_MODULES_AND_SCREENS.md section 4.17.
- * Money in JSON is integer paise named `_minor`. Excel formats once at the file boundary.
+ * Money in JSON is integer paise named `_minor`. At the Excel/CSV file boundary,
+ * money columns are plain two-decimal rupees (no ₹, no grouping) so spreadsheets
+ * can SUM; xlsx column headers are bold Title Case labels.
  */
 
 export const REPORT_TYPES = [

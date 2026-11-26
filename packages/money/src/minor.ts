@@ -55,6 +55,25 @@ export function fromMinor(minor: bigint): string {
   return `₹${negative ? '-' : ''}${grouped}`
 }
 
+/**
+ * Exact two-decimal rupees for Excel/CSV export — no `₹`, no grouping commas.
+ * `10050` → `"100.50"`. Accounting tools can SUM these cells.
+ * UI screens keep using `fromMinor`.
+ */
+export function fromMinorPlain(minor: bigint): string {
+  const negative = minor < 0n
+  const abs = negative ? -minor : minor
+  const rupees = abs / MINOR_PER_MAJOR
+  const paise = abs % MINOR_PER_MAJOR
+  const plain = `${rupees.toString()}.${paise.toString().padStart(2, '0')}`
+  return negative ? `-${plain}` : plain
+}
+
+/** Exact major units as a JS number for Excel numeric cells (paise ÷ 100). */
+export function majorFromMinor(minor: bigint): number {
+  return Number(minor) / Number(MINOR_PER_MAJOR)
+}
+
 /** Whole rupees; leftover paise are dropped. Used only for UTR/pay-in match. */
 export function rupeeUnits(amountMinor: bigint): bigint {
   if (amountMinor < 0n) return -((-amountMinor) / MINOR_PER_MAJOR)
