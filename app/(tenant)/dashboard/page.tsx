@@ -295,46 +295,70 @@ export default function DashboardPage() {
     </div>
   )
 
-  const bankerPerformance = isSuperView && user.role !== 'MERCHANT' ? (
-    <section aria-label={`${bankerLabel()}-wise performance`}>
-      <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>{bankerLabel()}-wise performance</p>
-      <DataTable
-        columns={[
-          { key: 'admin', heading: bankerLabel() },
-          { key: 'payin', heading: 'Pay-In', align: 'right' },
-          { key: 'payout', heading: 'Pay-Out', align: 'right' },
-          { key: 'commission', heading: 'Commission', align: 'right' },
-          { key: 'margin', heading: 'Margin', align: 'right' },
-        ]}
-        rows={data.banker_wise.map((row) => ({
-          admin: row.banker_username,
-          payin: <MoneyDisplay amountMinor={row.payin_minor} />,
-          payout: <MoneyDisplay amountMinor={row.payout_minor} />,
-          commission: <MoneyDisplay amountMinor={row.commission_minor} />,
-          margin: <MoneyDisplay amountMinor={row.margin_minor} />,
-        }))}
-        empty={<EmptyState message={`No ${bankerLabel()} activity in this range`} />}
-      />
-    </section>
-  ) : null
+  const showBankerPerformance = isSuperView && user.role !== 'MERCHANT'
 
-  const statusCard = (
-    <ChartCard title="Status mix" subtitle="All rows created in range" loading={loading} error={insightsError}>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <StatusMix
-          title="Pay-in"
-          slices={insights.payin_status}
-          hrefFor={(status) =>
-            status === 'EXPIRED'
-              ? payinHref(`status=REJECTED&review_reason=EXPIRED&${range}`)
-              : payinHref(`status=${status}&${range}`)
-          }
-        />
-        <StatusMix
-          title="Pay-out"
-          slices={insights.payout_status}
-          hrefFor={(status) => payoutHref(`status=${status}&${range}`)}
-        />
+  /** One card: Banker-wise (left) + Status mix (right) — shared height, no stacked vertical band. */
+  const performanceStatusCard = (
+    <ChartCard
+      title={showBankerPerformance ? `${bankerLabel()}-wise & status mix` : 'Status mix'}
+      subtitle="All rows created in range"
+      loading={loading}
+      error={insightsError}
+    >
+      <div
+        className={
+          showBankerPerformance
+            ? 'grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start lg:gap-4'
+            : undefined
+        }
+      >
+        {showBankerPerformance ? (
+          <section className="min-w-0" aria-label={`${bankerLabel()}-wise performance`}>
+            <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>
+              {bankerLabel()}-wise performance
+            </p>
+            <DataTable
+              columns={[
+                { key: 'admin', heading: bankerLabel() },
+                { key: 'payin', heading: 'Pay-In', align: 'right' },
+                { key: 'payout', heading: 'Pay-Out', align: 'right' },
+                { key: 'commission', heading: 'Commission', align: 'right' },
+                { key: 'margin', heading: 'Margin', align: 'right' },
+              ]}
+              rows={data.banker_wise.map((row) => ({
+                admin: row.banker_username,
+                payin: <MoneyDisplay amountMinor={row.payin_minor} />,
+                payout: <MoneyDisplay amountMinor={row.payout_minor} />,
+                commission: <MoneyDisplay amountMinor={row.commission_minor} />,
+                margin: <MoneyDisplay amountMinor={row.margin_minor} />,
+              }))}
+              empty={<EmptyState message={`No ${bankerLabel()} activity in this range`} />}
+            />
+          </section>
+        ) : null}
+        <section className="min-w-0" aria-label="Status mix">
+          {showBankerPerformance ? (
+            <p className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>
+              Status mix
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <StatusMix
+              title="Pay-in"
+              slices={insights.payin_status}
+              hrefFor={(status) =>
+                status === 'EXPIRED'
+                  ? payinHref(`status=REJECTED&review_reason=EXPIRED&${range}`)
+                  : payinHref(`status=${status}&${range}`)
+              }
+            />
+            <StatusMix
+              title="Pay-out"
+              slices={insights.payout_status}
+              hrefFor={(status) => payoutHref(`status=${status}&${range}`)}
+            />
+          </div>
+        </section>
       </div>
     </ChartCard>
   )
@@ -539,9 +563,7 @@ export default function DashboardPage() {
 
         {kpiStrip}
 
-        {bankerPerformance}
-
-        {statusCard}
+        {performanceStatusCard}
 
         {showExchanges ? (
           <ChartCard
