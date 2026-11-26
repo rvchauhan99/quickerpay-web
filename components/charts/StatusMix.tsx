@@ -19,7 +19,7 @@ export function statusColor(status: string): string {
   return STATUS_COLOR[status] ?? 'var(--qp-border-dark)'
 }
 
-/** 100% stacked bar plus a legend table; each row drills into the list filtered by that status. */
+/** Compact 100% stacked bar plus a legend table; each row drills into the list filtered by that status. */
 export function StatusMix({
   title,
   slices,
@@ -32,12 +32,12 @@ export function StatusMix({
   const total = slices.reduce((sum, slice) => sum + slice.count, 0)
   return (
     <div className="min-w-0">
-      <div className="mb-1 flex items-baseline justify-between">
+      <div className="mb-0.5 flex items-baseline justify-between gap-2">
         <p className="text-[11px] font-semibold" style={{ color: 'var(--qp-text-secondary)' }}>{title}</p>
-        <p className="text-[10.5px] qp-tabular" style={{ color: 'var(--qp-text-muted)' }}>{total} txns</p>
+        <p className="text-[10px] qp-tabular" style={{ color: 'var(--qp-text-muted)' }}>{total} txns</p>
       </div>
       <div
-        className="flex h-2.5 w-full overflow-hidden rounded-full"
+        className="flex h-2 w-full overflow-hidden rounded-full"
         style={{ backgroundColor: 'var(--qp-surface)' }}
         role="img"
         aria-label={`${title}: ${slices.map((slice) => `${slice.status} ${slice.count}`).join(', ') || 'no rows'}`}
@@ -50,17 +50,17 @@ export function StatusMix({
           />
         ))}
       </div>
-      <ul className="mt-1.5 space-y-px">
+      <ul className="mt-1 space-y-0">
         {slices.length === 0 ? (
-          <li className="text-[11px]" style={{ color: 'var(--qp-text-muted)' }}>No rows in this range</li>
+          <li className="text-[10.5px]" style={{ color: 'var(--qp-text-muted)' }}>No rows in this range</li>
         ) : null}
         {slices.map((slice) => {
           const href = hrefFor?.(slice.status)
           const pctTenths = total > 0 ? Math.round((slice.count * 1000) / total) : 0
           const row = (
             <>
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: statusColor(slice.status) }} aria-hidden="true" />
+              <span className="flex min-w-0 items-center gap-1">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: statusColor(slice.status) }} aria-hidden="true" />
                 <span className="truncate">{slice.status}</span>
               </span>
               <span className="text-right qp-tabular" style={{ color: 'var(--qp-text-muted)' }}>{formatTenths(pctTenths)}%</span>
@@ -68,7 +68,7 @@ export function StatusMix({
               <span className="text-right qp-tabular"><MoneyDisplay amountMinor={slice.amount_minor} /></span>
             </>
           )
-          const cls = 'grid grid-cols-[minmax(0,1fr)_44px_44px_minmax(0,1.2fr)] items-center gap-2 rounded px-1 py-0.5 text-[11px]'
+          const cls = 'grid grid-cols-[minmax(0,1fr)_40px_36px_minmax(0,1.1fr)] items-center gap-1.5 rounded px-0.5 py-0 text-[10.5px] leading-tight'
           return (
             <li key={slice.status}>
               {href ? (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromMinor, rupeeUnits, toMinor } from './minor'
+import { fromMinor, fromMinorPlain, majorFromMinor, rupeeUnits, toMinor } from './minor'
 import { applyRateBp, bpToPercent, percentToBp, splitCommission } from './rates'
 import { roundHalfUp } from './rounding'
 import { MoneyError } from './errors'
@@ -63,6 +63,23 @@ describe('fromMinor', () => {
     // 10_050 display → ₹101 (HALF_UP), not a lossless round-trip
     expect(fromMinor(10_050n)).toBe('₹101')
     expect(toMinor(fromMinor(10_050n))).toBe(10_100n)
+  })
+})
+
+describe('fromMinorPlain', () => {
+  it('writes exact two-decimal rupees without symbol or commas', () => {
+    expect(fromMinorPlain(10_050n)).toBe('100.50')
+    expect(fromMinorPlain(10_000_000n)).toBe('100000.00')
+    expect(fromMinorPlain(1n)).toBe('0.01')
+    expect(fromMinorPlain(0n)).toBe('0.00')
+    expect(fromMinorPlain(-2_150n)).toBe('-21.50')
+  })
+})
+
+describe('majorFromMinor', () => {
+  it('divides paise by 100 for Excel numeric cells', () => {
+    expect(majorFromMinor(10_050n)).toBe(100.5)
+    expect(majorFromMinor(-2_150n)).toBe(-21.5)
   })
 })
 

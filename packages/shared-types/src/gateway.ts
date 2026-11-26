@@ -140,6 +140,11 @@ export interface GatewayPayPageView {
    * (`PENDING_METHOD`, or INITIATE / OPEN hold before UTR / proof).
    */
   available_methods?: GatewayPaymentMethodItem[]
+  /**
+   * Hosted Change QR remaining slots (0–2). Initial UPI assign does not consume a slot.
+   * 0 when not UPI, after submit, or after two successful rotates.
+   */
+  qr_changes_remaining?: number
 }
 
 export type GatewayPayoutPageStatus = 'AWAITING_CONFIRM' | 'LOCKED' | 'CONFIRMED' | 'EXPIRED'
