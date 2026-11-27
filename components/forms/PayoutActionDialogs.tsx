@@ -1,24 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { BankAccountListItem, PayoutListItem } from '@quickerpay/shared-types'
+import type { PayoutListItem } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { DocumentUpload } from '@/components/forms/DocumentUpload'
 import { FormField } from '@/components/forms/FormField'
 import { Input } from '@/components/forms/Input'
 import { PayoutUpiQr } from '@/components/forms/PayoutUpiQr'
 import { PayoutWithdrawSummary } from '@/components/forms/PayoutWithdrawSummary'
-import { Select } from '@/components/forms/Select'
 import { Modal } from '@/components/ui/Modal'
 import { apiRequest, ApiClientError } from '@/lib/api'
 
 /* ─── PayoutActionDialogs ────────────────────────────────────────────────────
    Shared Accept / Reject modals for list and detail screens.
+   Accept settles against the assigned Banker — no source-bank picker.
 ──────────────────────────────────────────────────────────────────────────── */
 export function PayoutActionDialogs({
   acceptFor,
   rejectFor,
-  banks,
   accessToken,
   onCloseAccept,
   onCloseReject,
@@ -27,7 +26,6 @@ export function PayoutActionDialogs({
 }: {
   acceptFor: PayoutListItem | null
   rejectFor: PayoutListItem | null
-  banks: BankAccountListItem[]
   accessToken: string
   onCloseAccept: () => void
   onCloseReject: () => void
@@ -38,12 +36,10 @@ export function PayoutActionDialogs({
   const [rejectReason, setRejectReason] = useState('')
   const [rejectFile, setRejectFile] = useState<File | null>(null)
   const [utr, setUtr] = useState('')
-  const [acceptBankId, setAcceptBankId] = useState('')
   const [acceptFile, setAcceptFile] = useState<File | null>(null)
 
   useEffect(() => {
     if (!acceptFor) return
-    setAcceptBankId(acceptFor.source_bank_account_id ?? '')
     setUtr('')
     setAcceptFile(null)
     setSubmitting(false)
@@ -93,10 +89,6 @@ export function PayoutActionDialogs({
 
   const handleAccept = async () => {
     if (!acceptFor || !accessToken || submitting) return
-    if (!acceptBankId) {
-      toast.error('Select a source bank account')
-      return
-    }
     if (utr.trim().length < 6) {
       toast.error('UTR must be at least 6 characters')
       return
@@ -108,7 +100,6 @@ export function PayoutActionDialogs({
       if (acceptFile) {
         const form = new FormData()
         form.append('utr', utr.trim())
-        form.append('source_bank_account_id', acceptBankId)
         form.append('attachment', acceptFile)
         await apiRequest(`/api/v1/payout/${acceptFor.id}/success`, {
           method: 'POST',
@@ -120,10 +111,7 @@ export function PayoutActionDialogs({
         await apiRequest(`/api/v1/payout/${acceptFor.id}/success`, {
           method: 'POST',
           token: accessToken,
-          body: {
-            utr: utr.trim(),
-            source_bank_account_id: acceptBankId,
-          },
+          body: { utr: utr.trim() },
           headers: { 'Idempotency-Key': successIdempotencyKey },
         })
       }
@@ -227,23 +215,6 @@ export function PayoutActionDialogs({
             {acceptFor.beneficiary_upi?.trim() ? <PayoutUpiQr row={acceptFor} className="mb-0" /> : null}
           </div>
           <div className="flex flex-col gap-3">
-            <FormField label="Source bank" required>
-              <Select
-                id="payout-accept-bank"
-                value={acceptBankId}
-                onChange={(event) => setAcceptBankId(event.target.value)}
-                aria-label="Source bank account"
-              >
-                <option value="">Select bank</option>
-                {banks
-                  .filter((bank) => bank.status === 'ACTIVE')
-                  .map((bank) => (
-                    <option key={bank.id} value={bank.id}>
-                      {bank.label} ({bank.account_number_masked ?? '—'})
-                    </option>
-                  ))}
-              </Select>
-            </FormField>
             <FormField label="UTR" required>
               <Input
                 id="payout-utr"

@@ -2,11 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import type {
-  BankAccountListItem,
-  PayoutAttachmentView,
-  PayoutListItem,
-} from '@quickerpay/shared-types'
+import type { PayoutAttachmentView, PayoutListItem } from '@quickerpay/shared-types'
 import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { DangerButton, ErrorAlert, OutlineButton, PageHeader, PrimaryButton } from '@/components/ui/PageHeader'
@@ -26,7 +22,7 @@ import {
   payoutBeneficiaryUpi,
   payoutIsUpiPayee,
 } from '@/components/forms/PayoutBankDetailsCell'
-import { apiListRequest, apiRequest, ApiClientError } from '@/lib/api'
+import { apiRequest, ApiClientError } from '@/lib/api'
 import { formatDateTimeIst } from '@/lib/datetime'
 import { bankerLabel, merchantLabel } from '@/lib/labels'
 import { canSeeMerchants, canSeeOwnPanelUsernames } from '@/lib/merchant-visibility'
@@ -60,7 +56,6 @@ export default function PayoutDetailPage() {
   const { ready, user, menus, accessToken, allowed, Forbidden } = useTenantScreen('PAYOUT')
   const [row, setRow] = useState<PayoutListItem | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [banks, setBanks] = useState<BankAccountListItem[]>([])
   const [acceptFor, setAcceptFor] = useState<PayoutListItem | null>(null)
   const [rejectFor, setRejectFor] = useState<PayoutListItem | null>(null)
   const [reassignOpen, setReassignOpen] = useState(false)
@@ -79,16 +74,6 @@ export default function PayoutDetailPage() {
   useEffect(() => {
     if (ready && allowed) void load()
   }, [ready, allowed, load])
-
-  useEffect(() => {
-    if (!accessToken || !allowed) return
-    if (!hasMenu(menus, 'PAYOUT', 'can_edit')) return
-    void apiListRequest<BankAccountListItem>('/api/v1/bank-accounts?page_size=100', { token: accessToken })
-      .then((result) => setBanks(result.items.filter((bank) => bank.status === 'ACTIVE')))
-      .catch(() => {
-        /* banks only needed for Accept */
-      })
-  }, [accessToken, allowed, menus])
 
   const handleViewAttachment = async () => {
     if (!accessToken || !params.id || !row?.has_attachment) return
@@ -279,7 +264,6 @@ export default function PayoutDetailPage() {
           <PayoutActionDialogs
             acceptFor={acceptFor}
             rejectFor={rejectFor}
-            banks={banks}
             accessToken={accessToken}
             onCloseAccept={() => setAcceptFor(null)}
             onCloseReject={() => setRejectFor(null)}
