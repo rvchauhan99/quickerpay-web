@@ -749,7 +749,6 @@ export default function PayoutPage() {
           <PayoutActionDialogs
             acceptFor={successFor}
             rejectFor={rejectFor}
-            banks={banks}
             accessToken={accessToken}
             onCloseAccept={() => setSuccessFor(null)}
             onCloseReject={() => setRejectFor(null)}
